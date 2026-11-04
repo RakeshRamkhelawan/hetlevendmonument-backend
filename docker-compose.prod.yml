@@ -1,0 +1,299 @@
+# SanskritiSetu Docker Compose - Production Override
+# Use: docker compose -f docker-compose.yml -f docker-compose.prod.yml up
+
+services:
+  # ============================================================================
+  # == Edge Gateway: production overrides
+  # ============================================================================
+  traefik:
+    command:
+      - "--configFile=/traefik.yml"
+      - "--certificatesresolvers.letsencrypt.acme.email=${LETSENCRYPT_EMAIL:-admin@sanskritisetu.org}"
+      - "--api.insecure=false"
+      # HTTP->HTTPS permanent redirect -- alleen in productie actief
+      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
+      - "--entrypoints.web.http.redirections.entryPoint.permanent=true"
+    restart: always
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production-api
+    image: sanskritisetu-backend:latest
+    container_name: sanskritisetu_backend
+    ports:
+      - "127.0.0.1:8110:8000"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_URL_MIGRATIONS=${DATABASE_URL_MIGRATIONS:-}
+      - REDIS_URL=${REDIS_URL:?REDIS_URL is verplicht in productie (incl. credential, Redis vereist requirepass)}
+      - DRAMATIQ_BROKER_URL=${DRAMATIQ_BROKER_URL:?DRAMATIQ_BROKER_URL is verplicht in productie (incl. credential)}
+      - ENVIRONMENT=production
+      # ADR-036 OP-27: pseudonimiseringssleutel voor tool-payloads. Verplicht bij het
+      # opstarten (config_validator) EN bij elke tool-aanroep; de workers voeren tools
+      # IN-PROCESS uit via BaseAgent._create_tool_broker, dus zij hebben hem ook nodig.
+      - TOOL_PAYLOAD_PSEUDONYM_KEY=${TOOL_PAYLOAD_PSEUDONYM_KEY:?TOOL_PAYLOAD_PSEUDONYM_KEY is verplicht in productie (min. 32 tekens, genereer met secrets.token_urlsafe(32))}
+      - AUDIT_CHAIN_HMAC_KEY=${AUDIT_CHAIN_HMAC_KEY:-}
+      # Versleutelt KLANT-API-sleutels met een afgeleide sleutel per tenant. Staat bij
+      # ALLE VIER de diensten die applicatiecode draaien: een werker die de keten van een
+      # tenant niet kan ontsleutelen, faalt anders pas in productie en alleen daar.
+      # Bewust `:?` en geen `:-`: zonder deze sleutel zijn opgeslagen klantsleutels
+      # onleesbaar na een herstart, en stil gegevensverlies is erger dan een uitrol die
+      # weigert te starten.
+      - MASTER_ENCRYPTION_KEY=${MASTER_ENCRYPTION_KEY:?MASTER_ENCRYPTION_KEY is verplicht in productie (genereer met secrets.token_urlsafe(32))}
+      - LOG_LEVEL=INFO
+      - API_PORT=8000
+      - DEBUG=false
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-https://sanskritisetu.org}
+      # De links in uitnodigingen en wachtwoordherstel. Zonder deze weigert de API te starten (src/core/config/frontend_url.py).
+      - FRONTEND_URL=${FRONTEND_URL:?FRONTEND_URL is verplicht in productie (https-adres van de frontend, voor de links in mails)}
+      - DEFAULT_ADMIN_PASSWORD=${DEFAULT_ADMIN_PASSWORD}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
+      - LLM_PROVIDER=${LLM_PROVIDER:?LLM_PROVIDER verplicht in productie}
+      - DEFAULT_LLM_MODEL=${DEFAULT_LLM_MODEL:?DEFAULT_LLM_MODEL verplicht in productie}
+      - LLM_MODEL=${DEFAULT_LLM_MODEL:?DEFAULT_LLM_MODEL verplicht in productie}
+      # Mistral (EU) is het taalmodel voor klantgegevens (ADR-041 B14, besluit Rakesh 2026-10-15);
+      # DeepSeek is eruit. Bewust `:?`: zonder sleutel draait de stack niet op een stille mock.
+      - MISTRAL_API_KEY=${MISTRAL_API_KEY:?MISTRAL_API_KEY verplicht in productie}
+      # Was `gemini` tot 2026-09-20. Besluit Rakesh: geen Google Gemini meer. Ollama is
+      # de bodem van de keten en draait altijd mee, dus dat is de enige terugval die
+      # altijd bereikbaar is. Naam geverifieerd in provider_factory.py regel 88.
+      - LLM_FALLBACK_PROVIDER=${LLM_FALLBACK_PROVIDER:-ollama}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+
+  # ActivePieces productie-URLs -- publiek domein via Traefik /automation/ pad
+  activepieces:
+    environment:
+      - AP_FRONTEND_URL=${AP_FRONTEND_URL:-https://sanskritisetu.org/automation}
+      - AP_API_URL=${AP_API_URL:-https://sanskritisetu.org/automation/api}
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: production
+      args:
+        VITE_ENVIRONMENT: production
+        VITE_API_URL: https://api.sanskritisetu.org
+        VITE_AUTH_URL: https://api.sanskritisetu.org
+    image: sanskritisetu-frontend:latest
+    container_name: sanskritisetu_frontend
+    # Frontend is bereikbaar via Traefik op PathPrefix('/') -- catch-all na /api/ en /automation/
+    # Geen directe port-binding -- Traefik verzorgt het verkeer
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.frontend.entrypoints=web,websecure"
+      - "traefik.http.routers.frontend.tls=true"
+      - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.frontend.service=frontend-svc"
+      - "traefik.http.services.frontend-svc.loadbalancer.server.port=80"
+      - "traefik.http.routers.frontend.middlewares=security-headers"
+    depends_on:
+      - backend
+      - sync-server
+    restart: always
+
+  portal:
+    build:
+      context: ./portal
+      dockerfile: Dockerfile
+      target: production
+      args:
+        VITE_ENVIRONMENT: production
+        VITE_API_URL: /api/v1
+    image: sanskritisetu-portal:latest
+    container_name: sanskritisetu_portal
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.portal.rule=Host(`levendmonument.nl`) || Host(`www.levendmonument.nl`) || Host(`levend-monument.nl`) || Host(`www.levend-monument.nl`) || Host(`portal.sanskritisetu.org`) || HostRegexp(`^[a-z0-9-]+\\.levendmonument\\.nl$$`) || HostRegexp(`^[a-z0-9-]+\\.levend-monument\\.nl$$`)"
+      - "traefik.http.routers.portal.priority=10"
+      - "traefik.http.routers.portal.entrypoints=web,websecure"
+      - "traefik.http.routers.portal.tls=true"
+      - "traefik.http.routers.portal.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.portal.service=portal-svc"
+      - "traefik.http.services.portal-svc.loadbalancer.server.port=5174"
+      - "traefik.http.routers.portal.middlewares=security-headers"
+    depends_on:
+      - backend
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
+
+
+  sync-server:
+    build:
+      context: ./services/sync-server
+      dockerfile: Dockerfile
+    image: sanskritisetu-sync-server:latest
+    container_name: sanskritisetu_sync_server
+    environment:
+      - PORT=1234
+      - BACKEND_URL=http://backend:8000
+      - NODE_ENV=production
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "nc -z 127.0.0.1 1234 || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: always
+
+  learning-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production-worker
+    image: sanskritisetu-learning-worker:latest
+    container_name: sanskritisetu_learning_worker
+    command: [ "dramatiq", "src.core.learning.worker:_broker", "--processes", "4", "--threads", "2" ]
+    environment:
+      - DATABASE_URL=${DATABASE_URL:?DATABASE_URL is verplicht in productie}
+      - REDIS_URL=${REDIS_URL:?REDIS_URL is verplicht in productie (incl. credential, Redis vereist requirepass)}
+      - DRAMATIQ_BROKER_URL=${DRAMATIQ_BROKER_URL:?DRAMATIQ_BROKER_URL is verplicht in productie (incl. credential)}
+      - ENVIRONMENT=production
+      # ADR-036 OP-27: pseudonimiseringssleutel voor tool-payloads. Verplicht bij het
+      # opstarten (config_validator) EN bij elke tool-aanroep; de workers voeren tools
+      # IN-PROCESS uit via BaseAgent._create_tool_broker, dus zij hebben hem ook nodig.
+      - TOOL_PAYLOAD_PSEUDONYM_KEY=${TOOL_PAYLOAD_PSEUDONYM_KEY:?TOOL_PAYLOAD_PSEUDONYM_KEY is verplicht in productie (min. 32 tekens, genereer met secrets.token_urlsafe(32))}
+      - AUDIT_CHAIN_HMAC_KEY=${AUDIT_CHAIN_HMAC_KEY:-}
+      # Versleutelt KLANT-API-sleutels met een afgeleide sleutel per tenant. Staat bij
+      # ALLE VIER de diensten die applicatiecode draaien: een werker die de keten van een
+      # tenant niet kan ontsleutelen, faalt anders pas in productie en alleen daar.
+      # Bewust `:?` en geen `:-`: zonder deze sleutel zijn opgeslagen klantsleutels
+      # onleesbaar na een herstart, en stil gegevensverlies is erger dan een uitrol die
+      # weigert te starten.
+      - MASTER_ENCRYPTION_KEY=${MASTER_ENCRYPTION_KEY:?MASTER_ENCRYPTION_KEY is verplicht in productie (genereer met secrets.token_urlsafe(32))}
+      - LOG_LEVEL=INFO
+      - LLM_PROVIDER=${LLM_PROVIDER:?LLM_PROVIDER verplicht in productie}
+      - DEFAULT_LLM_MODEL=${DEFAULT_LLM_MODEL:?DEFAULT_LLM_MODEL verplicht in productie}
+      - LLM_MODEL=${DEFAULT_LLM_MODEL:?DEFAULT_LLM_MODEL verplicht in productie}
+      # Mistral (EU) is het taalmodel voor klantgegevens (ADR-041 B14, besluit Rakesh 2026-10-15);
+      # DeepSeek is eruit. Bewust `:?`: zonder sleutel draait de stack niet op een stille mock.
+      - MISTRAL_API_KEY=${MISTRAL_API_KEY:?MISTRAL_API_KEY verplicht in productie}
+      # Was `gemini` tot 2026-09-20. Besluit Rakesh: geen Google Gemini meer. Ollama is
+      # de bodem van de keten en draait altijd mee, dus dat is de enige terugval die
+      # altijd bereikbaar is. Naam geverifieerd in provider_factory.py regel 88.
+      - LLM_FALLBACK_PROVIDER=${LLM_FALLBACK_PROVIDER:-ollama}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "pgrep -f dramatiq || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+
+  # Geplande taken (retentie, opruiming) -- ADR-036 OP-64.
+  # Zonder dit proces draait geen enkele opruimactor uit `governance/retention_cleanup.py`, en is
+  # elke bewaartermijn daar een belofte die niemand nakomt. Bewust EEN replica.
+  scheduler:
+    image: sanskritisetu-workflow-worker:latest
+    container_name: sanskritisetu_scheduler
+    entrypoint: ["python", "-m", "src.workers.scheduler"]
+    environment:
+      - DATABASE_URL=${DATABASE_URL:?DATABASE_URL is verplicht in productie}
+      - REDIS_URL=${REDIS_URL:?REDIS_URL is verplicht in productie (incl. credential, Redis vereist requirepass)}
+      - ENVIRONMENT=production
+      - TOOL_PAYLOAD_PSEUDONYM_KEY=${TOOL_PAYLOAD_PSEUDONYM_KEY:?TOOL_PAYLOAD_PSEUDONYM_KEY is verplicht in productie (min. 32 tekens, genereer met secrets.token_urlsafe(32))}
+      - AUDIT_CHAIN_HMAC_KEY=${AUDIT_CHAIN_HMAC_KEY:-}
+      # Versleutelt KLANT-API-sleutels met een afgeleide sleutel per tenant. Staat bij
+      # ALLE VIER de diensten die applicatiecode draaien: een werker die de keten van een
+      # tenant niet kan ontsleutelen, faalt anders pas in productie en alleen daar.
+      # Bewust `:?` en geen `:-`: zonder deze sleutel zijn opgeslagen klantsleutels
+      # onleesbaar na een herstart, en stil gegevensverlies is erger dan een uitrol die
+      # weigert te starten.
+      - MASTER_ENCRYPTION_KEY=${MASTER_ENCRYPTION_KEY:?MASTER_ENCRYPTION_KEY is verplicht in productie (genereer met secrets.token_urlsafe(32))}
+      - LOG_LEVEL=INFO
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  workflow-worker:
+    image: sanskritisetu-workflow-worker:latest
+    container_name: sanskritisetu_workflow_worker
+    environment:
+      # Een workflowstap vraagt het taalmodel van de klant (Mistral, EU) en de werker draait die stap.
+      - LLM_PROVIDER=${LLM_PROVIDER:?LLM_PROVIDER verplicht in productie}
+      - DEFAULT_LLM_MODEL=${DEFAULT_LLM_MODEL:?DEFAULT_LLM_MODEL verplicht in productie}
+      - LLM_MODEL=${DEFAULT_LLM_MODEL:?DEFAULT_LLM_MODEL verplicht in productie}
+      - MISTRAL_API_KEY=${MISTRAL_API_KEY:?MISTRAL_API_KEY verplicht in productie}
+      - DATABASE_URL=${DATABASE_URL:?DATABASE_URL is verplicht in productie}
+      - REDIS_URL=${REDIS_URL:?REDIS_URL is verplicht in productie (incl. credential, Redis vereist requirepass)}
+      - ENVIRONMENT=production
+      # ADR-036 OP-27: pseudonimiseringssleutel voor tool-payloads. Verplicht bij het
+      # opstarten (config_validator) EN bij elke tool-aanroep; de workers voeren tools
+      # IN-PROCESS uit via BaseAgent._create_tool_broker, dus zij hebben hem ook nodig.
+      - TOOL_PAYLOAD_PSEUDONYM_KEY=${TOOL_PAYLOAD_PSEUDONYM_KEY:?TOOL_PAYLOAD_PSEUDONYM_KEY is verplicht in productie (min. 32 tekens, genereer met secrets.token_urlsafe(32))}
+      - AUDIT_CHAIN_HMAC_KEY=${AUDIT_CHAIN_HMAC_KEY:-}
+      # Versleutelt KLANT-API-sleutels met een afgeleide sleutel per tenant. Staat bij
+      # ALLE VIER de diensten die applicatiecode draaien: een werker die de keten van een
+      # tenant niet kan ontsleutelen, faalt anders pas in productie en alleen daar.
+      # Bewust `:?` en geen `:-`: zonder deze sleutel zijn opgeslagen klantsleutels
+      # onleesbaar na een herstart, en stil gegevensverlies is erger dan een uitrol die
+      # weigert te starten.
+      - MASTER_ENCRYPTION_KEY=${MASTER_ENCRYPTION_KEY:?MASTER_ENCRYPTION_KEY is verplicht in productie (genereer met secrets.token_urlsafe(32))}
+      - LOG_LEVEL=INFO
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M

@@ -1,0 +1,20 @@
+agent_id: "mkb.ecommerce_retail.shopifysync.001"
+name: "ShopifySyncAgent"
+department: "ecommerce_retail"
+technology: "LLM"
+module_path: "src.core.als.agents.mkb.ecommerce_retail"
+class_name: "ShopifySyncAgent"
+description: "Syncs inventory and orders between Shopify and ERP."
+is_active: true
+priority: "MEDIUM"
+version: "1.0.0"
+allowed_tools: ["shopify_api", "inventory_db"]
+ooda_profile:
+  observe:
+    data_sources: ["mkb_specific_api", "manual_uploads"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.85
+  act:
+    tools: ["shopify_api", "inventory_db"]

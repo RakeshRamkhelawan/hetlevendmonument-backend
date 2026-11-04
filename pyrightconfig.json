@@ -1,0 +1,35 @@
+{
+  "include": [
+    "src",
+    "scripts/quality_gate.py",
+    "scripts/run_test_batches.py",
+    "scripts/run_tests_parallel.py",
+    "scripts/validate_production_secrets.py",
+    "scripts/wait_for_services.py",
+    "tests/architecture"
+  ],
+  "exclude": [
+    ".agents",
+    ".claude",
+    "archive",
+    "backups",
+    "logs",
+    "src/tests",
+    "src/alembic/_archived_migrations",
+    "src/alembic/versions/archive",
+    "src/alembic/versions",
+    "src/core/agents/generated",
+    "src/core/demos",
+    "src/core/database/mixins.py",
+    "src/core/procedures/sqlmodel_models.py",
+    "**/archive/**",
+    "**/backups/**"
+  ],
+  "pythonVersion": "3.13",
+  "pythonPlatform": "Windows",
+  "extraPaths": ["src"],
+  "reportMissingImports": "warning",
+  "reportMissingTypeStubs": false,
+  "reportMissingModuleSource": "warning",
+  "baselineFile": "pyright-baseline.json"
+}

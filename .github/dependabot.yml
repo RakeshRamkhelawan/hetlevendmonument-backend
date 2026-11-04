@@ -1,0 +1,131 @@
+# Dependabot Configuration
+# Automatically checks for dependency updates
+# Docs: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates
+
+version: 2
+
+updates:
+  # Python dependencies (pip)
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Europe/Amsterdam"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "sanskritisetu/backend-leads"
+      - "sanskritisetu/security-team"
+    assignees:
+      - "sanskritisetu/backend-leads"
+    labels:
+      - "dependencies"
+      - "python"
+      - "security"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    # Security updates are handled separately and have higher priority
+    groups:
+      # Group non-breaking updates
+      minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      # Separate major updates for manual review
+      major:
+        patterns:
+          - "*"
+        update-types:
+          - "major"
+    ignore:
+      # Ignore certain dependencies if needed
+      # - dependency-name: "some-package"
+      #   versions: ["1.x"]
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Europe/Amsterdam"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "sanskritisetu/devops-team"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+
+  # Docker images
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Europe/Amsterdam"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "sanskritisetu/devops-team"
+      - "sanskritisetu/security-team"
+    labels:
+      - "dependencies"
+      - "docker"
+      - "security"
+    commit-message:
+      prefix: "docker"
+      include: "scope"
+
+  # Activepieces Docker image
+  - package-ecosystem: "docker"
+    directory: "/activepieces"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Europe/Amsterdam"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "docker"
+      - "activepieces"
+
+  # NPM dependencies (frontend)
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Europe/Amsterdam"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "sanskritisetu/frontend-leads"
+      - "sanskritisetu/security-team"
+    labels:
+      - "dependencies"
+      - "javascript"
+      - "frontend"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    groups:
+      minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      major:
+        patterns:
+          - "*"
+        update-types:
+          - "major"

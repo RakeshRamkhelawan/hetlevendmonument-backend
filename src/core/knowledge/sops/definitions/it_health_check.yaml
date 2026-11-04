@@ -1,0 +1,35 @@
+id: SOP-IT-001
+description: "Routine Server Health Check & Log Analysis"
+version: "1.0"
+variables:
+  - log_limit
+  - ops_api_base_url
+  - ops_api_token
+
+steps:
+  - tool: local__openapi_call_endpoint
+    description: "Check Docker Container Status"
+    params:
+      base_url: "{ops_api_base_url}"
+      method: "GET"
+      path: "/ops/containers/status"
+      headers:
+        Authorization: "Bearer {ops_api_token}"
+
+  - tool: local__openapi_call_endpoint
+    description: "Check System Resources (Memory)"
+    params:
+      base_url: "{ops_api_base_url}"
+      method: "GET"
+      path: "/ops/system/memory"
+      headers:
+        Authorization: "Bearer {ops_api_token}"
+
+  - tool: local__read_file
+    description: "Analyze Recent Backend Logs"
+    params:
+      path: "backend_logs_full.txt"
+      limit: "{log_limit}"
+
+  # In a real scenario, we would feed the outputs above into an LLM tool here
+  # to make a decision. For now, we just gather the intel.

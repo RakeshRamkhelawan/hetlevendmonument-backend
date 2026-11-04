@@ -1,0 +1,19 @@
+agent_id: "hr.culture.internalmobility.001"
+name: "InternalMobilityAgent"
+department: "hr_culture"
+technology: "LLM"
+module_path: "src.core.als.agents.departments.hr_culture"
+class_name: "InternalMobilityAgent"
+description: "Specialized InternalMobility agent for the hr_culture department."
+is_active: true
+priority: "MEDIUM"
+version: "2.0.0"
+ooda_profile:
+  observe:
+    data_sources: ["internal_db", "api_endpoints"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.80
+  act:
+    tools: ["standard_toolbox"]

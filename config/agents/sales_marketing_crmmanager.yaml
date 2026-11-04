@@ -1,0 +1,19 @@
+agent_id: "sales.marketing.spec.crmmanager.001"
+name: "CRMManagerAgent"
+department: "sales_marketing"
+technology: "LLM"
+module_path: "src.core.als.agents.specialists.marketing"
+class_name: "CRMManagerAgent"
+description: "Elite specialist for CRMManager and growth hacking."
+is_active: true
+priority: "MEDIUM"
+version: "1.0.0"
+ooda_profile:
+  observe:
+    data_sources: ["marketing_analytics", "social_feeds", "crm_data"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.85
+  act:
+    tools: ["ads_manager", "crm_connector", "content_scheduler", "brand_checker"]

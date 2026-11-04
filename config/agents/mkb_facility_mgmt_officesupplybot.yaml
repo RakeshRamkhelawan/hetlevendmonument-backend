@@ -1,0 +1,20 @@
+agent_id: "mkb.facility_mgmt.officesupplybot.001"
+name: "OfficeSupplyBotAgent"
+department: "facility_mgmt"
+technology: "ML"
+module_path: "src.core.als.agents.mkb.facility_mgmt"
+class_name: "OfficeSupplyBotAgent"
+description: "Predicts and orders office supplies before they run out."
+is_active: true
+priority: "MEDIUM"
+version: "1.0.0"
+allowed_tools: ["amazon_business_api", "usage_tracker"]
+ooda_profile:
+  observe:
+    data_sources: ["mkb_specific_api", "manual_uploads"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.85
+  act:
+    tools: ["amazon_business_api", "usage_tracker"]

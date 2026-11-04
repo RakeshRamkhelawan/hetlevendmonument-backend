@@ -1,0 +1,44 @@
+id: SOP-FIN-VAT
+description: "VAT Return - Aggregate tax data per country"
+version: "1.1"
+variables:
+  - vat_period
+  - reviewer_email
+  - tax_api_base_url
+  - tax_api_token
+
+steps:
+  - tool: local__postgres_query
+    description: "Fetch VAT-relevant transactions"
+    params:
+      sql: "SELECT invoice_id, country_code, net_amount, tax_amount, tax_type FROM vat_transactions WHERE period = '{vat_period}'"
+
+  - tool: local__llm_generate
+    description: "Classify transactions by country"
+    params:
+      prompt: "Categorize these transactions by country and VAT regime. Use EU VAT rules and mark anomalies. Data: {step_0_output}"
+
+  - tool: local__llm_generate
+    description: "Calculate VAT amounts"
+    params:
+      prompt: "Calculate input VAT, output VAT, and net VAT payable per country using this classification: {step_1_output}. Include reverse-charge notes."
+
+  - tool: local__openapi_call_endpoint
+    description: "Submit draft VAT return to middleware API"
+    params:
+      base_url: "{tax_api_base_url}"
+      method: "POST"
+      path: "/btw-aangifte"
+      headers:
+        Authorization: "Bearer {tax_api_token}"
+        Content-Type: "application/json"
+      body:
+        periode: "{vat_period}"
+        berekening: "{step_2_output}"
+
+  - tool: local__gmail_send_email
+    description: "Send VAT submission summary for review"
+    params:
+      to: "{reviewer_email}"
+      subject: "VAT Return {vat_period} - Draft Submitted"
+      body: "VAT analysis: {step_2_output}\n\nSubmission response: {step_3_output}"

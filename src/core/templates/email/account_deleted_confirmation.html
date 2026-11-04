@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Verwijdering Bevestigd - SanskritiSetu</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            border-radius: 8px;
+            padding: 40px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .logo {
+            font-size: 28px;
+            font-weight: bold;
+            color: #2563eb;
+            margin-bottom: 10px;
+        }
+        .title {
+            font-size: 24px;
+            color: #1f2937;
+            margin-bottom: 20px;
+        }
+        .confirmation-box {
+            background-color: #fef2f2;
+            border-left: 4px solid #dc2626;
+            padding: 16px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .deletion-details {
+            background-color: #f9fafb;
+            border: 1px solid #e5e7eb;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 6px;
+        }
+        .deletion-details h3 {
+            margin-top: 0;
+            color: #374151;
+        }
+        .data-list {
+            margin: 10px 0;
+        }
+        .data-list .deleted {
+            color: #dc2626;
+            text-decoration: line-through;
+        }
+        .data-list .retained {
+            color: #059669;
+        }
+        .grace-period {
+            background-color: #fffbeb;
+            border: 1px solid #fcd34d;
+            padding: 16px;
+            margin: 20px 0;
+            border-radius: 6px;
+        }
+        .grace-period h4 {
+            margin-top: 0;
+            color: #92400e;
+        }
+        .restore-button {
+            display: inline-block;
+            background-color: #059669;
+            color: white;
+            text-decoration: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-weight: 600;
+            margin: 10px 0;
+        }
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+            font-size: 13px;
+            color: #6b7280;
+            text-align: center;
+        }
+        .privacy-link {
+            color: #2563eb;
+            text-decoration: none;
+        }
+        .gdpr-info {
+            background-color: #eff6ff;
+            border: 1px solid #bfdbfe;
+            padding: 16px;
+            margin: 20px 0;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">SanskritiSetu</div>
+            <h1 class="title">Account Verwijdering Bevestigd</h1>
+        </div>
+
+        <p>Beste {{ user_name }},</p>
+
+        <p>We bevestigen dat je account verwijdering is verwerkt volgens je verzoek op basis van het "Recht op Vergetelheid" (GDPR Artikel 17).</p>
+
+        <div class="confirmation-box">
+            <strong>Account Status:</strong> {{ deletion_type }}<br>
+            <strong>Verwerkt op:</strong> {{ processed_at }}<br>
+            {% if grace_period_end %}
+            <strong>Herstel deadline:</strong> {{ grace_period_end }}
+            {% endif %}
+        </div>
+
+        <div class="deletion-details">
+            <h3>Wat is er gebeurd met je data?</h3>
+
+            <p><strong>Verwijderd (niet meer herstelbaar):</strong></p>
+            <ul class="data-list">
+                <li class="deleted">Profiel informatie (naam, email, etc.)</li>
+                <li class="deleted">Alle geüploade documenten</li>
+                <li class="deleted">Workflow geschiedenis en instellingen</li>
+                <li class="deleted">AI gesprekken en interacties</li>
+                <li class="deleted">Cookie voorkeuren en consent records</li>
+                <li class="deleted">Gamification data (punten, badges)</li>
+            </ul>
+
+            <p><strong>Bewaard (wettelijk verplicht):</strong></p>
+            <ul class="data-list">
+                <li class="retained">Audit logs (geanonimiseerd, voor compliance)</li>
+                <li class="retained">Geanonimiseerde statistieken</li>
+            </ul>
+        </div>
+
+        {% if deletion_type == "Soft Delete" and grace_period_end %}
+        <div class="grace-period">
+            <h4>Herstel Periode Actief</h4>
+            <p>Je account is gedeactiveerd maar nog niet definitief verwijderd. Je hebt tot <strong>{{ grace_period_end }}</strong> om je account te herstellen.</p>
+
+            <p>Tijdens deze periode:</p>
+            <ul>
+                <li>Je kan niet inloggen</li>
+                <li>Je data blijft bewaard maar is niet toegankelijk</li>
+                <li>Je kan je account volledig herstellen</li>
+            </ul>
+
+            <div style="text-align: center; margin-top: 20px;">
+                <a href="{{ restore_url }}" class="restore-button">Account Herstellen</a>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="gdpr-info">
+            <strong>Je GDPR Rechten:</strong> Je hebt het recht om:
+            <ul style="margin: 10px 0;">
+                <li>Inzage te vragen in je data (Art. 15)</li>
+                <li>Rectificatie te vragen (Art. 16)</li>
+                <li>Verwijdering te vragen - uitgeoefend (Art. 17)</li>
+                <li>Bezwaar te maken tegen verwerking (Art. 21)</li>
+                <li>Data over te dragen (Art. 20)</li>
+            </ul>
+            Je hebt je recht op verwijdering (Art. 17) succesvol uitgeoefend.
+        </div>
+
+        <p>Bedankt voor het gebruik van SanskritiSetu. We vinden het jammer dat je vertrekt.</p>
+
+        <p>Heb je feedback over waarom je vertrekt? We waarderen je input:</p>
+        <ul>
+            <li><a href="{{ feedback_url }}" class="privacy-link">Deel anonieme feedback</a></li>
+            <li>Email: <a href="mailto:feedback@sanskritisetu.org" class="privacy-link">feedback@sanskritisetu.org</a></li>
+        </ul>
+
+        <div class="footer">
+            <p>Deze email bevestigt je account verwijdering op SanskritiSetu.</p>
+            <p>
+                <a href="{{ privacy_policy_url }}" class="privacy-link">Privacy Policy</a> |
+                <a href="{{ gdpr_rights_url }}" class="privacy-link">Jouw GDPR Rechten</a>
+            </p>
+            <p style="margin-top: 20px; font-size: 12px; color: #9ca3af;">
+                SanskritiSetu B.V. | Privacy Department | Amsterdam, Nederland<br>
+                Functionaris voor Gegevensbescherming (FG): <a href="mailto:dpo@sanskritisetu.org" class="privacy-link">dpo@sanskritisetu.org</a><br>
+                Dit is een geautomatiseerde email. Reageren op deze email is niet mogelijk.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,71 @@
+# InputGuard -- welke gegevens niet in vrije tekst thuishoren
+#
+# Zelfde vorm als shadow_ceo_rules.yml, zodat er EEN vorm is voor beleid in dit project.
+# De wachter zelf staat in src/core/governance/input_guard.py.
+#
+# WAAROM DIT EEN BESTAND IS EN GEEN CODE. Bij een AI-verordening-audit moet je kunnen laten zien
+# WAT je tegenhoudt en sinds wanneer. Een regel hier is te diffen, te reviewen en te dateren;
+# dezelfde regel in code is dat niet, en in een prompt al helemaal niet.
+#
+# WAAROM NIET ALLES BLOKKEERT WAT WORDT GEVONDEN. Een e-mailadres of telefoonnummer in een
+# zakelijke chat is normaal gebruik ("stuur de uitnodiging naar jan@klant.test"). Die allemaal
+# weigeren maakt het product onbruikbaar, en een wachter die in de weg loopt wordt uitgezet --
+# dan heb je niets.
+#
+# WAT DIT BESTAND WEL EN NIET KAN, en dat is een correctie uit Gate 2 (2026-09-22). De vloer
+# (`_VLOER` in input_guard.py: iban, credit_card) kan hier alleen worden VERBREED, niet
+# versmald: de code unieert hem onvoorwaardelijk. Een regel hier op `enabled: false` zetten of
+# zijn `blokkeert`-lijst legen heeft voor die twee dus GEEN effect -- gemeten. De eerste versie
+# van deze kop suggereerde het tegendeel, en een compliance-document dat gezaghebbend lijkt
+# maar inert is, is erger dan geen document: het beeindigt een onderzoek in plaats van er een
+# te beginnen.
+#
+# Gevolg dat je moet weten: een tenant die IBAN's wel wil toestaan -- in een salarisproduct is
+# dat het meest waarschijnlijke legitieme veld -- kan vandaag alleen de HELE wachter uitzetten
+# via `uit_voor_tenants`. Dat is een echte beperking en geen ontwerpkeuze om trots op te zijn.
+#
+# WAT DEZE WACHTER NIET IS. Hij vindt VORMEN, geen betekenis. Gemeten: "medewerker zit met een
+# burn-out", "salaris naar 82000 euro", "Dorpsstraat 12" en "zij is zwanger" gaan er alle vier
+# ongehinderd door, en dat zijn precies de gegevens waar de AVG het strengst is (art. 9). Wie
+# dit bestand voor een AVG-filter houdt, bouwt op een verkeerde aanname.
+
+version: 1
+
+# De hoofdschakelaar. UIT betekent: geen enkele beoordeling, op geen enkele deur.
+enabled: true
+
+# Tenants waarvoor de wachter UIT staat, met een reden en een datum per regel.
+#
+# Waarom dit hier staat en niet als vlag in de database: de klant is
+# verwerkingsverantwoordelijke en moet zijn eigen afweging kunnen maken (AVG art. 88, en in NL
+# de ondernemingsraad bij monitoringtechnologie). Een uitzondering hoort dan aantoonbaar te zijn,
+# met een datum, en niet stil in een tabel te staan.
+#
+# Formaat: - 42   # 2026-09-22, reden
+uit_voor_tenants: []
+
+policies:
+  - rule_id: IG-001
+    name: IDENTIFICATOREN_BLOKKEREN
+    description: >
+      Identificatoren die een persoon rechtstreeks aanwijzen of een financiele handeling
+      mogelijk maken, horen nooit in een vrije opdracht aan een agent of in een chatbericht.
+      Deze vier staan ook als vloer in de code (`_VLOER`), zodat een ontbrekend of kapot
+      regelbestand ze niet stil kan wegnemen.
+    blokkeert:
+      - bsn
+      - ssn
+      - iban
+      - credit_card
+    enabled: true
+
+  - rule_id: IG-002
+    name: CONTACTGEGEVENS_MELDEN
+    description: >
+      E-mailadres en telefoonnummer zijn in een zakelijke context normaal gebruik. Ze worden
+      niet geweigerd maar wel gemeld, zodat een beheerder kan zien hoe vaak persoonsgegevens
+      door de agentketen reizen zonder dat iemand de inhoud hoeft te lezen.
+    meldt:
+      - email
+      - phone
+    enabled: true

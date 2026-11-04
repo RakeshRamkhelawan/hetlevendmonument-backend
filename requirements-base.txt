@@ -1,0 +1,105 @@
+# ============================================================================
+# SanskritiSetu Base Requirements - Stable Compatible Stack
+# ============================================================================
+# Context7 Best Practices Applied:
+#   - Pinned compatible versions for reproducible builds
+#   - Security patches included (CVE updates December 2025)
+#   - Removed conflicting heavy dependencies
+#   - OpenTelemetry versions aligned properly
+# ============================================================================
+
+# ==================== CORE WEB FRAMEWORK ====================
+# Bovengrens op 0.137 (2026-08-05). Vanaf 0.137 wikkelt FastAPI included routers in een
+# `_IncludedRouter` in plaats van ze plat te slaan tot `APIRoute`s. Alles wat `app.routes`
+# introspecteert ziet dan nul routes -- vijf tests vielen daarop om (gatekeeper x2, gdpr,
+# governance, focus_builder_ws) terwijl de app zelf gewoon draait. Lokaal stond 0.121.1 en
+# CI loste ongepind naar 0.141.1 op, dus dit was al kapot voordat de lock in gebruik kwam.
+# Verhogen mag, maar dan eerst die introspectie aanpassen -- niet als bijvangst van pip.
+fastapi>=0.115.0,<0.137         # Main web framework
+uvicorn[standard]>=0.35.0      # ASGI server with hot reload
+gunicorn>=22.0.0               # CVE-2024-1135 fix - Production WSGI
+slowapi>=0.1.9                 # Rate limiting
+
+# ==================== DATABASE & ORM ====================
+sqlalchemy[asyncio]==2.0.44    # Async ORM (pinned for stability)
+asyncpg>=0.30.0                # PostgreSQL async driver
+aiosqlite>=0.19.0              # SQLite async (for testing)
+psycopg2-binary>=2.9.9         # PostgreSQL sync driver (for migrations)
+alembic==1.13.1                # Database migrations (pinned)
+
+# ==================== CACHING & MESSAGE QUEUE ====================
+redis[hiredis]==5.0.1          # Redis client with C parser
+dramatiq[redis]==1.16.0        # Task queue with Redis broker (ADR-006)
+
+# ==================== VALIDATION & CONFIGURATION ====================
+pydantic[email]>=2.9.0         # Data validation
+pydantic-settings>=2.5.2       # Settings management
+python-multipart>=0.0.9        # Form parsing
+python-dotenv>=1.1.0           # Environment loading
+pyyaml>=6.0.1                  # YAML config parsing
+python-stdnum>=2.2             # Checksum-validated national identifiers (BSN/IBAN, AUDIT-002)
+
+# ==================== AUTHENTICATION & SECURITY ====================
+passlib[bcrypt]==1.7.4         # Password hashing
+bcrypt==4.1.2                  # Bcrypt implementation
+python-jose[cryptography]==3.5.0  # JWT tokens; 3.4.0 pinned pyasn1<0.5.0, blocking the CVE-2026-30922 fix below
+pyasn1>=0.6.3                   # CVE-2026-30922 fix (DoS via ASN.1 recursion), PYSEC-2026-2263
+PyJWT>=2.10.1                  # JWT alternative
+authlib>=1.6.5                 # CVE-2025-61920 fix - OAuth2
+urllib3>=2.6.0                 # CVE-2025-66418 fix
+
+# ==================== CALENDAR INTEGRATIONS ====================
+google-api-python-client>=2.100.0  # Google Calendar API v3
+msgraph-sdk>=1.0.0                 # Microsoft Graph / Outlook Calendar
+icalendar>=5.0.0                   # iCal RFC 5545 parsing
+werkzeug>=3.1.4                # CVE-2025-66221 fix
+brotli>=1.2.0                  # CVE-2025-6176 fix
+
+# ==================== OBSERVABILITY ====================
+opentelemetry-api>=1.15.0
+opentelemetry-sdk>=1.15.0
+prometheus-client==0.19.0      # Prometheus metrics
+loguru==0.7.2                  # Structured logging
+psutil==5.9.5                  # System metrics
+
+# ==================== HTTP CLIENTS ====================
+aiohttp>=3.9.0                 # Async HTTP client
+httpx>=0.25.0                  # Modern HTTP client
+requests>=2.31.0               # Sync HTTP client
+
+# ==================== AI & GOOGLE SDK ====================
+anthropic>=0.40.0              # Anthropic SDK for Claude models (ADR-026 LLM failover chain)
+google-genai>=1.0.0            # New Google GenAI SDK (NOT deprecated google-generativeai)
+instructor>=1.0.0              # Structured LLM output
+
+# ==================== THIRD-PARTY INTEGRATIONS ====================
+stripe==7.0.0                  # Payment processing
+docker>=7.0.0                  # Docker SDK (for sandbox)
+# mcp 2.0 hernoemde Tool.inputSchema -> input_schema; met `>=0.1.0` kwam die major
+# ongemerkt binnen en gaf een AttributeError in tool_broker/mcp_client.py. De code is
+# tegen 1.x geschreven, dus bovengrens tot 2.x bewust is nagelopen (2026-08-05).
+mcp>=1.27,<2.0                 # Model Context Protocol SDK
+
+# ==================== UTILITIES ====================
+cachetools>=5.3.0              # TTL cache for CVA agent caching
+dependency-injector>=4.41.0    # DI framework
+fpdf2>=2.7.9                   # PDF report generation
+aiofiles>=23.2.0               # Async file I/O (copilot audit report exports)
+apscheduler>=3.10.4,<4.0       # Async task scheduler (proactive monitors, stale task cleanup)
+
+# ==================== FILE STORAGE (BE-EP-036) ====================
+puremagic==1.30               # MIME magic-bytes detection, pure Python (no libmagic, O1); 1.30 i.p.v. 2.x want CI draait Python 3.11 (2.x vereist >=3.12)
+azure-storage-blob>=12.24.0,<13.0  # Azure Blob backend for FoundationStorageService (O4/O5)
+
+# ==================== SEMANTIC ROUTER (Rajasic Layer) ====================
+numpy>=1.24.0                  # Vector operations for embeddings
+tenacity>=8.2.0                # Retry logic for Ollama calls
+pgvector>=0.2.5                # PostgreSQL vector extension support
+
+# ==================== SECURITY PATCHES (December 2025) ====================
+# Note: langchain-core version is managed by requirements-prod.txt for ecosystem compatibility
+fonttools>=4.60.2              # CVE-2025-66034 (Arbitrary file write)
+playwright==1.42.0
+twilio==9.10.2
+email-validator>=2.1.0
+aiosmtplib>=3.0.0              # Async SMTP for password reset emails

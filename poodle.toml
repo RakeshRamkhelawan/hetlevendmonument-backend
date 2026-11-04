@@ -1,0 +1,122 @@
+# Mutatietesten (Poodle) -- ADR-036, ingevoerd 2026-08-31 op besluit van Rakesh.
+#
+# WAAROM DIT BESTAAT
+#
+# Dit project bewijst zijn architecture-guards met mutatietesten: je muteert wat een guard
+# bewaakt en eist dat hij ROOD wordt. Die regel staat in `.claude/rules/quality-gates.md` en is
+# geschreven nadat in een week zeven guards betrapt waren die groen bleven onder precies de
+# mutatie die ze hoorden te vangen.
+#
+# Tot dan gebeurde dat met HANDGESCHREVEN harnassen, en die zijn aantoonbaar onbetrouwbaar.
+# Op 2026-08-31 produceerde er een ongeldige Python; pytest gaf daardoor geen samenvatting, en
+# het harnas las een ontbrekende samenvatting als GROEN. Een mutatietest die zijn eigen falen
+# niet ziet is erger dan geen mutatietest, want hij levert vals vertrouwen.
+#
+# DE EERSTE CONFIGURATIE WAS ZELF ZO'N GEVAL -- LEES DIT VOOR JE IETS WIJZIGT
+#
+# De eerste versie hiervan had `source_folders = ["src/core/tool_broker"]`. Die run duurde 100
+# minuten en meldde 382 mutanten NOT FOUND en 0 FOUND -- een mutatiescore van nul. Dat leek een
+# vernietigend oordeel over de tests, en het was een defect in de opstelling.
+#
+# Wat er gebeurde, gelezen in `poodle/runners/command_line.py:28-38` en daarna GEMETEN:
+# Poodle pakt de bronmap uit in een tijdelijke map en zet `<run>/<source_folder>` VOORAAN op
+# PYTHONPATH. Met `src/core/tool_broker` als bronmap komt dus `<run>/src/core/tool_broker` op
+# het pad. Maar dit project importeert als `src.core.tool_broker.redaction`, en die naam
+# resolveert via de repo-root -- naar het ONGEMUTEERDE origineel. De mutant werd nooit geladen.
+# De tests draaiden 382 keer volledig en slaagden 382 keer terecht.
+#
+# Er is bovendien geen PYTHONPATH-truc die dit kan repareren: `pyproject.toml:238` zet
+# `pythonpath = ["."]` voor pytest, en pytest zet die entry VOORAAN in `sys.path`. De echte
+# repo-root wint dus altijd. En `src`, `src/core` en `src/core/tool_broker` hebben alle drie een
+# `__init__.py`, dus het zijn gewone packages en geen namespace-packages -- padsamenvoeging
+# bestaat hier niet.
+#
+# De enige opzet die werkt is daarom `source_folders = ["."]`: dan is de uitgepakte map een
+# volledige boomkopie, Poodle draait pytest MET die map als cwd (zie `command_line.py:25`), en
+# `pythonpath = ["."]` wijst naar de kopie in plaats van naar het origineel.
+#
+# BEWEZEN, niet beredeneerd, met een omkeerbare proef (2026-09-01). Testcommando vervangen door
+# een probe die het opgeloste modulepad inspecteert:
+#   exit 1 als het pad `.poodle-temp` bevat  -> "Testing clean run of folder '.'...FAILED"
+#   exit 0 als het pad `.poodle-temp` bevat  -> "Testing clean run of folder '.'...PASSED"
+# Beide richtingen gemeten. Alleen de tweede uitkomst is verenigbaar met een geladen mutant, en
+# de eerste sluit een importfout als verklaring uit. Doe deze proef opnieuw als je
+# `source_folders` ooit aanraakt -- een verkeerde scope geeft geen foutmelding, alleen een
+# stille nul.
+#
+# WAAROM POODLE
+#
+# Gekozen boven mutmut en Cosmic Ray: geen verplicht configuratiebestand nodig, en de kleinste
+# voetafdruk in deze venv -- van zijn vier afhankelijkheden (click, jinja2, mergedeep, wcmatch)
+# was alleen `mergedeep` nieuw. Cosmic Ray heeft een langere opzet.
+#
+# WAAROM SMAL, EN WAAROM NIET IN DE BLOKKERENDE POORT
+#
+# Mutatietesten is de duurste vorm van geautomatiseerde testanalyse in gangbaar gebruik. Hier
+# gemeten: 382 mutanten in `redaction.py`, een testcommando van 27 seconden, vier workers, plus
+# het uitpakken van een boomkopie per mutant. De blokkerende poortsuite van dit project duurt al
+# negen minuten. De vastgelegde praktijk is daarom: een smalle scope, een stabiel testcommando,
+# en een triage-gewoonte -- diff-gebaseerd op een PR en een volledige run periodiek, niet bij
+# elke commit.
+#
+# Daarom staat dit NIET in `.github/workflows/ci-feature.yml`. Draai het met de hand:
+#
+#     .venv/Scripts/poodle -c poodle.toml
+#
+# HET DOEL: `src/core/tool_broker/redaction.py`
+#
+# Bewust dit bestand als eerste, en niet de guards zelf. Redactie is de plek waar de meeste
+# ADR-036-bevindingen op uitkomen (OP-27, OP-33, OP-34, OP-47, OP-48): elke tool-payload en elk
+# raadsbesluit gaat hier langs voordat het in een bewarende, deels onuitwisbare opslag belandt.
+# Een test die een fout in dit bestand niet ziet, is een test die een privacylek niet ziet.
+
+[poodle]
+# ZIE DE TOELICHTING HIERBOVEN. Dit MOET "." zijn, anders wordt de mutant niet geimporteerd en
+# meldt de run een stille nul.
+source_folders = ["."]
+
+# Alleen dit bestand muteren. `redaction.py` komt maar een keer voor in `src/`; de tweede
+# treffer op die naam is een testbestand en die vallen al onder de default `file_filters`.
+only_files = ["redaction.py"]
+
+# Wat NIET in de boomkopie hoort. Zonder deze lijst gaat `.git`, `.venv`, `node_modules` en de
+# hele frontend mee in het zip-archief dat per mutant wordt uitgepakt.
+file_copy_filters = [
+    "__pycache__/**",
+    ".git/**",
+    ".venv/**",
+    "node_modules/**",
+    "frontend/**",
+    "docs/**",
+    ".poodle-temp/**",
+    "data/**",
+    "htmlcov/**",
+    "logs/**",
+    "*.zip",
+    "*.log",
+]
+
+# Vier workers, gelijk aan het `-n 4` dat CLAUDE.md voor de suite voorschrijft. Niet hoger: op
+# deze machine is de beperking geheugen en niet CPU (gemeten bij OP-19, waar `-n 8` workers liet
+# sterven en pytest willekeurige tests als FAILED meldde).
+max_workers = 4
+
+# Timeout = langste run uit de schone meting x multiplier, met deze ondergrens. Ruim genomen:
+# een mutant die een oneindige lus maakt moet afgekapt worden, maar een trage-maar-correcte
+# testrun mag niet als "overleefd" tellen omdat de klok te krap stond. De ondergrens is hoger
+# dan de default omdat elke run nu ook een boomkopie uitpakt.
+min_timeout = 90
+timeout_multiplier = 3
+
+[poodle.runner_opts]
+# De ZES bestanden die redaction.py daadwerkelijk uitoefenen, expliciet opgesomd in plaats van
+# een `-k`-filter over de hele map. Gemeten 2026-09-01: 88 tests in 27s, tegen 94 tests in 62s
+# voor `tests/unit/tool_broker -k "redact or digest or pseudonym"`. Dat verschil is bij
+# mutatietesten geen detail -- het scheelt meer dan een factor twee op de totale looptijd, en de
+# extra zes tests in de brede variant raken redaction.py niet rechtstreeks.
+#
+# `-x` stopt bij de eerste failure: zodra een test de mutant doodt, is doorgaan verspilling.
+# `--assert=plain` zet pytest's assertion-rewriting uit, wat de opstarttijd per run verlaagt.
+# `-p no:randomly` houdt de volgorde vast -- een mutatiescore die per run verschilt door
+# testvolgorde is niet te vergelijken.
+command_line = "pytest tests/unit/tool_broker/test_payload_pseudonymisation.py tests/unit/tool_broker/test_pseudonymisation_key_strength.py tests/unit/tool_broker/test_pseudonymisation_leaks.py tests/unit/tool_broker/test_pseudonymisation_sinks.py tests/unit/tool_broker/test_pseudonymisation_value_shapes.py tests/unit/tool_broker/test_op29_result_error_redaction.py -x -q --assert=plain -p no:randomly"

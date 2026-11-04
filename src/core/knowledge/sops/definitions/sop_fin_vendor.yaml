@@ -1,0 +1,33 @@
+id: SOP-FIN-VENDOR
+description: "Vendor Onboarding - KYC check and bank details verification"
+version: "1.0"
+variables:
+  - procurement_email
+
+steps:
+  - tool: local__llm_generate
+    description: "Extract vendor information"
+    params:
+      prompt: "Extract all vendor details from the submitted registration form: company name, registration number, tax ID, contact details, and bank information."
+
+  - tool: local__llm_generate
+    description: "KYC compliance check"
+    params:
+      prompt: "Perform Know Your Customer (KYC) compliance check. Verify company registration, check against sanctions lists (OFAC, EU), and validate tax identification number."
+
+  - tool: local__llm_generate
+    description: "Verify bank details"
+    params:
+      prompt: "Validate provided bank account details: IBAN format check, BIC/SWIFT verification, and cross-reference bank with known financial institutions."
+
+  - tool: local__llm_generate
+    description: "Generate vendor risk score"
+    params:
+      prompt: "Calculate vendor risk score based on KYC results, financial stability indicators, and geographic risk factors. Recommend approval, conditional approval, or rejection."
+
+  - tool: local__gmail_send_email
+    description: "Send onboarding result"
+    params:
+      to: "{procurement_email}"
+      subject: "Vendor Onboarding Result"
+      body: "{step_3_output}"

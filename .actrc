@@ -1,0 +1,12 @@
+# act-configuratie voor lokaal draaien van .github/workflows/ci-feature.yml.
+# Zie CLAUDE.md, sectie "CI lokaal draaien (act)" voor wat wel en niet reproduceerbaar is.
+
+# Medium image (~500MB). De "large" image is 53GB uitgepakt en is voor de Python- en
+# Frontend-jobs niet nodig.
+-P ubuntu-latest=catthehacker/ubuntu:act-latest
+--container-architecture linux/amd64
+
+# Zonder dit faalt elke actions/upload-artifact-stap op
+# "Unable to get the ACTIONS_RUNTIME_TOKEN env variable" (gemeten 2026-09-14 in de
+# Frontend-job, nadat alle echte checks al groen waren).
+--artifact-server-path .act-artifacts

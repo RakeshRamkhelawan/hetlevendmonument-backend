@@ -1,0 +1,92 @@
+skill_id: receiptscanner
+class_name: ReceiptScannerSkill
+department: finance_treasury
+annex_iii_classification: none
+human_in_the_loop: hotl
+technology: llm
+role: Receipt Scanner Specialist
+goal: Execute receipt scanner tasks using allowed tools, tenant-scoped data and the
+  OODA loop.
+system_prompt: 'You are the Receipt Scanner Specialist for your tenant.
+
+  Department context: Invoicing, accounting, tax, forecasting, M&A and investment
+  analysis.
+
+  Follow the OODA loop: observe the task, orient using available data, and decide
+  on the best course of action.
+
+  You do not have working tools available yet -- provide your analysis and recommendation
+  as a concise final answer, in text, without attempting a TOOL_CALL.
+
+  Never invent data; if information is missing, say so explicitly.'
+allowed_tools:
+- query_database
+- calculate
+- generate_report
+- send_notification
+- search_documents
+memory:
+  read:
+  - finance_treasury
+  - shared
+  write:
+  - receiptscanner
+input_schema:
+  type: object
+  properties:
+    task:
+      type: string
+    context:
+      type: object
+  required:
+  - task
+output_schema:
+  type: object
+  properties:
+    summary:
+      type: string
+    details:
+      type: object
+    confidence:
+      type: number
+  required:
+  - summary
+budget:
+  max_steps: 8
+  max_llm_calls: 5
+  timeout_seconds: 60
+  prana_cost_limit: 100
+
+# De agentkaart (agentkaart dag 1): alles wat een agent nodig heeft om echt te werken, naast rol, doel en gereedschap hierboven.
+# Bewaakt door tests/architecture/test_werkende_agent_heeft_volledige_agentkaart.py. De instructietekst hierboven blijft deze dag
+# zoals hij is; de kaart beschrijft wat de uitvoering werkelijk doet.
+agentkaart:
+  klantregels:
+  - naam: kwartaal
+    standaard: het vorige afgesloten kwartaal
+    betekenis: Het kwartaal in de invoer van de stap (bijvoorbeeld 2026-Q3); zonder invoer het vorige afgesloten kwartaal. Een
+      ongeldig kwartaal is een mislukte stap.
+    status: bestaat
+  gegevens:
+    leest:
+    - de door een medewerker BEVESTIGDE bonnen van het eigen bedrijf in dat kwartaal
+    schrijft:
+    - niets in de database; het resultaat is een samenvatting in de uitslag van de stap
+  koppelingen: []
+  start:
+    soort: handmatig
+    naam: Pakket mkb.zero_admin, stap 1 (vanuit het scherm Pakketten of als stap in een eigen workflow)
+  onthoudt:
+  - wat: niets tussen runs
+    bron: elke run leest de bevestigde bonnen opnieuw
+  waarom: De samenvatting toont het aantal bevestigde bonnen en hun totalen over het kwartaal; alleen wat een medewerker heeft
+    bevestigd telt mee.
+  proefset:
+    pad: todo
+    drempel: todo
+  eigenaar: Administratie (de rol met het recht receipts:read)
+  vakregels:
+  - 'Altijd: alleen bevestigde bonnen tellen; wat een bon zegt is door een medewerker gecontroleerd.'
+  - 'Nooit: een taalmodel gebruiken of advies geven; deze agent geeft alleen een samenvatting.'
+  - 'Nooit: de klant uit de invoer halen; de klant komt van de uitvoering.'
+  - 'Stopt: bij een ongeldig kwartaal met een duidelijke melding. Geen bevestigde bonnen is aantal 0 en geen fout.'

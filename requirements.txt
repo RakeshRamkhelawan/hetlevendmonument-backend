@@ -1,0 +1,15 @@
+rapidfuzz>=3.0.0
+# Production Requirements
+# Generated from requirements-base.txt + requirements-ml.txt
+# For Docker builds
+
+# Include base dependencies
+-r requirements-base.txt
+
+# Include ML dependencies (optional, only if ML features needed)
+-r requirements-ml.txt
+
+# Additional ML dependencies
+bm25s==0.2.14
+
+weasyprint>=61.0

@@ -1,0 +1,30 @@
+# Workflowbuilder (ActivePieces): welke stappen een klantflow mag bevatten.
+#
+# TIJDELIJK (wfb-dag1 stap 1, 2026-10-08) -- totdat er per `piece.actie` een risicoregel met
+# mens-in-de-lus bestaat in `tool_risk_levels.yml` (ADR-040 B12, B7). Tot dan geldt:
+# ALLEEN wat hier staat mag; al het andere wordt bij opslaan, aanzetten en uitvoeren geweigerd
+# (422). Een nieuwe AP-actie staat hier niet en is dus standaard verboden.
+#
+# Wat hier hoort: stappen zonder gevolg naar buiten -- een trigger of schema, logica en opmaak.
+# Wat hier NIET hoort: mail, berichten (Slack, Discord, ...), HTTP, code, databases, LLM-diensten
+# en elke `ap_<naam>`-actie. Een debiteur benaderen gaat later via het blok Debiteuren, langs de
+# ToolBroker en de HITL (docs/workflowbuilder-debiteuren.md, advies 1).
+#
+# Gelezen door `src/core/activepieces/stappencontrole.py`. Bewaakt door
+# tests/unit/activepieces/test_stappencontrole.py (o.a. dat elke regel door de builder te maken is).
+
+# AP-staptypen zonder piece: pure logica. `EMPTY` is de handmatige trigger.
+staptypen:
+  - EMPTY
+  - BRANCH
+  - ROUTER
+  - LOOP_ON_ITEMS
+
+# Triggers: pieceName -> toegestane triggerName's.
+triggers:
+  "@activepieces/piece-schedule": [cron_expression]
+  "@activepieces/piece-webhook": [webhook_trigger]
+
+# Acties: pieceName -> toegestane actionName's.
+acties:
+  "@activepieces/piece-data-mapper": [map_data]

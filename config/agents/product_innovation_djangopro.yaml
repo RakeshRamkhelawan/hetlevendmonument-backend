@@ -1,0 +1,19 @@
+agent_id: "product.innovation.dev.djangopro.001"
+name: "DjangoProAgent"
+department: "product_innovation"
+technology: "LLM"
+module_path: "src.core.als.agents.specialists.dev"
+class_name: "DjangoProAgent"
+description: "Elite specialist for DjangoPro development and review."
+is_active: true
+priority: "HIGH"
+version: "1.0.0"
+ooda_profile:
+  observe:
+    data_sources: ["git_repo", "file_system"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.90
+  act:
+    tools: ["code_editor", "terminal", "lint_scanner"]

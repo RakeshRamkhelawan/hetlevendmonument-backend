@@ -1,0 +1,211 @@
+# Phase 3 Capability Agents - Canary Rollout Configuration
+# Sprint 5, Slice 5
+#
+# Purpose: Progressive rollout strategy for Phase 3 capabilities
+#
+# Stages:
+# 1. Internal Testing (2 days)
+# 2. Canary (5% tenants, 1 week)
+# 3. Early Adopters (25% tenants, 2 weeks)
+# 4. General Availability (100%, monitored rollback)
+#
+# Usage:
+#   python scripts/apply_rollout_config.py --stage canary
+#   python scripts/apply_rollout_config.py --stage early_adopters
+#   python scripts/apply_rollout_config.py --stage general_availability
+
+rollout_stages:
+  # Stage 0: Internal Testing (Dogfooding)
+  internal:
+    enabled_tenant_ids:
+      - 1  # SanskritiSetu internal tenant
+    percentage: 0  # Explicit list only
+    duration_days: 2
+    success_criteria:
+      - metric: procedure_execution_success_rate
+        threshold: ">= 0.95"
+      - metric: capability_agent_latency_p95
+        threshold: "<= 5000"  # 5 seconds
+      - metric: error_rate_5xx
+        threshold: "<= 0.01"
+    rollback_triggers:
+      - metric: error_rate_5xx
+        threshold: "> 0.05"
+        action: auto_rollback
+    monitoring:
+      alert_channels: ["#engineering-alerts"]
+      dashboard: "https://grafana.sanskritisetu.org/d/phase3-internal"
+
+  # Stage 1: Canary (5% of production tenants)
+  canary:
+    enabled_tenant_ids:
+      - 100  # Beta customer 1
+      - 200  # Beta customer 2
+    percentage: 5
+    duration_days: 7
+    selection_criteria:
+      - low_usage_volume: true  # Low traffic tenants first
+      - opt_in_beta: true        # Only opted-in tenants
+      - exclude_enterprise: true # No enterprise tenants yet
+    success_criteria:
+      - metric: procedure_execution_success_rate
+        threshold: ">= 0.93"
+      - metric: capability_agent_latency_p95
+        threshold: "<= 6000"  # Slightly relaxed for early stage
+      - metric: user_satisfaction_score
+        threshold: ">= 3.5"   # Out of 5
+      - metric: rollback_count
+        threshold: "== 0"
+    rollback_triggers:
+      - metric: error_rate_5xx
+        threshold: "> 0.03"
+        action: auto_rollback
+      - metric: user_reported_issues
+        threshold: "> 5"
+        action: manual_review
+    monitoring:
+      alert_channels: ["#phase3-rollout", "#customer-success"]
+      dashboard: "https://grafana.sanskritisetu.org/d/phase3-canary"
+      daily_report: true
+
+  # Stage 2: Early Adopters (25% of production)
+  early_adopters:
+    percentage: 25
+    duration_days: 14
+    selection_criteria:
+      - exclude_tenant_ids: []  # All eligible
+      - min_active_users: 5     # Exclude tiny tenants
+      - opt_out_blacklist: []
+    success_criteria:
+      - metric: procedure_execution_success_rate
+        threshold: ">= 0.94"
+      - metric: capability_agent_latency_p95
+        threshold: "<= 5000"
+      - metric: noisy_neighbour_impact
+        threshold: "<= 0.5"  # Max 50% latency increase
+      - metric: feature_adoption_rate
+        threshold: ">= 0.10"  # 10% of users try Phase 3
+    rollback_triggers:
+      - metric: error_rate_5xx
+        threshold: "> 0.02"
+        action: pause_rollout
+      - metric: tenant_opt_out_requests
+        threshold: "> 10"
+        action: manual_review
+    monitoring:
+      alert_channels: ["#phase3-rollout", "#product"]
+      dashboard: "https://grafana.sanskritisetu.org/d/phase3-early-adopters"
+      weekly_review: true
+
+  # Stage 3: General Availability (100%)
+  general_availability:
+    percentage: 100
+    duration_days: null  # Permanent
+    selection_criteria:
+      - all_tenants: true
+    success_criteria:
+      - metric: procedure_execution_success_rate
+        threshold: ">= 0.95"
+      - metric: capability_agent_latency_p95
+        threshold: "<= 5000"
+      - metric: system_uptime
+        threshold: ">= 0.999"  # 99.9% uptime
+    rollback_triggers:
+      - metric: error_rate_5xx
+        threshold: "> 0.05"
+        action: emergency_rollback
+      - metric: database_connection_failures
+        threshold: "> 10"
+        action: emergency_rollback
+    monitoring:
+      alert_channels: ["#production-alerts", "#engineering-oncall"]
+      dashboard: "https://grafana.sanskritisetu.org/d/phase3-production"
+      oncall_rotation: true
+
+# Per-Tenant Overrides (Manual Control)
+tenant_overrides:
+  # Example: Force enable for specific tenant (VIP customer testing)
+  tenant_500:
+    phase3_enabled: true
+    reason: "VIP customer early access request"
+    enabled_at: "2026-02-10T10:00:00Z"
+    enabled_by: "admin@sanskritisetu.org"
+
+  # Example: Force disable for problematic tenant
+  # tenant_999:
+  #   phase3_enabled: false
+  #   reason: "Customer reported issues with invoice approval - rolling back"
+  #   disabled_at: "2026-02-15T14:30:00Z"
+  #   disabled_by: "support@sanskritisetu.org"
+
+# Feature Sub-Flags (Granular Control)
+# If Phase 3 is enabled, these control which capabilities are active
+feature_sub_flags:
+  phase3.planner_agent:
+    default: true
+    description: "Intent-to-plan conversion"
+
+  phase3.retriever_agent:
+    default: true
+    description: "Knowledge retrieval via semantic search"
+
+  phase3.executor_agent:
+    default: true
+    description: "Tool execution via ToolBroker"
+
+  phase3.compliance_agent:
+    default: true
+    description: "RBAC, PII, policy checks"
+
+  phase3.reviewer_agent:
+    default: false  # BETA - not GA yet
+    description: "Output quality review (experimental)"
+
+# Rollback Configuration
+rollback:
+  manual:
+    command: "python scripts/rollback_phase3.py --stage <current_stage>"
+    confirmation_required: true
+    backup_retention_days: 30
+
+  automatic:
+    enabled: true
+    grace_period_seconds: 300  # 5 min cooldown before auto-rollback
+    notification_channels: ["#engineering-oncall", "#product"]
+
+  data_preservation:
+    # What happens to in-flight procedure executions during rollback?
+    in_flight_executions: "allow_completion"  # Options: allow_completion, force_fail, pause
+    execution_timeout_seconds: 600  # Max 10 min to complete
+
+# Observability & Reporting
+observability:
+  metrics_retention_days: 90
+  log_level: "INFO"  # DEBUG during canary, INFO for GA
+
+  dashboards:
+    - name: "Phase 3 Rollout Overview"
+      url: "https://grafana.sanskritisetu.org/d/phase3-overview"
+
+    - name: "Tenant-Specific Phase 3 Usage"
+      url: "https://grafana.sanskritisetu.org/d/phase3-tenant-usage"
+
+  alerts:
+    - name: "High Error Rate"
+      condition: "error_rate_5xx > 0.05 for 5min"
+      severity: "critical"
+
+    - name: "Latency SLA Breach"
+      condition: "capability_agent_latency_p95 > 10000 for 10min"
+      severity: "warning"
+
+    - name: "Rollback Triggered"
+      condition: "rollback_event detected"
+      severity: "critical"
+
+# Change Log
+changelog:
+  - version: "1.0"
+    date: "2026-02-10"
+    changes: "Initial rollout configuration for Sprint 5"
+    author: "engineering@sanskritisetu.org"

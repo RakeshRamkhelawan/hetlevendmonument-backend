@@ -1,0 +1,56 @@
+"""
+Unit tests voor Production domein: health check, deployment status, edge cases
+"""
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../src')))
+import pytest
+from fastapi.testclient import TestClient
+
+
+@pytest.mark.skip(reason="Endpoint not yet implemented - Phase 2/3 feature")
+def test_health_check(client):
+    response = client.get("/api/production/health")
+    assert response.status_code == 200
+    assert response.json().get("status") == "ok"
+
+@pytest.mark.skip(reason="Endpoint not yet implemented - Phase 2/3 feature")
+def test_deployment_status(client):
+    response = client.get("/api/production/deployment_status")
+    assert response.status_code == 200
+    assert "version" in response.json()
+
+def test_health_check_not_found(client):
+    response = client.get("/api/production/unknown")
+    assert response.status_code == 404
+
+@pytest.mark.skip(reason="Endpoint not yet implemented - Phase 2/3 feature")
+def test_production_deployment_health(client):
+    response = client.get("/api/monitoring/health")
+    assert response.status_code == 200
+
+@pytest.mark.skip(reason="Endpoint not yet implemented - Phase 2/3 feature")
+def test_production_deployment_metrics(client):
+    response = client.get("/api/monitoring/metrics")
+    assert response.status_code == 200
+
+@pytest.mark.skip(reason="Endpoint not yet implemented - Phase 2/3 feature")
+def test_production_security_headers(client):
+    response = client.get("/api/monitoring/health")
+    assert "X-Frame-Options" in response.headers or "Strict-Transport-Security" in response.headers
+
+def test_production_tenant_isolation(client):
+    # Simuleer production requests onder verschillende tenants (mock context vereist)
+    pass
+
+def test_production_audit_logging(monkeypatch):
+    # Mock audit log en controleer aanroep bij production events
+    pass
+
+def test_production_concurrent_requests(monkeypatch):
+    # Simuleer gelijktijdige production requests (threading of async)
+    pass
+
+def test_production_rollback_on_failure(monkeypatch):
+    # Forceer fout tijdens deployment, controleer rollback
+    pass

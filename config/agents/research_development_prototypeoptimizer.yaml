@@ -1,0 +1,20 @@
+agent_id: "ext.research_development.prototypeoptimizer.001"
+name: "PrototypeOptimizerAgent"
+department: "research_development"
+technology: "ML"
+module_path: "src.core.als.agents.specialists.research_development"
+class_name: "PrototypeOptimizerAgent"
+description: "Simulates and optimizes product prototypes."
+is_active: true
+priority: "HIGH"
+version: "1.0.0"
+allowed_tools: ["cad_simulator", "material_optimizer"]
+ooda_profile:
+  observe:
+    data_sources: ["external_api", "internal_lake"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.90
+  act:
+    tools: ["cad_simulator", "material_optimizer"]

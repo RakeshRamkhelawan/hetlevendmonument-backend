@@ -1,0 +1,450 @@
+{
+  "schema_version": "3.0.0",
+  "last_updated": "2026-02-28",
+
+  "supervisors": [
+    {
+      "supervisor_id": "finance.treasury.supervisor",
+      "name": "FinanceSupervisor",
+      "type": "domain",
+      "domain": "Finance & Treasury",
+      "description": "Manages all finance-related agents and coordinates financial workflows",
+      "managed_agents": [
+        "finance.tax_compliance.001",
+        "finance.audit_compliance.001",
+        "finance.ar_ap.001",
+        "finance.forecasting.001",
+        "finance.investment.001"
+      ],
+      "responsibilities": [
+        "Task decomposition within finance domain",
+        "Agent selection and coordination",
+        "Result aggregation",
+        "Exception handling for financial decisions >€100K"
+      ],
+      "escalation_target": "cva.meta.supervisor"
+    },
+    {
+      "supervisor_id": "hr.culture.supervisor",
+      "name": "HRSupervisor",
+      "type": "domain",
+      "domain": "HR & Culture",
+      "description": "Manages HR agents and employee-related workflows",
+      "managed_agents": [
+        "hr.talent_acquisition.001",
+        "hr.skills_gap.001",
+        "hr.employee_sentiment.001",
+        "hr.internal_mobility.001"
+      ],
+      "responsibilities": [
+        "Talent pipeline management",
+        "Employee experience coordination",
+        "Skills development tracking",
+        "Cross-department mobility approval"
+      ],
+      "escalation_target": "cva.meta.supervisor"
+    },
+    {
+      "supervisor_id": "cva.meta.supervisor",
+      "name": "CVA",
+      "type": "meta",
+      "domain": "All",
+      "description": "Chief Visionary Architect - Meta-supervisor for cross-domain orchestration",
+      "managed_agents": [
+        "finance.treasury.supervisor",
+        "hr.culture.supervisor",
+        "it.security.supervisor",
+        "legal.compliance.supervisor"
+      ],
+      "responsibilities": [
+        "Cross-domain workflow orchestration",
+        "Strategic decision making",
+        "Exception handling",
+        "Routing optimization",
+        "New agent recommendation"
+      ],
+      "escalation_target": "human.administrator"
+    }
+  ],
+
+  "agents": [
+    {
+      "agent_id": "finance.tax_compliance.001",
+      "name": "TaxComplianceAgent",
+      "display_name": "Tax Compliance Specialist",
+      "supervisor": "finance.treasury.supervisor",
+      "domain": "Finance & Treasury",
+      "role": "Tax Compliance Specialist",
+      "responsibility": "Ensures tax compliance through regulation analysis and filing preparation. Monitors multi-jurisdiction tax requirements and identifies optimization opportunities.",
+      "decision_boundary": {
+        "can": [
+          "Analyze regulations",
+          "Prepare filings",
+          "Identify optimizations",
+          "Flag risks"
+        ],
+        "cannot": [
+          "Execute actual payments",
+          "Modify tax codes",
+          "Override FinanceSupervisor decisions"
+        ],
+        "must_escalate": [
+          "Tax disputes >€100K",
+          "Cross-border transfer pricing issues",
+          "Regulatory investigation triggers"
+        ]
+      },
+      "ooda_profile": {
+        "observe": {
+          "data_sources": [
+            "tax_regulation_databases",
+            "financial_transaction_logs",
+            "jurisdiction_updates",
+            "audit_trails"
+          ],
+          "access_level": "read_only",
+          "update_frequency": "daily"
+        },
+        "orient": {
+          "model": "gpt-4-turbo-preview",
+          "context_engineering": "Retrieval-Augmented Generation with tax law embeddings",
+          "tools": [
+            "tax_calculator",
+            "regulation_parser",
+            "filing_generator"
+          ],
+          "embeddings": "text-embedding-3-large"
+        },
+        "decide": {
+          "decision_type": "recommendation_with_confidence_score",
+          "output_formats": [
+            "compliance_status",
+            "filing_recommendation",
+            "risk_assessment"
+          ],
+          "confidence_threshold": 0.85
+        },
+        "act": {
+          "tools": [
+            "filing_preparation_tool",
+            "alert_system",
+            "reporting_dashboard"
+          ],
+          "authorized_actions": [
+            "generate_report",
+            "send_alert",
+            "update_status"
+          ],
+          "requires_approval": [
+            "filing_submission",
+            "payment_authorization"
+          ]
+        }
+      },
+      "capabilities": [
+        {
+          "name": "regulation_analysis",
+          "description": "Analyze tax regulations across multiple jurisdictions",
+          "input_schema": {"jurisdiction": "string", "regulation_type": "string"},
+          "output_schema": {"analysis": "string", "compliance_requirements": "array"},
+          "requires_human_approval": false
+        },
+        {
+          "name": "filing_preparation",
+          "description": "Prepare tax filings based on financial data",
+          "input_schema": {"financial_data": "object", "jurisdiction": "string"},
+          "output_schema": {"filing_document": "string", "supporting_documents": "array"},
+          "requires_human_approval": true
+        }
+      ],
+      "technology": {
+        "type": "LLM",
+        "model": "gpt-4-turbo-preview",
+        "embeddings": "text-embedding-3-large",
+        "vector_store": "pgvector"
+      },
+      "priority": "CRITICAL",
+      "sla": {
+        "response_time_ms": 2000,
+        "accuracy_threshold": 0.95,
+        "availability": "99.9%",
+        "max_concurrent_requests": 50
+      },
+      "integration_points": [
+        "finance.treasury.supervisor",
+        "finance.audit_compliance.001",
+        "finance.ar_ap.001",
+        "legal.regulatory_tracking.001"
+      ],
+      "monitoring": {
+        "metrics": [
+          "compliance_accuracy_rate",
+          "filing_completion_time",
+          "regulation_update_lag",
+          "escalation_rate"
+        ],
+        "alerts": [
+          "compliance_breach_detected",
+          "filing_deadline_approaching",
+          "low_confidence_prediction"
+        ],
+        "dashboard_enabled": true
+      },
+      "enabled": true,
+      "version": "2.1.0"
+    },
+    {
+      "agent_id": "hr.talent_acquisition.001",
+      "name": "TalentAcquisitionAgent",
+      "display_name": "Talent Acquisition Specialist",
+      "supervisor": "hr.culture.supervisor",
+      "domain": "HR & Culture",
+      "role": "Recruiting and Talent Pipeline Manager",
+      "responsibility": "Optimizes talent acquisition through ML-based candidate matching, resume screening, and hiring prediction.",
+      "decision_boundary": {
+        "can": [
+          "Screen resumes",
+          "Rank candidates",
+          "Schedule interviews",
+          "Generate offer recommendations"
+        ],
+        "cannot": [
+          "Make final hiring decisions",
+          "Set compensation",
+          "Override hiring manager preferences"
+        ],
+        "must_escalate": [
+          "Executive level positions (VP+)",
+          "Salary offers >€150K",
+          "Diversity quota concerns"
+        ]
+      },
+      "ooda_profile": {
+        "observe": {
+          "data_sources": [
+            "applicant_tracking_system",
+            "resume_database",
+            "job_description_corpus",
+            "hiring_manager_feedback"
+          ],
+          "access_level": "read_write",
+          "update_frequency": "real_time"
+        },
+        "orient": {
+          "model": "gpt-4 + custom ML model",
+          "context_engineering": "Hybrid LLM + ML scoring for candidate matching",
+          "tools": [
+            "resume_parser",
+            "skills_extractor",
+            "candidate_scorer"
+          ],
+          "embeddings": "text-embedding-3-large"
+        },
+        "decide": {
+          "decision_type": "recommendation_with_confidence_score",
+          "output_formats": [
+            "candidate_ranking",
+            "match_score",
+            "interview_recommendation"
+          ],
+          "confidence_threshold": 0.8
+        },
+        "act": {
+          "tools": [
+            "ats_integration",
+            "email_system",
+            "calendar_system",
+            "assessment_platform"
+          ],
+          "authorized_actions": [
+            "update_candidate_status",
+            "send_scheduling_email",
+            "generate_scorecard"
+          ],
+          "requires_approval": [
+            "send_offer_letter",
+            "reject_candidate"
+          ]
+        }
+      },
+      "capabilities": [
+        {
+          "name": "resume_screening",
+          "description": "Screen resumes against job requirements",
+          "input_schema": {"resume": "string", "job_id": "string"},
+          "output_schema": {"match_score": "number", "key_skills": "array"},
+          "requires_human_approval": false
+        },
+        {
+          "name": "candidate_matching",
+          "description": "Match candidates to open positions",
+          "input_schema": {"candidate_profile": "object", "open_positions": "array"},
+          "output_schema": {"ranked_positions": "array", "match_explanation": "string"},
+          "requires_human_approval": false
+        }
+      ],
+      "technology": {
+        "type": "Hybrid",
+        "model": "gpt-4 + scikit-learn ensemble",
+        "embeddings": "text-embedding-3-large",
+        "vector_store": "pgvector"
+      },
+      "priority": "HIGH",
+      "sla": {
+        "response_time_ms": 3000,
+        "accuracy_threshold": 0.85,
+        "availability": "99.5%",
+        "max_concurrent_requests": 100
+      },
+      "integration_points": [
+        "hr.culture.supervisor",
+        "hr.skills_gap.001",
+        "hr.internal_mobility.001"
+      ],
+      "monitoring": {
+        "metrics": [
+          "screening_accuracy",
+          "time_to_hire_reduction",
+          "candidate_satisfaction",
+          "hiring_manager_satisfaction"
+        ],
+        "alerts": [
+          "high_volume_of_applications",
+          "position_open_too_long",
+          "low_diversity_in_pipeline"
+        ],
+        "dashboard_enabled": true
+      },
+      "enabled": true,
+      "version": "2.0.1"
+    }
+  ],
+
+  "routing_rules": {
+    "layer_1_keyword": {
+      "invoice|payment|tax|audit|budget|forecast": "finance.treasury.supervisor",
+      "employee|hiring|onboarding|pto|performance|benefits": "hr.culture.supervisor",
+      "security|threat|vulnerability|incident|firewall": "it.security.supervisor",
+      "contract|gdpr|compliance|legal|privacy": "legal.compliance.supervisor",
+      "deploy|pipeline|infrastructure|cloud|kubernetes": "it.security.supervisor",
+      "lead|campaign|pricing|content|marketing": "sales.marketing.supervisor"
+    },
+    "layer_2_pattern": {
+      "Finance": {
+        "keywords": ["budget", "forecast", "expense", "revenue", "financial", "invoice", "tax"],
+        "entities": ["amount", "currency", "date", "account", "cost_center"],
+        "confidence_boost": 0.2
+      },
+      "HR": {
+        "keywords": ["employee", "talent", "training", "performance", "benefits", "hiring", "onboarding"],
+        "entities": ["employee_id", "department", "role", "manager", "hire_date"],
+        "confidence_boost": 0.2
+      }
+    },
+    "layer_3_semantic": {
+      "embedding_model": "text-embedding-3-large",
+      "similarity_threshold": 0.75,
+      "top_k": 5
+    },
+    "layer_4_meta": {
+      "cva_agent_id": "cva.meta.supervisor",
+      "exception_handling": "escalate_to_human",
+      "learning_enabled": true
+    }
+  },
+
+  "monitoring_config": {
+    "global_metrics": [
+      "total_agent_invocations",
+      "average_response_time",
+      "error_rate",
+      "routing_accuracy",
+      "cost_per_request",
+      "user_satisfaction_score"
+    ],
+    "dashboards": [
+      {
+        "name": "Agent Performance Overview",
+        "widgets": [
+          "agent_utilization_heatmap",
+          "response_time_trend",
+          "error_rate_by_agent",
+          "routing_distribution"
+        ]
+      },
+      {
+        "name": "Business Domain Metrics",
+        "widgets": [
+          "finance_workflow_completion",
+          "hr_pipeline_velocity",
+          "security_incident_response_time",
+          "legal_compliance_score"
+        ]
+      }
+    ],
+    "alerting": {
+      "channels": ["slack", "email", "pagerduty"],
+      "severity_levels": ["info", "warning", "critical", "emergency"]
+    }
+  },
+
+  "domain_packs": [
+    {
+      "pack_id": "pack.finance.compliance",
+      "name": "Finance Compliance Pack",
+      "description": "Complete compliance automation for finance departments",
+      "target_vertical": "Financial Services",
+      "agents": [
+        "finance.tax_compliance.001",
+        "finance.audit_compliance.001",
+        "legal.regulatory_tracking.001",
+        "data.governance.001"
+      ],
+      "workflows": [
+        {
+          "name": "Monthly Financial Close",
+          "description": "Automated month-end closing process",
+          "agent_sequence": [
+            "finance.ar_ap.001",
+            "finance.audit_compliance.001",
+            "finance.tax_compliance.001"
+          ]
+        },
+        {
+          "name": "Tax Filing Automation",
+          "description": "End-to-end tax filing workflow",
+          "agent_sequence": [
+            "finance.tax_compliance.001",
+            "finance.audit_compliance.001",
+            "legal.regulatory_tracking.001"
+          ]
+        }
+      ],
+      "pricing_tier": "enterprise"
+    },
+    {
+      "pack_id": "pack.hr.talent",
+      "name": "HR Talent Management Pack",
+      "description": "Complete talent acquisition and management",
+      "target_vertical": "Any",
+      "agents": [
+        "hr.talent_acquisition.001",
+        "hr.skills_gap.001",
+        "hr.employee_sentiment.001",
+        "hr.internal_mobility.001"
+      ],
+      "workflows": [
+        {
+          "name": "End-to-End Hiring",
+          "description": "From job posting to offer letter",
+          "agent_sequence": [
+            "hr.talent_acquisition.001",
+            "hr.skills_gap.001",
+            "hr.internal_mobility.001"
+          ]
+        }
+      ],
+      "pricing_tier": "professional"
+    }
+  ]
+}

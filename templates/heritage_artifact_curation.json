@@ -1,0 +1,116 @@
+{
+  "template_id": "heritage_artifact_curation",
+  "name": "Heritage Artifact Curation",
+  "category": "multi_step_workflows",
+  "description": "Complete curation workflow for heritage artifacts from submission to publication",
+  "spec": {
+    "nodes": [
+      {
+        "id": "artifact_submission",
+        "type": "form_submission",
+        "config": {
+          "form_id": "{{submission_form_id}}",
+          "required_fields": ["title", "description", "photos", "provenance"]
+        }
+      },
+      {
+        "id": "validate_submission",
+        "type": "data_validation",
+        "config": {
+          "checks": [
+            {
+              "field": "title",
+              "min_length": 5
+            },
+            {
+              "field": "description",
+              "min_length": 50
+            },
+            {
+              "field": "photos",
+              "min_items": 1
+            }
+          ]
+        }
+      },
+      {
+        "id": "enrich_artifact",
+        "type": "llm",
+        "config": {
+          "model": "{{llm_model}}",
+          "prompt": "Enrich this artifact information: Title: {{artifact_submission.title}}, Description: {{artifact_submission.description}}, Provenance: {{artifact_submission.provenance}}. Return JSON with keys: historical_context, cultural_significance, estimated_period, related_artifacts."
+        }
+      },
+      {
+        "id": "classify_artifact",
+        "type": "llm",
+        "config": {
+          "model": "{{llm_model}}",
+          "prompt": "Classify this artifact: {{artifact_submission.title}}. Categories: pottery, textiles, metalwork, manuscripts, sculpture, painting, jewelry, tools, weapons, other. Return primary category."
+        }
+      },
+      {
+        "id": "curator_review",
+        "type": "approval",
+        "config": {
+          "approvers": "{{curator_team}}",
+          "approval_threshold": 1,
+          "notification_channel": "slack#curators"
+        }
+      },
+      {
+        "id": "approve_artifact",
+        "type": "conditional",
+        "config": {
+          "condition": "curator_review.approved == true",
+          "true_next": "publish_artifact",
+          "false_next": "request_changes"
+        }
+      },
+      {
+        "id": "request_changes",
+        "type": "notification",
+        "config": {
+          "channels": ["email"],
+          "message": "Changes requested for artifact: {{artifact_submission.title}}\nReviewer comments: {{curator_review.comments}}\nPlease update your submission."
+        }
+      },
+      {
+        "id": "publish_artifact",
+        "type": "database",
+        "config": {
+          "operation": "insert",
+          "table": "published_artifacts",
+          "columns": {
+            "artifact_id": "{{artifact_submission.artifact_id}}",
+            "title": "{{artifact_submission.title}}",
+            "description": "{{artifact_submission.description}}",
+            "category": "{{classify_artifact.category}}",
+            "enrichment_data": "{{enrich_artifact.enrichment}}",
+            "photos": "{{artifact_submission.photos}}",
+            "provenance": "{{artifact_submission.provenance}}",
+            "submitted_by": "{{artifact_submission.submitter_id}}",
+            "approved_by": "{{curator_review.approver}}",
+            "published_at": "{{now()}}"
+          }
+        }
+      },
+      {
+        "id": "notify_contributor",
+        "type": "notification",
+        "config": {
+          "channels": ["email", "slack"],
+          "message": "🎉 Your artifact '{{artifact_submission.title}}' has been published!\nView it at: {{artifact_url}}/{{publish_artifact.inserted_id}}"
+        }
+      }
+    ]
+  },
+  "required_integrations": ["form", "llm", "approval", "database", "notification"],
+  "estimated_setup_time_minutes": 35,
+  "parameters": {
+    "submission_form_id": "heritage_artifact_submission",
+    "llm_model": "gpt-4",
+    "curator_team": ["curator1@organization.org", "curator2@organization.org"],
+    "artifact_url": "https://collection.organization.org/artifacts"
+  }
+}

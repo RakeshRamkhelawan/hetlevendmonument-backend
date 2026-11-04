@@ -1,0 +1,34 @@
+id: SOP-FIN-BUDGET
+description: "Budget Alert - Notify departments when 90% budget threshold reached"
+version: "1.0"
+variables:
+  - finance_api_base_url
+  - finance_api_token
+  - finance_email
+
+steps:
+  - tool: local__openapi_call_endpoint
+    description: "Fetch current budget data"
+    params:
+      base_url: "{finance_api_base_url}"
+      method: "GET"
+      path: "/finance/budget/utilization"
+      headers:
+        Authorization: "Bearer {finance_api_token}"
+
+  - tool: local__llm_generate
+    description: "Analyze budget utilization"
+    params:
+      prompt: "Analyze budget utilization per department. Identify departments that have exceeded 90% of their allocated budget. Calculate remaining budget and projected run-rate."
+
+  - tool: local__llm_generate
+    description: "Generate alert report"
+    params:
+      prompt: "Create a budget alert report listing departments approaching or exceeding their budget threshold. Include current spend, budget limit, percentage used, and projected overshoot date."
+
+  - tool: local__gmail_send_email
+    description: "Notify department heads"
+    params:
+      to: "{finance_email}"
+      subject: "Budget Alert - 90% Threshold Reached"
+      body: "{step_2_output}"

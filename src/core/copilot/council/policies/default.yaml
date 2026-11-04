@@ -1,0 +1,50 @@
+# System-wide default Agent Council policy.
+# All tenants start with this configuration unless overridden.
+
+officers:
+  ComplianceOfficer:
+    can_veto: true
+    timeout_ms: 500
+    strictness: 0.8
+  
+  PrivacyOfficer:
+    can_veto: true
+    timeout_ms: 500
+    strictness: 0.9
+  
+  SecurityOfficer:
+    can_veto: true
+    # 3000 ms: gemeten onder last (20 rekenprocessen, ef29c03f, 5 runs, n=179): p99 2139, max 2443.
+    # De tijd is vooral een eigen databasesessie voor de rechtencontrole. Een tijdoverschrijding is
+    # een mensticket (geen veto, nooit goedkeuren), dus de grens bepaalt alleen hoe vaak een mens wordt gevraagd.
+    timeout_ms: 3000
+    strictness: 0.9
+  
+  RiskOfficer:
+    can_veto: true
+    # 2000 ms: zelfde meting, n=184: p99 1256, max 1845 (wacht op de drukke gebeurtenislus).
+    timeout_ms: 2000
+    strictness: 0.7
+
+  EthicsOfficer:
+    can_veto: false  # ADR-027 explicit: Ethics warns but does not block
+    timeout_ms: 500
+    strictness: 0.6
+  
+  ResourceOfficer:
+    can_veto: false  # ADR-027 explicit: Resource warns but does not block
+    timeout_ms: 500
+    strictness: 0.5
+
+  SanityOfficer:
+    can_veto: true
+    timeout_ms: 500
+    strictness: 0.9
+
+  AuditOfficer:
+    can_veto: true   # If audit fails to write, we MUST block execution
+    timeout_ms: 1000
+    strictness: 1.0
+
+aggregation_mode: "strict-highest-bar"
+hitl_threshold: 0.3

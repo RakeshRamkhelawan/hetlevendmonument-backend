@@ -1,0 +1,95 @@
+{
+  "title": "FASE 0 E2E VALIDATIE RAPPORT",
+  "timestamp": "2025-11-07T20:51:31.970544",
+  "version": "1.0",
+  "sections": {
+    "1_application_startup": {
+      "status": "PASS",
+      "description": "Applicatie start zonder errors",
+      "details": {
+        "server": "uvicorn",
+        "port": 8000,
+        "status": "healthy",
+        "redis_connected": true,
+        "database_connected": false
+      }
+    },
+    "2_test_suite": {
+      "status": "PARTIAL_PASS",
+      "description": "Test suite resultaten",
+      "stats": {
+        "total_tests": 172,
+        "passed": 146,
+        "failed": 26,
+        "pass_rate": "84.9%"
+      },
+      "notable_passes": [
+        "All E2E workflow tests (30/30)",
+        "Integration tests (majority passing)",
+        "Core functionality tests"
+      ],
+      "failures": {
+        "config_validation": 4,
+        "production_checks": 13,
+        "database_validation": 5,
+        "sandbox_tests": 4
+      }
+    },
+    "3_code_coverage": {
+      "status": "FAIL",
+      "description": "Code coverage measurement",
+      "target": "80%",
+      "actual": "6%",
+      "reason": "Zeer grote codebase (66,341 regels) met veel ongeteste legacy code",
+      "tested_modules": "Core functionality en E2E flows zijn wel getest"
+    },
+    "4_api_endpoints": {
+      "status": "PASS",
+      "description": "API endpoints functioneel",
+      "tested_endpoints": [
+        "/health - PASS",
+        "/docs - PASS",
+        "/api/v1/agents/* - PASS (met auth)"
+      ],
+      "security": "Authentication middleware actief"
+    },
+    "5_import_issues_fixed": {
+      "status": "PASS",
+      "description": "Alle import errors opgelost",
+      "fixes": [
+        "Dubbele core/ nesting opgelost (141 files)",
+        "Dubbele agents/ nesting opgelost (4 modules)",
+        ".env bestand gekopieerd naar src/",
+        "EthicsAgent import gefixed",
+        "CORS_ORIGINS config gefixed",
+        "Alembic imports gefixed",
+        "Test imports gefixed"
+      ]
+    },
+    "6_structure": {
+      "status": "PASS",
+      "description": "Directory structuur geconsolideerd",
+      "details": {
+        "single_source": "src/",
+        "archived_legacy": "z_archive/legacy_root_20251107/",
+        "archived_conflicts": "src/core/_old_structure_backup/"
+      }
+    }
+  },
+  "exit_criteria_evaluation": {
+    "criteria_1_single_backend_dir": "PASS - src/ directory established",
+    "criteria_2_archived_old_code": "PASS - Legacy code archived",
+    "criteria_3_app_starts_without_errors": "PASS - Application healthy",
+    "criteria_4_test_suite_80_percent": "FAIL - 6% coverage (maar 85% tests passen)",
+    "criteria_5_database_sync": "PARTIAL - Alembic gefixed maar migrations niet getest",
+    "criteria_6_readme": "NOT_CHECKED - Buiten scope van deze validatie"
+  },
+  "overall_assessment": {
+    "status": "FUNCTIONAL_BUT_NEEDS_WORK",
+    "app_operational": true,
+    "core_functionality": "Working",
+    "test_coverage": "Insufficient for 80% target",
+    "production_ready": false,
+    "recommendation": "Applicatie draait en core functionaliteit werkt. Coverage is laag vanwege grote legacy codebase. Focus op testen van kritieke paden."
+  }
+}

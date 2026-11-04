@@ -1,0 +1,39 @@
+id: SOP-LEGAL-RENEW
+description: "Contract Renewal Tracker - Alert legal 30 days before renewals"
+version: "1.0"
+variables:
+  - legal_email
+  - legal_ops_api_base_url
+  - legal_ops_api_token
+
+steps:
+  - tool: local__openapi_call_endpoint
+    description: "Scan contract database"
+    params:
+      base_url: "{legal_ops_api_base_url}"
+      method: "GET"
+      path: "/legal/contracts/expiring?days=30"
+      headers:
+        Authorization: "Bearer {legal_ops_api_token}"
+
+  - tool: local__llm_generate
+    description: "Identify expiring contracts"
+    params:
+      prompt: "Identify all contracts expiring within the next 30 days. List contract ID, counterparty, expiration date, contract value, and auto-renewal clause status."
+
+  - tool: local__llm_generate
+    description: "Assess renewal recommendations"
+    params:
+      prompt: "For each expiring contract, provide renewal recommendation: renew as-is, renegotiate terms, or let expire. Include reasoning based on contract performance and market conditions."
+
+  - tool: local__llm_generate
+    description: "Draft renewal notices"
+    params:
+      prompt: "Draft renewal notice letters for contracts recommended for renewal. Include proposed terms and timeline for negotiation."
+
+  - tool: local__gmail_send_email
+    description: "Send to legal team"
+    params:
+      to: "{legal_email}"
+      subject: "Contract Renewals - 30 Day Alert"
+      body: "{step_2_output}"

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Pack Deactivation Warning - {{ pack_name }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .content {
+            padding: 30px;
+            background: #f9f9f9;
+        }
+
+        .warning-box {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .info-box {
+            background: #e3f2fd;
+            border: 1px solid #2196f3;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .button {
+            display: inline-block;
+            padding: 12px 30px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+
+        .footer {
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+        }
+
+        .pack-details {
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+            border-left: 4px solid #f39c12;
+        }
+
+        .pack-details dt {
+            font-weight: bold;
+            color: #555;
+        }
+
+        .pack-details dd {
+            margin: 5px 0 15px 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Pack Deactivation Warning</h1>
+        </div>
+
+        <div class="content">
+            <p>Dear Department Manager,</p>
+
+            <p>We are writing to inform you that one of your domain packs is at risk of being deactivated due to
+                inactivity.</p>
+
+            <div class="pack-details">
+                <dl>
+                    <dt>Pack Name:</dt>
+                    <dd>{{ pack_name }}</dd>
+
+                    <dt>Pack ID:</dt>
+                    <dd>{{ pack_id }}</dd>
+
+                    <dt>Department:</dt>
+                    <dd>{{ department }}</dd>
+                </dl>
+            </div>
+
+            <div class="warning-box">
+                <strong>Action Required:</strong> This pack has not been used for an extended period and is now in
+                "critical" health status. If no action is taken within <strong>{{ grace_period_days }} days</strong>,
+                the pack will be automatically deactivated.
+            </div>
+
+            <div class="info-box">
+                <strong>What is Pack Deactivation?</strong><br>
+                When a pack is deactivated, it will be archived and no longer available for use. This helps maintain
+                system performance and reduces clutter. Deactivated packs can be reactivated by contacting your system
+                administrator.
+            </div>
+
+            <p>To prevent deactivation, please use this pack in a workflow or contact your administrator to mark it as
+                exempt from automatic deactivation.</p>
+
+            <p style="text-align: center;">
+                <a href="{{ action_url | default('#') }}" class="button">View Pack Details</a>
+            </p>
+
+            <p>If you have any questions or need assistance, please contact our support team.</p>
+
+            <p>Best regards,<br>The SanskritiSetu Team</p>
+        </div>
+
+        <div class="footer">
+            <p>&copy; {{ year | default('2025') }} SanskritiSetu.org. All rights reserved.</p>
+            <p>This is an automated message from the Pack Lifecycle Management system.</p>
+        </div>
+    </div>
+</body>
+
+</html>

@@ -1,0 +1,61 @@
+"""
+Unit tests voor Security domein: login attempts, brute force, edge cases
+"""
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../src')))
+import pytest
+from fastapi.testclient import TestClient
+
+
+@pytest.mark.skip(reason="Endpoint not yet implemented - Phase 2/3 feature")
+def test_login_attempts_limit(client):
+    for i in range(5):
+        client.post("/api/security/login", json={"username": "user", "password": "wrong"})
+    response = client.post("/api/security/login", json={"username": "user", "password": "wrong"})
+    assert response.status_code in (401, 429)
+
+@pytest.mark.skip(reason="Endpoint not yet implemented - Phase 2/3 feature")
+def test_brute_force_block(client):
+    for i in range(10):
+        client.post("/api/security/login", json={"username": "user", "password": "wrong"})
+    response = client.post("/api/security/login", json={"username": "user", "password": "wrong"})
+    assert response.status_code == 429
+
+@pytest.mark.skip(reason="Endpoint not yet implemented - Phase 2/3 feature")
+def test_security_headers_on_all_endpoints(client):
+    endpoints = [
+        "/api/auth/register",
+        "/api/auth/token",
+        "/api/agents/",
+        "/api/admin/users",
+        "/api/goals/",
+        "/api/learning/",
+        "/api/monitoring/health",
+        "/api/monitoring/metrics"
+    ]
+    for ep in endpoints:
+        if ep.endswith("/"):
+            response = client.post(ep, json={"dummy": "data"})
+        else:
+            response = client.get(ep)
+        assert "X-Frame-Options" in response.headers or "Strict-Transport-Security" in response.headers
+
+@pytest.mark.skip(reason="Endpoint not yet implemented - Phase 2/3 feature")
+def test_security_rate_limiting(client):
+    for _ in range(20):
+        client.get("/api/monitoring/health")
+    response = client.get("/api/monitoring/health")
+    assert response.status_code in (429, 200)
+
+def test_security_tenant_isolation(client):
+    # Simuleer security requests onder verschillende tenants (mock context vereist)
+    pass
+
+def test_security_audit_logging(monkeypatch):
+    # Mock audit log en controleer aanroep bij security events
+    pass
+
+def test_security_concurrent_requests(monkeypatch):
+    # Simuleer gelijktijdige security requests (threading of async)
+    pass

@@ -1,0 +1,19 @@
+# ML/AI Dependencies - Complete set voor production
+numpy>=1.24.0
+pandas>=2.0.0
+scikit-learn>=1.3.0
+scipy>=1.11.0
+matplotlib>=3.7.0
+seaborn>=0.12.0
+gymnasium>=0.29.0
+stable-baselines3>=2.0.0
+torch>=2.0.0
+ffmpeg-python==0.2.0
+faiss-cpu>=1.7.4
+sentence-transformers>=2.2.0
+ragchecker>=0.1.9
+langgraph>=1.0.5
+langchain-google-genai>=4.1.2
+langchain-community>=0.4.1
+langchain-openai>=0.1.0
+tavily-python>=0.7.17

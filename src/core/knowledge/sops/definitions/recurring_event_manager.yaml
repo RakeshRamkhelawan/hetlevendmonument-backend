@@ -1,0 +1,59 @@
+id: SOP-RECURRING-EVENT
+description: "Generic Workflow for Recurring Visit/Event Management"
+version: "1.1"
+variables:
+  - project_id
+  - iteration_index
+  - organizer_email
+  - briefing_channel
+
+steps:
+  - tool: local__llm_generate
+    description: "Generate event brief"
+    params:
+      prompt: |
+        Generate an event brief for iteration {iteration_index}.
+        Location: {iteration.iteration_vars.location}
+        Date: {iteration.iteration_vars.date}
+        Program: {project.static_context.fixed_program}
+        Contact person: {iteration.iteration_vars.ilo_name}
+
+  - tool: local__llm_generate
+    description: "Draft Website Article"
+    params:
+      prompt: |
+        Write a website article about the visit to {iteration.iteration_vars.location}.
+        Style: {project.static_context.tone}.
+        Include mention of: {project.static_context.fixed_program} by {iteration.iteration_vars.ilo_name}.
+        Guidelines: {project.static_context.guidelines}.
+        Event brief: {step_0_output}
+
+  - tool: local__llm_generate
+    description: "Draft Newsletter Item"
+    params:
+      prompt: "Summarize this article for a newsletter regarding {iteration.iteration_vars.location}. Keep it punchy. Article: {step_1_output}"
+
+  - tool: local__llm_generate
+    description: "Draft LinkedIn Post"
+    params:
+      prompt: "Write a LinkedIn post about this visit to {iteration.iteration_vars.location}. Use hashtags. Context: {step_1_output}"
+
+  - tool: local__gmail_send_email
+    description: "Send Content to Partners"
+    params:
+      to: "{organizer_email}"
+      subject: "Content Drafts for {iteration.iteration_vars.location}"
+      body: "Website draft: {step_1_output}\n\nNewsletter draft: {step_2_output}\n\nLinkedIn draft: {step_3_output}"
+
+  - tool: local__gcal_create_event
+    description: "Schedule T-2 Day Briefing"
+    params:
+      summary: "T-2 Briefing - {iteration.iteration_vars.location}"
+      start: "{iteration.iteration_vars.date}"
+      end: "{iteration.iteration_vars.date}"
+
+  - tool: local__slack_post_message
+    description: "Notify briefing channel"
+    params:
+      channel: "{briefing_channel}"
+      text: "Briefing event created for {iteration.iteration_vars.location}. Organizer notified via email."

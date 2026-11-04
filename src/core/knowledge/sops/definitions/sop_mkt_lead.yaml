@@ -1,0 +1,50 @@
+id: SOP-MKT-LEAD
+description: "Lead Nurturing Workflow - Automated lead follow-up and qualification"
+version: "1.1"
+variables:
+  - lead_email
+  - lead_source
+  - lead_interest
+  - lead_name
+
+steps:
+  - tool: local__hubspot_create_contact
+    description: "Create/update lead in HubSpot"
+    params:
+      email: "{lead_email}"
+      firstname: "{lead_name}"
+      lastname: "Lead"
+
+  - tool: local__llm_generate
+    description: "Score lead quality and suggest next action"
+    params:
+      prompt: |
+        Analyze this lead and provide a quality score (1-10):
+        Email: {lead_email}
+        Source: {lead_source}
+        Interest: {lead_interest}
+
+        Provide: score, reasoning, recommended next action.
+
+  - tool: local__llm_generate
+    description: "Create personalized follow-up email"
+    params:
+      prompt: |
+        Write a personalized follow-up email for this lead.
+        Interest area: {lead_interest}
+        Lead score context: {step_1_output}
+        Tone: Professional but friendly.
+        Include a clear CTA.
+
+  - tool: local__gmail_send_email
+    description: "Send follow-up email"
+    params:
+      to: "{lead_email}"
+      subject: "Following up on your interest in {lead_interest}"
+      body: "{step_2_output}"
+
+  - tool: local__hubspot_create_deal
+    description: "Create deal for qualified lead"
+    params:
+      dealname: "Inbound lead - {lead_interest}"
+      amount: "0"

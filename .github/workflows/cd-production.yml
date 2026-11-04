@@ -1,0 +1,915 @@
+name: CD — Productie
+
+# Triggert op een versie-tag (bijv. v1.2.0).
+# Vereiste: de tag MOET op een develop-commit staan — anders wordt de deploy geannuleerd.
+# Activepieces secrets (eenmalig instellen in GitHub → Settings → Secrets):
+#   PROD_AP_ENCRYPTION_KEY  — willekeurige 32-char string (bijv: openssl rand -hex 16)
+#   PROD_AP_WORKER_TOKEN    -- (aanbevolen) vaste token voor server-worker-verkeer; leeg = de
+#                            container maakt er zelf een bij elke start (per replica anders)
+#   PROD_AP_JWT_SECRET      — willekeurige JWT secret     (bijv: openssl rand -hex 32)
+#   PROD_REDIS_HOST         — hostname van Azure Cache for Redis (productie)
+#   PROD_AP_URL             — publieke URL van Activepieces (bijv. https://ap.sanskritisetu.org)
+
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+
+concurrency:
+  group: cd-production
+  cancel-in-progress: false
+
+env:
+  ACR: sanskritisetuacr.azurecr.io
+  KV_PROD: sanskriti-kv-prd
+  AP_IMAGE_TAG: "0.92.1"  # Ook docker-compose.yml (service activepieces) bijwerken; een eigen Dockerfile is er niet
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  preflight:
+    name: Verify required secrets
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check required secrets
+        run: |
+          MISSING=()
+          check_secret() {
+            local name="$1"
+            local value="$2"
+            if [ -z "$value" ]; then
+              MISSING+=("$name")
+            fi
+          }
+          check_secret "AZURE_CREDENTIALS"          "${GH_AZURE_CREDENTIALS}"
+          # Zonder deze wordt PROD_RG leeg en faalt elke `az`-aanroep pas na de builds.
+          check_secret "PROD_RESOURCE_GROUP"         "${GH_PROD_RESOURCE_GROUP}"
+          check_secret "PROD_DATABASE_URL"           "${GH_PROD_DATABASE_URL}"
+          check_secret "PROD_REDIS_URL"              "${GH_PROD_REDIS_URL}"
+          check_secret "REGISTRY_LOGIN_SERVER"       "${GH_REGISTRY_LOGIN_SERVER}"
+          check_secret "REGISTRY_USERNAME"           "${GH_REGISTRY_USERNAME}"
+          check_secret "REGISTRY_PASSWORD"           "${GH_REGISTRY_PASSWORD}"
+          check_secret "SECRET_KEY"                  "${GH_PROD_SECRET_KEY}"
+          # ADR-036 OP-27. Blokkerend en niet optioneel: zonder deze sleutel weigert elke
+          # tool-uitvoering. Een ontbrekende sleutel hier laten passeren verplaatst een luide
+          # deploy-fout naar een stille toolstoring in productie.
+          # Genereren: python -c "import secrets; print(secrets.token_urlsafe(32))"
+          check_secret "PROD_TOOL_PAYLOAD_PSEUDONYM_KEY" \
+                       "${GH_PROD_TOOL_PAYLOAD_PSEUDONYM_KEY}"
+          # Versleutelt klantsleutels (AP-verbinding per klant, providersleutels). Zonder deze
+          # sleutel weigert de applicatie (`HoofdsleutelOntbreekt`) en is providerbeheer onbruikbaar:
+          # dezelfde eis als in cd-staging.yml, hier blokkerend en niet optioneel.
+          # Genereren: python -c "import secrets; print(secrets.token_urlsafe(32))"
+          check_secret "PROD_MASTER_ENCRYPTION_KEY" "${GH_PROD_MASTER_ENCRYPTION_KEY}"
+          check_secret "ACTIVEPIECES_ENCRYPTION_KEY" "${GH_PROD_AP_ENCRYPTION_KEY}"
+          check_secret "ACTIVEPIECES_JWT_SECRET"     "${GH_PROD_AP_JWT_SECRET}"
+          check_secret "PROD_JWT_SECRET_KEY"         "${GH_PROD_JWT_SECRET_KEY}"
+          check_secret "ACR_PASSWORD"                "${GH_ACR_PASSWORD}"
+          check_secret "PROD_BACKEND_APP"            "${GH_PROD_BACKEND_APP}"
+          check_secret "PROD_FRONTEND_APP"           "${GH_PROD_FRONTEND_APP}"
+          check_secret "PROD_WORKER_APP"             "${GH_PROD_WORKER_APP}"
+          # PROD_DEEPSEEK_API_KEY is optioneel: zonder key activeren we mock modus
+
+          if [ ${#MISSING[@]} -gt 0 ]; then
+            echo "::error::De volgende GitHub Secrets ontbreken:"
+            for s in "${MISSING[@]}"; do
+              echo "::error::  - $s"
+            done
+            exit 1
+          fi
+          echo "All required secrets verified."
+
+        env:
+          GH_ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
+          GH_AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
+          GH_PROD_AP_ENCRYPTION_KEY: ${{ secrets.PROD_AP_ENCRYPTION_KEY }}
+          GH_PROD_AP_JWT_SECRET: ${{ secrets.PROD_AP_JWT_SECRET }}
+          GH_PROD_BACKEND_APP: ${{ secrets.PROD_BACKEND_APP }}
+          GH_PROD_DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+          GH_PROD_FRONTEND_APP: ${{ secrets.PROD_FRONTEND_APP }}
+          GH_PROD_JWT_SECRET_KEY: ${{ secrets.PROD_JWT_SECRET_KEY }}
+          GH_PROD_MASTER_ENCRYPTION_KEY: ${{ secrets.PROD_MASTER_ENCRYPTION_KEY }}
+          GH_PROD_REDIS_URL: ${{ secrets.PROD_REDIS_URL }}
+          GH_PROD_RESOURCE_GROUP: ${{ secrets.PROD_RESOURCE_GROUP }}
+          GH_PROD_SECRET_KEY: ${{ secrets.PROD_SECRET_KEY }}
+          GH_PROD_TOOL_PAYLOAD_PSEUDONYM_KEY: ${{ secrets.PROD_TOOL_PAYLOAD_PSEUDONYM_KEY }}
+          GH_PROD_WORKER_APP: ${{ secrets.PROD_WORKER_APP }}
+          GH_REGISTRY_LOGIN_SERVER: ${{ secrets.REGISTRY_LOGIN_SERVER }}
+          GH_REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+          GH_REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
+      - name: Validate AZURE_CREDENTIALS JSON
+        run: |
+          CREDS="${GH_AZURE_CREDENTIALS}"
+          echo "$CREDS" | jq empty || (echo "::error::AZURE_CREDENTIALS is geen geldig JSON" && exit 1)
+          for field in clientId clientSecret subscriptionId tenantId; do
+            VALUE=$(echo "$CREDS" | jq -r ".$field // empty")
+            if [ -z "$VALUE" ]; then
+              echo "::error::AZURE_CREDENTIALS mist veld: $field"
+              exit 1
+            fi
+          done
+
+        env:
+          GH_AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
+  # --------------------------------------------------------------------------
+  # Parallel builds: backend, frontend, worker tegelijk
+  # Stap 1 (tag-verificatie) zit in preflight, daarna alles parallel.
+  # --------------------------------------------------------------------------
+  pre-deploy-check:
+    name: Pre-deploy validatie (scripts/pre-deploy-check.sh)
+    needs: [preflight]
+    runs-on: ubuntu-latest
+    # Was 10 (toen deze job alleen Docker-builds deed). Onderbouwing van 25, met het
+    # onbekende deel apart benoemd: Docker-builds backend+frontend ~5 min (gemeten
+    # 2026-09-14 in act), schematoets 33s wandklok (gemeten 2026-09-18, 8 tests), overige
+    # stappen seconden. Het ENIGE onbekende is de pip-install hieronder; die is nooit op
+    # een GitHub-runner gemeten, want de runners weigeren sinds 2026-09-14 elke job.
+    # 25 laat daar ruim een kwartier voor. Loopt dit ooit tegen de grens aan, meet dan
+    # eerst wat de install kost -- verhoog de grens niet blind.
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      # ADR-036 OP-227. `pre-deploy-check.sh` draait sinds 2026-09-18 de schematoets
+      # `tests/integration/database/test_the_chain_builds_the_whole_schema.py` tegen een
+      # verse PostgreSQL. Die test importeert `src.core.database.import_all_models` en
+      # daarmee de hele modelregistratie, dus hij heeft de RUNTIME-afhankelijkheden van
+      # de applicatie nodig -- niet een handvol pakketten als psycopg2 en alembic. Vandaar
+      # de volledige lock (dezelfde die de Docker-image installeert, dus dezelfde versies)
+      # plus de testtooling. Zonder deze stap heeft deze job geen Python en faalt de
+      # schematoets hier altijd; dat is fail-secure en luid, maar het zou elke
+      # productiedeploy blokkeren zodra Actions terugkomt.
+      #
+      # NIET GEMETEN, met opzet vermeld: dat deze install op een GitHub-runner slaagt is
+      # nooit aangetoond. GitHub Actions draait niet (abonnement opgezegd 2026-09-14) en
+      # `scripts/run_ci_act.ps1` dekt deze workflow niet. Gecontroleerd is alleen dat de
+      # YAML geldig is en de jobstructuur intact blijft.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies voor de schematoets (ADR-036 OP-227)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-prod.lock
+          pip install -r requirements-test.txt
+      - name: Run pre-deploy-check.sh
+        run: bash scripts/pre-deploy-check.sh
+
+  build-backend:
+    name: Build & Push Backend
+    needs: [preflight, pre-deploy-check]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verificeer tag staat op develop
+        run: |
+          git fetch origin develop
+          COMMIT=$(git rev-list -n 1 "$GITHUB_REF_NAME")
+          if ! git branch -r --contains "$COMMIT" | grep -q "origin/develop"; then
+            echo "ERROR: Tag $GITHUB_REF_NAME staat niet op develop."
+            exit 1
+          fi
+          echo "OK: Tag $GITHUB_REF_NAME staat op develop ($COMMIT)"
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      - name: Login ACR
+        run: echo "${GH_ACR_PASSWORD}" | docker login ${{ env.ACR }} -u sanskritisetuacr --password-stdin
+        env:
+          GH_ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-backend-${{ github.sha }}
+          restore-keys: ${{ runner.os }}-buildx-backend-
+      - name: Build backend
+        run: |
+          docker buildx build --target production-api --load \
+            --cache-from type=local,src=/tmp/.buildx-cache \
+            --cache-to type=local,dest=/tmp/.buildx-cache-new,mode=max \
+            -t ${{ env.ACR }}/backend:${{ github.ref_name }} \
+            -t ${{ env.ACR }}/backend:latest \
+            .
+          rm -rf /tmp/.buildx-cache && mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+      - name: Validate migration chain (offline dry-run)
+        run: |
+          IMAGE="${{ env.ACR }}/backend:${{ github.ref_name }}"
+          DB_URL="postgresql+psycopg2://dummy:dummy@localhost/dummy"
+          echo "=== 1/2 Chain compile ==="
+          docker run --rm --pull=never --entrypoint python3 \
+            -e DATABASE_URL="$DB_URL" "$IMAGE" \
+            -m alembic -c /app/src/alembic.ini upgrade head --sql > /dev/null \
+            && echo "Chain compile: OK" \
+            || { echo "FAIL: Migration chain broken"; exit 1; }
+          echo "=== 2/2 Single head check ==="
+          set +e
+          HEADS_RAW=$(docker run --rm --pull=never --entrypoint python3 \
+            -e DATABASE_URL="$DB_URL" "$IMAGE" \
+            -m alembic -c /app/src/alembic.ini heads 2>&1)
+          set -e
+          HEAD_COUNT=$(echo "$HEADS_RAW" | grep -c '(head)' || echo "0")
+          if [ "$HEAD_COUNT" -ne 1 ]; then
+            echo "FAIL: ${HEAD_COUNT} heads gevonden"; echo "$HEADS_RAW"; exit 1
+          fi
+          echo "Single head: OK"
+      - name: Push backend
+        run: |
+          docker push ${{ env.ACR }}/backend:${{ github.ref_name }}
+          docker push ${{ env.ACR }}/backend:latest
+
+  build-frontend:
+    name: Build & Push Frontend
+    needs: [preflight, pre-deploy-check]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      - name: Login ACR
+        run: echo "${GH_ACR_PASSWORD}" | docker login ${{ env.ACR }} -u sanskritisetuacr --password-stdin
+        env:
+          GH_ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          docker build --load \
+            --build-arg VITE_API_URL=https://api.sanskritisetu.org \
+            --build-arg VITE_AUTH_URL=https://api.sanskritisetu.org \
+            -t ${{ env.ACR }}/frontend:${{ github.ref_name }} \
+            -t ${{ env.ACR }}/frontend:latest \
+            .
+      - name: Validate frontend image
+        run: |
+          docker run --rm --pull=never --entrypoint sh \
+            ${{ env.ACR }}/frontend:${{ github.ref_name }} \
+            -c "test -f /usr/share/nginx/html/index.html && echo 'index.html OK'"
+      - name: Push frontend
+        run: |
+          docker push ${{ env.ACR }}/frontend:${{ github.ref_name }}
+          docker push ${{ env.ACR }}/frontend:latest
+
+  build-worker:
+    name: Build & Push Worker
+    needs: [preflight, pre-deploy-check]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      - name: Login ACR
+        run: echo "${GH_ACR_PASSWORD}" | docker login ${{ env.ACR }} -u sanskritisetuacr --password-stdin
+        env:
+          GH_ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
+      - name: Build & push worker
+        run: |
+          docker build --target production-worker --load \
+            -t ${{ env.ACR }}/worker:${{ github.ref_name }} \
+            -t ${{ env.ACR }}/worker:latest \
+            .
+          docker push ${{ env.ACR }}/worker:${{ github.ref_name }}
+          docker push ${{ env.ACR }}/worker:latest
+
+  # --------------------------------------------------------------------------
+  # Deploy: wacht op alle 3 builds, dan secrets + migraties + deploy
+  # --------------------------------------------------------------------------
+  deploy-production:
+    name: Deploy naar Productie
+    needs: [build-backend, build-frontend, build-worker]
+    runs-on: ubuntu-latest
+    # PROD_RG staat hier en NIET in het workflow-brede `env:` (ADR-036 OP-111). De
+    # `secrets`-context is op workflow-niveau niet beschikbaar; daar zou dit stil een LEGE
+    # string opleveren en pas achttien stappen verderop zichtbaar worden als
+    # `--resource-group ""`. Op job-niveau werkt hij wel. Staging deed dit al goed.
+    env:
+      PROD_RG: ${{ secrets.PROD_RESOURCE_GROUP }}
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    environment:
+      name: production
+      url: https://www.sanskritisetu.org
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Login ACR
+        run: echo "${GH_ACR_PASSWORD}" | docker login ${{ env.ACR }} -u sanskritisetuacr --password-stdin
+        env:
+          GH_ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
+
+      # ------------------------------------------------------------------
+      # Stap 1: Push secrets to Key Vault
+      # ------------------------------------------------------------------
+      - name: Push secrets to Key Vault
+        run: |
+          az keyvault secret set --vault-name ${{ env.KV_PROD }} \
+            --name database-url --value "${GH_PROD_DATABASE_URL}" --output none
+          az keyvault secret set --vault-name ${{ env.KV_PROD }} \
+            --name secret-key --value "${GH_PROD_SECRET_KEY}" --output none
+          az keyvault secret set --vault-name ${{ env.KV_PROD }} \
+            --name jwt-secret-key --value "${GH_PROD_JWT_SECRET_KEY}" --output none
+          az keyvault secret set --vault-name ${{ env.KV_PROD }} \
+            --name redis-url --value "${GH_PROD_REDIS_URL}" --output none
+          az keyvault secret set --vault-name ${{ env.KV_PROD }} \
+            --name tool-payload-pseudonym-key \
+            --value "${GH_PROD_TOOL_PAYLOAD_PSEUDONYM_KEY}" --output none
+          az keyvault secret set --vault-name ${{ env.KV_PROD }} \
+            --name master-encryption-key \
+            --value "${GH_PROD_MASTER_ENCRYPTION_KEY}" --output none
+          if [ -n "${GH_PROD_DEEPSEEK_API_KEY}" ]; then
+            az keyvault secret set --vault-name ${{ env.KV_PROD }} \
+              --name deepseek-api-key --value "${GH_PROD_DEEPSEEK_API_KEY}" --output none
+          fi
+          # ADR-036 OP-120. Conditioneel, want zonder deze sleutel draait de keten op de
+          # bestaande SHA-256 -- een werkende toestand, geen reden een deploy te blokkeren.
+          if [ -n "${GH_PROD_AUDIT_CHAIN_HMAC_KEY}" ]; then
+            az keyvault secret set --vault-name ${{ env.KV_PROD }} \
+              --name audit-chain-hmac-key \
+              --value "${GH_PROD_AUDIT_CHAIN_HMAC_KEY}" --output none
+          fi
+
+        env:
+          GH_PROD_AUDIT_CHAIN_HMAC_KEY: ${{ secrets.PROD_AUDIT_CHAIN_HMAC_KEY }}
+          GH_PROD_DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+          GH_PROD_DEEPSEEK_API_KEY: ${{ secrets.PROD_DEEPSEEK_API_KEY }}
+          GH_PROD_JWT_SECRET_KEY: ${{ secrets.PROD_JWT_SECRET_KEY }}
+          GH_PROD_MASTER_ENCRYPTION_KEY: ${{ secrets.PROD_MASTER_ENCRYPTION_KEY }}
+          GH_PROD_REDIS_URL: ${{ secrets.PROD_REDIS_URL }}
+          GH_PROD_SECRET_KEY: ${{ secrets.PROD_SECRET_KEY }}
+          GH_PROD_TOOL_PAYLOAD_PSEUDONYM_KEY: ${{ secrets.PROD_TOOL_PAYLOAD_PSEUDONYM_KEY }}
+      # ------------------------------------------------------------------
+      # Stap 2: Database migraties
+      # ------------------------------------------------------------------
+      - name: Update migration-job image
+        env:
+          ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
+          IMAGE: ${{ env.ACR }}/backend:${{ github.ref_name }}
+        run: |
+          SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+          python3 << PYEOF
+          import json, os
+          kv = "https://sanskriti-kv-prd.vault.azure.net/secrets"
+          patch = {"properties": {"configuration": {
+              "secrets": [
+                  {"name": "database-url", "keyVaultUrl": f"{kv}/database-url", "identity": "system"},
+                  {"name": "secret-key",   "keyVaultUrl": f"{kv}/secret-key",   "identity": "system"},
+                  {"name": "acr-password", "value": os.environ["ACR_PASSWORD"]},
+              ],
+              "registries": [{"server": "sanskritisetuacr.azurecr.io",
+                              "username": "sanskritisetuacr",
+                              "passwordSecretRef": "acr-password"}]
+          }, "template": {"containers": [{"name": "migration",
+              "image": os.environ["IMAGE"],
+              "command": ["python3", "-m", "alembic", "-c", "/app/src/alembic.ini", "upgrade", "head"],
+              "resources": {"cpu": 0.25, "memory": "0.5Gi"},
+              "env": [{"name": "DATABASE_URL", "secretRef": "database-url"},
+                      {"name": "SECRET_KEY",   "secretRef": "secret-key"},
+                      {"name": "RUN_MIGRATIONS", "value": "true"},
+                      {"name": "PYTHONUNBUFFERED", "value": "1"}]}]}}}
+          with open("/tmp/migration-job-patch.json", "w") as f:
+              json.dump(patch, f)
+          PYEOF
+          az rest --method PATCH \
+            --url "https://management.azure.com/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${{ env.PROD_RG }}/providers/Microsoft.App/jobs/migration-job?api-version=2024-03-01" \
+            --body @/tmp/migration-job-patch.json --output none
+          rm -f /tmp/migration-job-patch.json
+          for i in $(seq 1 30); do
+            STATE=$(az containerapp job show --name migration-job \
+              --resource-group ${{ env.PROD_RG }} \
+              --query properties.provisioningState -o tsv 2>/dev/null || echo "Unknown")
+            echo "[$i/30] state: $STATE"
+            [ "$STATE" = "Succeeded" ] || [ "$STATE" = "Failed" ] || [ "$STATE" = "Canceled" ] && break
+            [ "$i" = "30" ] && { echo "ERROR: PATCH timeout"; exit 1; }
+            sleep 10
+          done
+
+      - name: Run migrations
+        run: |
+          EXECUTION=$(az containerapp job start \
+            --name migration-job --resource-group ${{ env.PROD_RG }} --query name -o tsv)
+          echo "Migration execution: $EXECUTION"
+          for i in $(seq 1 30); do
+            STATUS=$(az containerapp job execution show \
+              --name migration-job --resource-group ${{ env.PROD_RG }} \
+              --job-execution-name "$EXECUTION" --query properties.status -o tsv)
+            echo "[$i/30] status: $STATUS"
+            [ "$STATUS" = "Succeeded" ] && exit 0
+            [ "$STATUS" = "Failed" ] && { echo "ERROR: Migrations failed."; exit 1; }
+            sleep 10
+          done
+          echo "ERROR: Migration timed out."; exit 1
+
+      # ------------------------------------------------------------------
+      # Stap 3: Save current tag, wacht op ready, deploy via az-retry.sh
+      # ------------------------------------------------------------------
+      - name: Save current image tag for rollback
+        id: current_image
+        run: |
+          CURRENT=$(az containerapp show \
+            --name ${GH_PROD_BACKEND_APP} \
+            --resource-group ${{ env.PROD_RG }} \
+            --query 'properties.template.containers[0].image' -o tsv)
+          echo "tag=${CURRENT}" >> $GITHUB_OUTPUT
+
+        env:
+          GH_PROD_BACKEND_APP: ${{ secrets.PROD_BACKEND_APP }}
+      - name: Wait for container app ready
+        run: |
+          for i in $(seq 1 30); do
+            STATE=$(az containerapp show \
+              --name ${GH_PROD_BACKEND_APP} \
+              --resource-group ${{ env.PROD_RG }} \
+              --query properties.provisioningState -o tsv 2>/dev/null || echo "Unknown")
+            echo "[$i/30] state: $STATE"
+            [ "$STATE" = "Succeeded" ] || [ "$STATE" = "Failed" ] || [ "$STATE" = "Canceled" ] && break
+            [ "$i" = "30" ] && echo "WAARSCHUWING: timeout, toch doorgaan..."
+            sleep 10
+          done
+
+        env:
+          GH_PROD_BACKEND_APP: ${{ secrets.PROD_BACKEND_APP }}
+      - name: Deploy backend
+        env:
+          ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
+          DEEPSEEK_KEY: ${{ secrets.PROD_DEEPSEEK_API_KEY }}
+          AUDIT_KEY: ${{ secrets.PROD_AUDIT_CHAIN_HMAC_KEY }}
+          GH_PROD_BACKEND_APP: ${{ secrets.PROD_BACKEND_APP }}
+        run: |
+          SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+          BACKEND_APP="${GH_PROD_BACKEND_APP}"
+          IMAGE="${{ env.ACR }}/backend:${{ github.ref_name }}"
+          python3 << PYEOF
+          import json, os
+          kv = "https://sanskriti-kv-prd.vault.azure.net/secrets"
+          secrets = [
+              {"name": "database-url",   "keyVaultUrl": f"{kv}/database-url",   "identity": "system"},
+              {"name": "secret-key",     "keyVaultUrl": f"{kv}/secret-key",     "identity": "system"},
+              {"name": "jwt-secret-key", "keyVaultUrl": f"{kv}/jwt-secret-key", "identity": "system"},
+              {"name": "redis-url",      "keyVaultUrl": f"{kv}/redis-url",      "identity": "system"},
+              # ADR-036 OP-27. Zonder deze definitie verwijst BASE_ENVVARS naar een
+              # secretref die niet bestaat: `az containerapp update` faalt, of de env-var
+              # resolveert leeg en dan stopt de bootcheck het proces. Elke secretref in dit
+              # bestand hoort hier een regel te hebben.
+              {"name": "tool-payload-pseudonym-key",
+               "keyVaultUrl": f"{kv}/tool-payload-pseudonym-key", "identity": "system"},
+              # Zelfde reden: de env-var `MASTER_ENCRYPTION_KEY` hieronder verwijst hiernaar.
+              {"name": "master-encryption-key",
+               "keyVaultUrl": f"{kv}/master-encryption-key", "identity": "system"},
+          ]
+          if os.environ.get("DEEPSEEK_KEY"):
+              secrets.append({"name": "deepseek-api-key",
+                              "keyVaultUrl": f"{kv}/deepseek-api-key", "identity": "system"})
+          # ADR-036 OP-120. Alleen als de sleutel bestaat; anders wijst de secretref naar
+          # een Key Vault-secret dat de vorige stap niet heeft aangemaakt.
+          if os.environ.get("AUDIT_KEY"):
+              secrets.append({"name": "audit-chain-hmac-key",
+                              "keyVaultUrl": f"{kv}/audit-chain-hmac-key",
+                              "identity": "system"})
+          secrets.append({"name": "acr-password", "value": os.environ["ACR_PASSWORD"]})
+          patch = {"properties": {"configuration": {
+              "secrets": secrets,
+              "registries": [{"server": "sanskritisetuacr.azurecr.io",
+                              "username": "sanskritisetuacr",
+                              "passwordSecretRef": "acr-password"}]}}}
+          with open("/tmp/backend-patch.json", "w") as f:
+              json.dump(patch, f)
+          PYEOF
+          az rest --method PATCH \
+            --url "https://management.azure.com/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${{ env.PROD_RG }}/providers/Microsoft.App/containerApps/${BACKEND_APP}?api-version=2024-03-01" \
+            --body @/tmp/backend-patch.json --output none
+          rm -f /tmp/backend-patch.json
+          for i in $(seq 1 30); do
+            STATE=$(az containerapp show --name "${BACKEND_APP}" \
+              --resource-group ${{ env.PROD_RG }} \
+              --query properties.provisioningState -o tsv 2>/dev/null || echo "Unknown")
+            echo "[$i/30] state: $STATE"
+            [ "$STATE" = "Succeeded" ] || [ "$STATE" = "Failed" ] || [ "$STATE" = "Canceled" ] && break
+            [ "$i" = "30" ] && { echo "ERROR: PATCH timeout"; exit 1; }
+            sleep 10
+          done
+          BASE_ENVVARS=(
+            "ENVIRONMENT=production" "LOG_LEVEL=INFO" "PYTHONUNBUFFERED=1"
+            "DATABASE_URL=secretref:database-url" "SECRET_KEY=secretref:secret-key"
+            "JWT_SECRET_KEY=secretref:jwt-secret-key" "REDIS_URL=secretref:redis-url"
+            # ADR-036 OP-27: sleutel voor de pseudonimisering van tool-payloads. Zonder deze
+            # sleutel weigert elke tool-uitvoering (fail-closed) -- er is bewust geen terugval
+            # op SECRET_KEY of op een naakte hash, want beide zijn voor lage-entropie-waarden
+            # terug te rekenen en geven dus schijnbescherming.
+            "TOOL_PAYLOAD_PSEUDONYM_KEY=secretref:tool-payload-pseudonym-key"
+            "MASTER_ENCRYPTION_KEY=secretref:master-encryption-key"
+            "API_BASE_URL=https://api.sanskritisetu.org"
+            "FRONTEND_URL=https://www.sanskritisetu.org"
+          )
+          if [ -n "${DEEPSEEK_KEY:-}" ]; then
+            LLM_ENVVARS=("LLM_PROVIDER=deepseek" "LLM_MODEL=deepseek-chat"
+                         "DEEPSEEK_API_KEY=secretref:deepseek-api-key")
+          else
+            LLM_ENVVARS=("LLM_PROVIDER=mock")
+          fi
+          # ADR-036 OP-120: optioneel, zie de toelichting bij de worker-stap.
+          AUDIT_ENVVARS=()
+          if [ -n "${AUDIT_KEY:-}" ]; then
+            AUDIT_ENVVARS=("AUDIT_CHAIN_HMAC_KEY=secretref:audit-chain-hmac-key")
+          fi
+          bash .github/scripts/az-retry.sh containerapp update \
+            --name "${BACKEND_APP}" --resource-group ${{ env.PROD_RG }} \
+            --image "${IMAGE}" --min-replicas 1 --max-replicas 3 \
+            --set-env-vars "${BASE_ENVVARS[@]}" "${LLM_ENVVARS[@]}" \
+              ${AUDIT_ENVVARS[@]+"${AUDIT_ENVVARS[@]}"}
+
+      - name: Deploy frontend
+        run: |
+          bash .github/scripts/az-retry.sh containerapp update \
+            --name ${GH_PROD_FRONTEND_APP} \
+            --resource-group ${{ env.PROD_RG }} \
+            --image ${{ env.ACR }}/frontend:${{ github.ref_name }}
+
+        env:
+          GH_PROD_FRONTEND_APP: ${{ secrets.PROD_FRONTEND_APP }}
+      - name: Deploy worker
+        env:
+          PSEUDONYM_KEY: ${{ secrets.PROD_TOOL_PAYLOAD_PSEUDONYM_KEY }}
+          MASTER_KEY: ${{ secrets.PROD_MASTER_ENCRYPTION_KEY }}
+          REDIS_URL: ${{ secrets.PROD_REDIS_URL }}
+          DB_URL: ${{ secrets.PROD_DATABASE_URL }}
+          AUDIT_KEY: ${{ secrets.PROD_AUDIT_CHAIN_HMAC_KEY }}
+          GH_PROD_WORKER_APP: ${{ secrets.PROD_WORKER_APP }}
+        run: |
+          # ADR-036 OP-27: de worker voert tools IN-PROCESS uit. De keten is
+          # src/core/tasks/workflow_tasks.py (@dramatiq.actor) -> AutonomousAgent ->
+          # BaseAgent._create_tool_broker() -> een lokale ToolBrokerService, dus niet via de
+          # HTTP-client naar de backend. Zonder deze sleutel weigert daar elke tool-aanroep,
+          # en omdat het entrypoint dramatiq is draait de bootcheck er nooit: dat wordt dus
+          # een stille storing in plaats van een luide deploy-fout.
+          # Container-App-secrets zijn PER APP. De definitie bij de backend (stap "Deploy
+          # backend") dekt deze app dus niet: zonder eigen `--set-secrets` weigert ARM de
+          # secretref, of de env-var resolveert naar de letterlijke string
+          # "secretref:tool-payload-pseudonym-key" -- 36 tekens, dus boven MIN_KEY_LENGTH en
+          # geaccepteerd. Dan is de HMAC-sleutel een publiek bekende constante en zijn alle
+          # digests terug te rekenen. Gemeten per app en niet bestandsbreed; die eerste meting
+          # telde definities op andere apps mee als dekking.
+          # DATABASE_URL, API_BASE_URL en SERENA_API_URL horen hier ook (ADR-036 OP-91,
+          # heropend 2026-08-09). Zonder DATABASE_URL komt het importpad niet verder dan
+          # "CRITICAL: DATABASE_URL environment variable is required", en de andere twee zijn
+          # het fail-fast-blok in `src/config.py:39-52`. Gemeten met exact deze env-set door
+          # `tests/architecture/test_deployed_worker_images_can_boot.py`.
+          #
+          # SERENA_API_URL wijst bewust naar `.invalid` (RFC 2606, lost gegarandeerd niet op):
+          # Serena draait in geen enkele omgeving. De productiecontrole verbiedt localhost, dus
+          # er MOET een waarde staan; een echt ogende hostnaam zou beweren dat de dienst
+          # bestaat. Zo faalt een onverhoopte aanroep luid in plaats van stil.
+          # ADR-036 OP-120: sleutel voor de auditketen. OPTIONEEL -- zonder sleutel valt
+          # `_compute_hash` terug op de bestaande SHA-256 en werkt alles zoals voorheen.
+          # Een verplichte check zou een deploy blokkeren voor iets dat per ontwerp
+          # optioneel is.
+          #
+          # Via een ARRAY en niet inline: `--set-secrets "audit-chain-hmac-key="` met een
+          # lege waarde is geen geldige aanroep. Het secret EN de env-var worden hier in
+          # EEN `if` gezet zodat ze niet uit elkaar kunnen lopen -- dat is precies de
+          # valkuil waar de comment over de pseudonimiseringssleutel voor waarschuwt: een
+          # secretref zonder eigen definitie resolveert naar de LETTERLIJKE string, en dan
+          # is de sleutel een publiek bekende constante.
+          AUDIT_SECRETS=()
+          AUDIT_ENVVARS=()
+          if [ -n "${AUDIT_KEY:-}" ]; then
+            AUDIT_SECRETS=("audit-chain-hmac-key=${AUDIT_KEY}")
+            AUDIT_ENVVARS=("AUDIT_CHAIN_HMAC_KEY=secretref:audit-chain-hmac-key")
+          fi
+          # `az containerapp update` heeft GEEN `--set-secrets`-vlag (alleen `--set-env-vars`
+          # en `--secret-volume-mount`, geverifieerd via `az containerapp update --help`,
+          # 2026-08-29) -- secrets zetten kan alleen via het aparte commando
+          # `containerapp secret set`. Zelfde bevinding als cd-staging.yml, hier nooit
+          # opgemerkt omdat productie nog niet bestaat (OP-111).
+          bash .github/scripts/az-retry.sh containerapp secret set \
+            --name ${GH_PROD_WORKER_APP} \
+            --resource-group ${{ env.PROD_RG }} \
+            --secrets "tool-payload-pseudonym-key=${PSEUDONYM_KEY}" \
+              "master-encryption-key=${MASTER_KEY}" \
+              "redis-url=${REDIS_URL}" \
+              "database-url=${DB_URL}" \
+              ${AUDIT_SECRETS[@]+"${AUDIT_SECRETS[@]}"}
+
+          bash .github/scripts/az-retry.sh containerapp update \
+            --name ${GH_PROD_WORKER_APP} \
+            --resource-group ${{ env.PROD_RG }} \
+            --image ${{ env.ACR }}/worker:${{ github.ref_name }} \
+            --set-env-vars "ENVIRONMENT=production" \
+              "DATABASE_URL=secretref:database-url" \
+              "REDIS_URL=secretref:redis-url" \
+              "API_BASE_URL=https://api.sanskritisetu.org" \
+              "SERENA_API_URL=https://serena.invalid" \
+              "TOOL_PAYLOAD_PSEUDONYM_KEY=secretref:tool-payload-pseudonym-key" \
+              "MASTER_ENCRYPTION_KEY=secretref:master-encryption-key" \
+              ${AUDIT_ENVVARS[@]+"${AUDIT_ENVVARS[@]}"}
+
+      # ------------------------------------------------------------------
+      # Stap 3c: Scheduler (ADR-036 OP-91)
+      # ------------------------------------------------------------------
+      # Zonder dit proces draait in productie GEEN van de opruimactors uit
+      # `governance/retention_cleanup.py`. Gevolg zolang dat zo was: afgehandelde HITL-tickets
+      # werden nooit verwijderd, en openstaande tickets verliepen nooit -- die houden hun rauwe,
+      # door een taalmodel geschreven parameters. Elke bewaartermijn in die module was een belofte
+      # die niemand nakwam, zonder foutmelding, want er komt geen melding wanneer iets NIET gebeurt.
+      #
+      # Kostenbesluit Rakesh 2026-08-08: dit is een altijd-draaiende Container App
+      # (0.25 vCPU / 0.5 Gi, exact EEN replica). Een replica en niet meer: deze jobs zijn niet
+      # bedoeld om dubbel te draaien.
+      #
+      # Dezelfde image als de worker met een ander startcommando, zodat de PLANNING op EEN plek
+      # staat (`scheduler.py`) en niet ook nog in cron-definities hier -- twee plekken lopen uiteen,
+      # en dat is de terugkerende faalvorm van deze reeks.
+      - name: Deploy scheduler (productie)
+        env:
+          PSEUDONYM_KEY: ${{ secrets.PROD_TOOL_PAYLOAD_PSEUDONYM_KEY }}
+          MASTER_KEY: ${{ secrets.PROD_MASTER_ENCRYPTION_KEY }}
+          AUDIT_KEY: ${{ secrets.PROD_AUDIT_CHAIN_HMAC_KEY }}
+          REDIS_URL: ${{ secrets.PROD_REDIS_URL }}
+          # Deze twee stonden tot 2026-08-09 rechtstreeks in de shell-tekst hieronder, terwijl
+          # dezelfde stap voor de andere twee al `env:` gebruikte (ADR-036 MEDIUM-6, zelfde
+          # klasse als OP-94/OP-98). Via `env:` staat de waarde niet meer in het tijdelijke
+          # scriptbestand op de runner, dat elke andere stap in deze job kan lezen.
+          DB_URL: ${{ secrets.PROD_DATABASE_URL }}
+          ACR_PW: ${{ secrets.ACR_PASSWORD }}
+          GH_PROD_BACKEND_APP: ${{ secrets.PROD_BACKEND_APP }}
+        run: |
+          # ADR-036 OP-120: sleutel voor de auditketen. OPTIONEEL -- zonder sleutel valt
+          # `_compute_hash` terug op de bestaande SHA-256 en werkt alles zoals voorheen.
+          # Een verplichte check zou een deploy blokkeren voor iets dat per ontwerp
+          # optioneel is.
+          #
+          # Via een ARRAY en niet inline: `--set-secrets "audit-chain-hmac-key="` met een
+          # lege waarde is geen geldige aanroep. Het secret EN de env-var worden hier in
+          # EEN `if` gezet zodat ze niet uit elkaar kunnen lopen -- dat is precies de
+          # valkuil waar de comment over de pseudonimiseringssleutel voor waarschuwt: een
+          # secretref zonder eigen definitie resolveert naar de LETTERLIJKE string, en dan
+          # is de sleutel een publiek bekende constante.
+          AUDIT_SECRETS=()
+          AUDIT_ENVVARS=()
+          if [ -n "${AUDIT_KEY:-}" ]; then
+            AUDIT_SECRETS=("audit-chain-hmac-key=${AUDIT_KEY}")
+            AUDIT_ENVVARS=("AUDIT_CHAIN_HMAC_KEY=secretref:audit-chain-hmac-key")
+          fi
+          if az containerapp show --name scheduler-prod \
+            --resource-group ${{ env.PROD_RG }} &>/dev/null; then
+            # `az containerapp update` heeft geen `--set-secrets`-vlag -- zie de toelichting
+            # bij "Deploy worker (productie)" hierboven.
+            bash .github/scripts/az-retry.sh containerapp secret set \
+              --name scheduler-prod \
+              --resource-group ${{ env.PROD_RG }} \
+              --secrets "tool-payload-pseudonym-key=${PSEUDONYM_KEY}" \
+                "master-encryption-key=${MASTER_KEY}" \
+                ${AUDIT_SECRETS[@]+"${AUDIT_SECRETS[@]}"} \
+                "database-url=${DB_URL}" \
+                "redis-url=${REDIS_URL}"
+
+            bash .github/scripts/az-retry.sh containerapp update \
+              --name scheduler-prod \
+              --resource-group ${{ env.PROD_RG }} \
+              --image ${{ env.ACR }}/worker:${{ github.ref_name }} \
+              --set-env-vars "ENVIRONMENT=production" \
+                "DATABASE_URL=secretref:database-url" \
+                "REDIS_URL=secretref:redis-url" \
+                "API_BASE_URL=https://api.sanskritisetu.org" \
+                "SERENA_API_URL=https://serena.invalid" \
+                "TOOL_PAYLOAD_PSEUDONYM_KEY=secretref:tool-payload-pseudonym-key" \
+                "MASTER_ENCRYPTION_KEY=secretref:master-encryption-key" \
+                ${AUDIT_ENVVARS[@]+"${AUDIT_ENVVARS[@]}"}
+          else
+            ENV_NAME=$(az containerapp show \
+              --name ${GH_PROD_BACKEND_APP} \
+              --resource-group ${{ env.PROD_RG }} \
+              --query 'properties.environmentId' -o tsv | awk -F'/' '{print $NF}')
+
+            # `command`/`args` kunnen NIET via `--command "python" "-m" "..."`: az's argparser
+            # stopt met verzamelen zodra een lijst-waarde met een streepje begint
+            # ("unrecognized arguments: -m src.workers.scheduler", gemeten 2026-08-29 op
+            # cd-staging.yml, run 33229004822 -- dezelfde code hier). Geen `--command`/`--args`-
+            # combinatie zonder die beperking gevonden (10 varianten getest); `--yaml` legt de
+            # array rechtstreeks vast en omzeilt de argparser volledig -- geverifieerd op
+            # cd-staging.yml's scheduler-staging (`args` werd correct `["-m",
+            # "src.workers.scheduler"]`, twee losse elementen, de app boot succesvol).
+            # `configuration.activeRevisionsMode` moet aanwezig zijn: zonder dat veld crasht de
+            # containerapp-CLI-extensie zelf op een None-waarde (TypeError diep in
+            # `set_up_service_type`), los van deze YAML.
+            cat > scheduler-prod.yaml << YAMLEOF
+            properties:
+              configuration:
+                activeRevisionsMode: Single
+                registries:
+                  - server: sanskritisetuacr.azurecr.io
+                    username: sanskritisetuacr
+                    passwordSecretRef: acr-password
+                secrets:
+                  - name: acr-password
+                    value: "${ACR_PW}"
+                  - name: database-url
+                    value: "${DB_URL}"
+                  - name: redis-url
+                    value: "${REDIS_URL}"
+                  - name: master-encryption-key
+                    value: "${MASTER_KEY}"
+                  - name: tool-payload-pseudonym-key
+                    value: "${PSEUDONYM_KEY}"$( [ -n "${AUDIT_KEY:-}" ] && printf '\n        - name: audit-chain-hmac-key\n          value: "%s"' "${AUDIT_KEY}" )
+              template:
+                containers:
+                  - name: scheduler-prod
+                    image: ${{ env.ACR }}/worker:${{ github.ref_name }}
+                    command: ["python"]
+                    args: ["-m", "src.workers.scheduler"]
+                    env:
+                      - name: DATABASE_URL
+                        secretRef: database-url
+                      - name: REDIS_URL
+                        secretRef: redis-url
+                      - name: ENVIRONMENT
+                        value: "production"
+                      - name: PYTHONUNBUFFERED
+                        value: "1"
+                      - name: API_BASE_URL
+                        value: "https://api.sanskritisetu.org"
+                      - name: SERENA_API_URL
+                        value: "https://serena.invalid"
+                      - name: MASTER_ENCRYPTION_KEY
+                        secretRef: master-encryption-key
+                      - name: TOOL_PAYLOAD_PSEUDONYM_KEY
+                        secretRef: tool-payload-pseudonym-key$( [ -n "${AUDIT_KEY:-}" ] && printf '\n            - name: AUDIT_CHAIN_HMAC_KEY\n              secretRef: audit-chain-hmac-key' )
+                    resources:
+                      cpu: 0.25
+                      memory: 0.5Gi
+                scale:
+                  minReplicas: 1
+                  maxReplicas: 1
+          YAMLEOF
+
+            bash .github/scripts/az-retry.sh containerapp create \
+              --name scheduler-prod \
+              --resource-group ${{ env.PROD_RG }} \
+              --environment "$ENV_NAME" \
+              --yaml scheduler-prod.yaml
+          fi
+
+      # ------------------------------------------------------------------
+      # Stap 4: Activepieces (optioneel)
+      # ------------------------------------------------------------------
+      - name: Deploy Activepieces (productie)
+        env:
+          AP_ENC_KEY: ${{ secrets.PROD_AP_ENCRYPTION_KEY }}
+          AP_JWT: ${{ secrets.PROD_AP_JWT_SECRET }}
+          AP_WORKER_TOKEN: ${{ secrets.PROD_AP_WORKER_TOKEN }}
+          REDIS_HOST: ${{ secrets.PROD_REDIS_HOST }}
+          AP_URL: ${{ secrets.PROD_AP_URL }}
+          DB_URL_RAW: ${{ secrets.PROD_DATABASE_URL }}
+          GH_PROD_BACKEND_APP: ${{ secrets.PROD_BACKEND_APP }}
+        run: |
+          if [ -z "${AP_ENC_KEY}" ]; then
+            echo "SKIP: PROD_AP_ENCRYPTION_KEY niet ingesteld."; exit 0
+          fi
+          RG="${{ env.PROD_RG }}"
+          python3 -c '
+          import os, shlex; from urllib.parse import urlparse, unquote
+          u = urlparse(os.environ["DB_URL_RAW"])
+          with open("/tmp/db_env.sh", "w") as f:
+            f.write(f"DB_HOST={shlex.quote(u.hostname or str())}\n")
+            f.write(f"DB_USER={shlex.quote(unquote(u.username or str()))}\n")
+            f.write(f"DB_PASS={shlex.quote(unquote(u.password or str()))}\n")
+            f.write(f"DB_PORT={shlex.quote(str(u.port or 5432))}\n")
+          '
+          source /tmp/db_env.sh; rm -f /tmp/db_env.sh
+          ENV_NAME=$(az containerapp show --name ${GH_PROD_BACKEND_APP} \
+            --resource-group "$RG" \
+            --query 'properties.environmentId' -o tsv | awk -F'/' '{print $NF}')
+          AP_ENVVARS=(
+            "AP_ENCRYPTION_KEY=${AP_ENC_KEY}" "AP_JWT_SECRET=${AP_JWT}"
+            "AP_POSTGRES_HOST=${DB_HOST}" "AP_POSTGRES_PORT=${DB_PORT}"
+            "AP_POSTGRES_USERNAME=${DB_USER}" "AP_POSTGRES_PASSWORD=${DB_PASS}"
+            "AP_POSTGRES_DATABASE=activepieces"
+            "AP_REDIS_HOST=${REDIS_HOST:-localhost}" "AP_REDIS_PORT=6379" "AP_REDIS_USE_SSL=true"
+            "AP_FRONTEND_URL=${AP_URL:-https://ap.sanskritisetu.org}"
+            "AP_EXECUTION_MODE=SANDBOXED" "AP_WORKER_TYPE=THREAD" "AP_ENVIRONMENT=prod"
+            "AP_TELEMETRY_ENABLED=false" "AP_QUEUE_MODE=MEMORY"
+            "AP_LOG_LEVEL=info" "AP_WEBHOOK_TIMEOUT_SECONDS=30"
+            "AP_WORKER_TOKEN=${AP_WORKER_TOKEN}"
+            # Heette tot AP 0.82 AP_MAX_CONCURRENT_JOBS_PER_PROJECT; nieuwe standaard is 5.
+            "AP_DEFAULT_CONCURRENT_JOBS_LIMIT=100"
+          )
+          if az containerapp show --name activepieces --resource-group "$RG" &>/dev/null; then
+            az containerapp update --name activepieces --resource-group "$RG" \
+              --image ghcr.io/activepieces/activepieces:${{ env.AP_IMAGE_TAG }} \
+              --set-env-vars "${AP_ENVVARS[@]}"
+          else
+            az containerapp create --name activepieces --resource-group "$RG" \
+              --environment "$ENV_NAME" \
+              --image ghcr.io/activepieces/activepieces:${{ env.AP_IMAGE_TAG }} \
+              --ingress external --target-port 80 \
+              --min-replicas 1 --max-replicas 2 --cpu 0.5 --memory 1.0Gi \
+              --env-vars "${AP_ENVVARS[@]}"
+          fi
+
+      # ------------------------------------------------------------------
+      # Stap 5: Deep health check (database + redis sub-status)
+      # ------------------------------------------------------------------
+      - name: Wait for revision Running
+        env:
+          PROD_BACKEND_APP: ${{ secrets.PROD_BACKEND_APP }}
+          RG: ${{ env.PROD_RG }}
+        run: |
+          for i in $(seq 1 36); do
+            LATEST=$(az containerapp show --name "${PROD_BACKEND_APP}" \
+              --resource-group "${RG}" \
+              --query 'properties.latestRevisionName' -o tsv 2>/dev/null || echo "")
+            [ -z "$LATEST" ] && { echo "[$i/36] wacht op revisienaam..."; sleep 10; continue; }
+            STATE=$(az containerapp revision show \
+              --name "${PROD_BACKEND_APP}" --revision "${LATEST}" \
+              --resource-group "${RG}" \
+              --query 'properties.runningState' -o tsv 2>/dev/null || echo "Unknown")
+            echo "[$i/36] Revisie ${LATEST} — runningState: ${STATE}"
+            if [ "$STATE" = "Running" ]; then echo "Backend-revisie actief."; exit 0; fi
+            if [ "$i" = "36" ]; then
+              az containerapp logs show --name "${PROD_BACKEND_APP}" \
+                --resource-group "${RG}" --tail 50 --format text || true
+              exit 1
+            fi
+            sleep 10
+          done
+
+      - name: Deep health check (database + redis sub-status)
+        uses: ./.github/actions/deep-health-check
+        with:
+          url: https://api.sanskritisetu.org
+          retries: "5"
+          wait_seconds: "20"
+          initial_wait: "0"
+
+      - name: Auto-rollback on failure
+        if: failure()
+        run: |
+          PREVIOUS="${{ steps.current_image.outputs.tag }}"
+          echo "Deploy/health failed. Rolling back to: ${PREVIOUS}"
+          az containerapp update \
+            --name ${GH_PROD_BACKEND_APP} \
+            --resource-group ${{ env.PROD_RG }} \
+            --image "${PREVIOUS}" --min-replicas 1 --max-replicas 3
+
+        env:
+          GH_PROD_BACKEND_APP: ${{ secrets.PROD_BACKEND_APP }}
+      # ------------------------------------------------------------------
+      # Stap 6: Smoke tests (harde blokkade — geen continue-on-error)
+      # ------------------------------------------------------------------
+      - name: Smoke tests
+        run: |
+          BASE_URL="https://api.sanskritisetu.org"
+          echo "--- Frontend health ---"
+          for i in 1 2 3 4 5; do
+            HTTP=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
+              "https://www.sanskritisetu.org/" || echo "000")
+            echo "[$i/5] Frontend HTTP $HTTP"
+            [ "$HTTP" = "200" ] && break
+            [ "$i" = "5" ] && { echo "ERROR: Frontend niet bereikbaar"; exit 1; }
+            sleep 20
+          done
+          echo "--- API readiness ---"
+          # /health/ready en niet /health: ProbeBypassMiddleware beantwoordt /health statisch
+          # voor elke andere middleware en voor de router, dus dat bewijst alleen dat het proces
+          # een poort bindt. Readiness raakt de echte route (ADR-012).
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "${BASE_URL}/health/ready")
+          echo "Readiness endpoint: HTTP $STATUS"
+          [ "$STATUS" = "200" ] || { echo "ERROR: Readiness endpoint not reachable"; exit 1; }
+          echo "--- OpenAPI surface closed ---"
+          # De OpenAPI-oppervlakte MOET dicht zijn (ADR-036 OP-124). Een 4xx is geldig; een 2xx
+          # betekent dat het volledige schema onauthenticated bereikbaar is. Geen antwoord (000)
+          # is GEEN geldige "dicht" -- dan is de API onbereikbaar.
+          SCHEMA=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "${BASE_URL}/openapi.json")
+          echo "OpenAPI schema: HTTP $SCHEMA"
+          case "$SCHEMA" in
+            4??) echo "OpenAPI surface is closed." ;;
+            *) echo "ERROR: /openapi.json gaf HTTP $SCHEMA, verwacht 4xx (ADR-036 OP-124)"; exit 1 ;;
+          esac
+          echo "Smoke tests geslaagd."
+
+      # ------------------------------------------------------------------
+      # Stap 7: GitHub Release aanmaken
+      # ------------------------------------------------------------------
+      - name: Maak GitHub Release aan
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            --title "Release ${{ github.ref_name }}" \
+            --generate-notes \
+            --latest

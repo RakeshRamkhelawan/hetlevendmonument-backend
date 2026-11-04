@@ -1,0 +1,76 @@
+# traefik/traefik.yml - Traefik static configuration (ADR-009)
+# Edge gateway for SanskritiSetu: TLS 1.3, Docker auto-discovery, Prometheus metrics.
+
+# ============================================================================
+# == Entry Points
+# ============================================================================
+entryPoints:
+  web:
+    address: ":80"
+    # HTTP->HTTPS redirect wordt NIET hier geconfigureerd — dat gebeurt via CLI flag in
+    # docker-compose.prod.yml zodat dev gewoon HTTP kan gebruiken zonder foutieve router.
+
+  websecure:
+    address: ":443"
+    http:
+      tls:
+        certResolver: letsencrypt
+        options: tls13only
+
+  # Traefik dashboard + Prometheus metrics
+  traefik:
+    address: ":8080"
+
+# ============================================================================
+# == TLS Options
+# ============================================================================
+tls:
+  options:
+    tls13only:
+      minVersion: VersionTLS13
+
+# ============================================================================
+# == Certificate Resolvers (LetsEncrypt ACME)
+# ============================================================================
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      # email wordt als CLI flag meegegeven in docker-compose.yml zodat env var
+      # substitutie door Docker Compose wordt gedaan (Traefik interpoleert YAML niet)
+      email: "admin@sanskritisetu.org"
+      storage: /letsencrypt/acme.json
+      httpChallenge:
+        entryPoint: web
+
+# ============================================================================
+# == Providers
+# ============================================================================
+providers:
+  docker:
+    # Only route services that explicitly opt-in via labels
+    exposedByDefault: false
+    network: sanskritisetu_network
+    watch: true
+
+# ============================================================================
+# == API and Dashboard
+# ============================================================================
+api:
+  dashboard: true
+  # NOTE: insecure=true exposes dashboard zonder auth — alleen acceptabel in dev (127.0.0.1 bound).
+  # docker-compose.prod.yml overschrijft dit via CLI flag --api.insecure=false
+  insecure: true
+
+# ============================================================================
+# == Ping (vereist voor healthcheck: traefik healthcheck)
+# ============================================================================
+ping: {}
+
+# ============================================================================
+# == Metrics (Prometheus)
+# ============================================================================
+metrics:
+  prometheus:
+    entryPoint: traefik
+    addRoutersLabels: true
+    addServicesLabels: true

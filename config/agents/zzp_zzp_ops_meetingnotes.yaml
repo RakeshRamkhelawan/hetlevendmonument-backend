@@ -1,0 +1,20 @@
+agent_id: "zzp.zzp_ops.meetingnotes.001"
+name: "MeetingNotesAgent"
+department: "zzp_ops"
+technology: "LLM"
+module_path: "src.core.als.agents.zzp.zzp_ops"
+class_name: "MeetingNotesAgent"
+description: "Summarizes meetings and extracts actionable tasks."
+is_active: true
+priority: "MEDIUM"
+version: "1.0.0"
+allowed_tools: ["whisper_api", "task_extractor"]
+ooda_profile:
+  observe:
+    data_sources: ["solo_business_data", "social_apis"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.85
+  act:
+    tools: ["whisper_api", "task_extractor"]

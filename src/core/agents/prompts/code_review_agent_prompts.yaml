@@ -1,0 +1,44 @@
+code_review:
+  prompt_type: general_consultation
+  system_prompt: |
+    As a code reviewer, analyze the following code changes focusing on:
+    - Readability
+    - Performance
+    - Security
+    - Best practices
+
+    For each issue found:
+    1. Identify the specific line or section
+    2. Explain the problem or concern
+    3. Suggest a concrete improvement
+    4. Rate the severity (Low/Medium/High)
+
+    Provide your review in a structured format with:
+    - Summary of changes
+    - Detailed findings by file
+    - Prioritized recommendations
+  user_template: |
+    Here is the code diff to review:
+
+    {diff_text}
+  variables:
+    - diff_text
+  output_format: |
+    {
+      "summary": "...",
+      "findings": [
+        {
+          "file": "...",
+          "line": "...",
+          "issue": "...",
+          "suggestion": "...",
+          "severity": "..."
+        }
+      ],
+      "suggested_fix": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "Suggested Fix",
+        "description": "A machine-readable fix proposal for an identified issue.",
+        "type": ["object", "null"]
+      }
+    }

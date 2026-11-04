@@ -1,0 +1,106 @@
+{
+  "template_id": "webhook_data_capture",
+  "name": "Webhook Data Capture",
+  "category": "data_sync",
+  "description": "Capture incoming webhook data, validate, transform and store in database",
+  "spec": {
+    "nodes": [
+      {
+        "id": "webhook_input",
+        "type": "webhook",
+        "config": {
+          "path": "{{webhook_path}}",
+          "method": "POST",
+          "secret": "{{webhook_secret}}"
+        }
+      },
+      {
+        "id": "validate_payload",
+        "type": "data_validation",
+        "config": {
+          "schema": "{{validation_schema}}",
+          "required_fields": "{{required_fields}}"
+        }
+      },
+      {
+        "id": "transform_data",
+        "type": "data_transform",
+        "config": {
+          "operations": [
+            {
+              "type": "flatten_json",
+              "separator": "_"
+            },
+            {
+              "type": "rename_fields",
+              "mapping": "{{field_mapping}}"
+            },
+            {
+              "type": "add_metadata",
+              "fields": {
+                "received_at": "{{now()}}",
+                "source": "webhook"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "enrich_data",
+        "type": "data_enrichment",
+        "config": {
+          "lookups": [
+            {
+              "source_field": "customer_id",
+              "target_field": "customer_info",
+              "lookup_table": "customers",
+              "join_field": "id"
+            }
+          ]
+        }
+      },
+      {
+        "id": "store_database",
+        "type": "database",
+        "config": {
+          "operation": "insert",
+          "table": "{{target_table}}",
+          "conflict_resolution": "ignore"
+        }
+      },
+      {
+        "id": "send_confirmation",
+        "type": "http_response",
+        "config": {
+          "status_code": 200,
+          "body": {
+            "status": "success",
+            "message": "Data captured successfully",
+            "record_id": "{{store_database.inserted_id}}"
+          }
+        }
+      }
+    ]
+  },
+  "required_integrations": ["webhook", "database"],
+  "estimated_setup_time_minutes": 15,
+  "parameters": {
+    "webhook_path": "/webhook/data-capture",
+    "webhook_secret": "your_webhook_secret",
+    "validation_schema": {
+      "type": "object",
+      "properties": {
+        "customer_id": {"type": "string"},
+        "amount": {"type": "number"},
+        "currency": {"type": "string"}
+      },
+      "required": ["customer_id", "amount"]
+    },
+    "required_fields": ["customer_id", "amount"],
+    "field_mapping": {
+      "customer_id": "customer_external_id",
+      "amount": "transaction_amount"
+    },
+    "target_table": "webhook_data"
+  }
+}

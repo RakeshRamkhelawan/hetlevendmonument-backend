@@ -1,0 +1,20 @@
+agent_id: "zzp.zzp_legal.tosgenerator.001"
+name: "TOSGeneratorAgent"
+department: "zzp_legal"
+technology: "LLM"
+module_path: "src.core.als.agents.zzp.zzp_legal"
+class_name: "TOSGeneratorAgent"
+description: "Creates custom Terms of Service for freelance sites."
+is_active: true
+priority: "MEDIUM"
+version: "1.0.0"
+allowed_tools: ["tos_builder"]
+ooda_profile:
+  observe:
+    data_sources: ["solo_business_data", "social_apis"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.85
+  act:
+    tools: ["tos_builder"]

@@ -1,0 +1,202 @@
+# Tool Risk Level Classification
+# See: docs/adr/015-agent-tool-execution-safety-allowlist-and-audit.md
+#
+# Risk levels:
+#   low    - Read-only, safe to execute directly
+#   medium - Write/update, log + post-action alert required
+#   high   - Delete/admin/email, HITL approval required
+#
+# Resolution order (highest to lowest priority):
+#   1. tool_risk_levels (exact match)
+#   2. tool_prefixes (prefix match, for unlisted tools within a known namespace)
+#   3. default_risk_level (zero-trust fallback for completely unknown tools)
+
+tool_risk_levels:
+  # ALS-piloottools (ADR-036 D10 stap 3). Zonder expliciete regel valt de classifier
+  # terug op de zero-trust HIGH, en alleen HIGH opent de HITL-poort -- dan wacht elke
+  # gap-analyse op een mens voor een leesactie die niets muteert. MEDIUM en niet LOW: dat
+  # is de classificatie uit de ADR-036 onderzoekssynthese ("alias of query_database with
+  # PII pre-check") en betekent loggen plus een melding achteraf, wat past bij een
+  # leesactie op personeelsdata.
+  query_hr_database: medium
+
+  # Leest dezelfde personeelsdata en aggregeert die tot een oordeel per functie. Zelfde
+  # niveau als de tool waar hij op voortbouwt: lager zou betekenen dat een afgeleide
+  # beoordeling minder toezicht krijgt dan de telling waar hij uit komt.
+  analyze_skill_gap: medium
+
+  # De schrijfkant van die twee (2026-09-21): de aanbevolen training daadwerkelijk aan een
+  # medewerker toewijzen. HIGH en niet MEDIUM, want dit muteert personeelsdata (EU AI Act
+  # bijlage III punt 4) en alleen HIGH opent de HITL-poort. Expliciet en niet op de zero-trust
+  # `default_risk_level: high` leunen: `test_every_executable_tool_has_a_risk_level.py` eist een
+  # eigen regel, en die guard bestaat omdat de prefixterugval eerder een tool stil op MEDIUM
+  # liet vallen.
+  schedule_training: high
+
+  # Debiteurenagent (dag 2, 2026-10-05). Lezen muteert niets en geeft geen naam of adres
+  # terug: MEDIUM. Een brief aan een klant klaarzetten is naar buiten gericht en niet terug te
+  # halen zodra hij verstuurd is: HIGH, dus altijd langs de HITL-poort.
+  list_receivables: medium
+  send_payment_reminder: high
+
+  # Crediteurenagent (crediteuren dag 2). Het SCHONE geval vastleggen (bekende leverancier, gelijk IBAN, geen dubbele, alle
+  # velden zeker) betaalt niets en is terug te draaien: MEDIUM. Een uitzondering (onbekende leverancier, afwijkend IBAN,
+  # onzeker veld) raakt een relatie of geld en gaat langs een mens: HIGH, dus altijd langs de HITL-poort.
+  record_supplier_invoice: medium
+  propose_supplier_invoice: high
+  # Betaalvoorstel (crediteuren dag 3): geld dat de deur uitgaat. Altijd HIGH, dus altijd langs een mens.
+  propose_payment_run: high
+
+  # ActivePieces-acties (ADR-040 B12, 2026-10-20), per `piece.actie`. Dit is de ENE lijst; de
+  # eigen enum `ToolRisk` in `ap_mcp_registry.py` is vervallen. Elke actie die naar buiten gaat
+  # (een mail, een bericht, een afspraak in andermans agenda) is niet terug te halen en dus
+  # HIGH: alleen HIGH opent de mens-in-de-lus-poort (ADR-039). Een nieuwe AP-actie krijgt hier
+  # een eigen regel; zonder regel valt hij op de zero-trust standaard (ook HIGH).
+  gmail.send_email: high
+  slack.send_message: high
+  google-calendar.create_event: high
+
+  # Local tools
+  local__read_file: low
+  local__list_directory: low
+  local__get_file_info: low
+  local__write_file: medium
+  local__append_file: medium
+  local__send_email: high
+  local__llm_generate: medium
+
+  # Serena tools - explicit overrides for sensitive operations
+  serena__search: low
+  serena__read_document: low
+  serena__write_document: medium
+  serena__update_document: medium
+  serena__delete_document: high
+  serena__admin_config: high
+
+  # Sequential Thinking tools
+  sequentialthinking__think: low
+  sequentialthinking__analyze: low
+  sequentialthinking__decide: medium
+
+  # Test tools
+  test__echo: low
+  test__fail: low
+  test__slow: low
+
+  # Business tools (governed Task execution)
+  create_task: medium
+  list_tasks: low
+  update_task: medium
+  delete_task: high  # destructive -> HITL approval required (ADR-015)
+
+# Prefix-based defaults for unlisted tools within a known namespace.
+# Exact matches in tool_risk_levels always override these.
+# Unknown prefixes (not listed here) fall through to default_risk_level.
+tool_prefixes:
+  serena__: low
+  sequentialthinking__: low
+  test__: low
+  local__: medium
+
+default_risk_level: high
+
+# ---------------------------------------------------------------------------
+# Welk RECHT van de aanvragende MENS een tool vereist (SP-COUNCIL-GATE-001).
+#
+# Waarom hier en niet in een apart bestand: een nieuwe tool krijgt zijn drempel op dezelfde
+# plek als zijn risico. Twee bestanden lopen uiteen; dat is precies de fout die BE-AGT-039 F2
+# opleverde.
+#
+# De waarden zijn rechten in de vorm `resource:actie`, dezelfde vorm als de rijen in
+# `role_permissions`. Of een gebruiker zo'n recht heeft beslist de DATABASE (zaailijst:
+# `RBACService.ensure_default_roles`; een beheerder kan rijen toevoegen of intrekken). Geldige
+# waarden staan in `src.core.auth.rbac.TOOL_RECHTEN`; een onbekende waarde of een wildcard hier
+# leidt tot WEIGEREN, niet tot doorlaten. Niveaus: `tools:read` lezen, `tools:write` schrijven,
+# `tools:admin` onomkeerbaar of beheer, `receivables:propose` een debiteurenbrief voorstellen.
+#
+# Reikwijdte, preciezer dan een eerdere versie van deze tekst beweerde: de chat-acties uit
+# `_COUNCIL_ALLOWED_ACTION_TYPES` worden EERST geraadpleegd en veranderen niet. Een naam die
+# wel in het copilot-toolprofiel staat maar NIET op die actielijst, valt hier wel doorheen --
+# gemeten 2026-08-16 is dat er precies een: `list_tasks`, die daarvoor altijd MISSING_SCOPE
+# kreeg en dus simpelweg niet werkte. Bewaakt door
+# `tests/architecture/test_council_action_names_do_not_shadow_tool_permissions.py`.
+tool_required_permission:
+  # Personeelsgegevens (EU AI Act bijlage III punt 4). LEZEN vraagt sinds de HR-pilot (dag 1,
+  # 2026-10-10) het eigen recht `hr:read` (rol `hr_medewerker`; de beheerder heeft het via
+  # `*:*`). Daarvoor stond hier `tools:admin`, omdat er geen HR-recht bestond; een medewerker
+  # van personeelszaken kon het pakket dus niet draaien. Alleen LEZEN is verruimd: een agent
+  # blijft nooit een omweg om de rechten van de aanvrager heen.
+  query_hr_database: hr:read
+  analyze_skill_gap: hr:read
+  # `admin` en niet `write`, gewijzigd 2026-09-21 toen deze tool daadwerkelijk uitvoerbaar werd.
+  # Hier stond `write`, meegeschreven toen de naam nog alleen in een manifest stond. Dat is
+  # LOSSER dan het LEZEN van dezelfde personeelsdata hierboven, en dat is niet te verdedigen: wie
+  # de bezetting niet mag opvragen, hoort niet via een agent een training te kunnen toewijzen.
+  schedule_training: tools:admin
+
+  # Debiteurenagent (dag 2). Debiteuren doet in het mkb vaak een medewerker en niet de
+  # beheerder (ADR-039): lezen vraagt leesrecht, een brief (herinnering OF aanmaning, dezelfde
+  # tool) klaarzetten het smalle recht `receivables:propose`. Hier stond `write`; de rol
+  # `debiteuren` kon daardoor niets voorstellen (MISSING_SCOPE, acceptant ronde 3, N1), en
+  # `write` aan die rol geven had ook alle andere schrijftools geopend. Het versturen zelf
+  # wacht daarna nog op een menselijke beslissing (HIGH).
+  list_receivables: tools:read
+  send_payment_reminder: receivables:propose
+
+  # Crediteurenagent (crediteuren dag 2): wie een factuur laat verwerken heeft schrijfrecht op crediteuren
+  # (rol `crediteuren`). Het goedkeuren van een uitzondering is een eigen procesrecht (`payables:approve`).
+  record_supplier_invoice: payables:write
+  propose_supplier_invoice: payables:write
+  propose_payment_run: payables:write
+
+  # Leesacties zonder bijzondere gegevens: het gewone leesrecht volstaat.
+  list_tasks: tools:read
+  search_documents: tools:read
+  local__read_file: tools:read
+  local__list_directory: tools:read
+  local__get_file_info: tools:read
+  serena__search: tools:read
+  serena__read_document: tools:read
+  sequentialthinking__think: tools:read
+  sequentialthinking__analyze: tools:read
+
+  # Schrijven of muteren vraagt schrijfrecht.
+  generate_text: tools:write
+  local__write_file: tools:write
+  local__append_file: tools:write
+  local__llm_generate: tools:write
+  serena__write_document: tools:write
+  serena__update_document: tools:write
+  sequentialthinking__decide: tools:write
+
+  # Onomkeerbaar of naar buiten toe: alleen beheerders.
+  local__send_email: tools:admin
+  serena__delete_document: tools:admin
+  serena__admin_config: tools:admin
+
+  # Testtools: expliciet laag, zodat de testsuite niet op de zero-trust default valt.
+  test__echo: tools:read
+  test__fail: tools:read
+  test__slow: tools:read
+
+  # LET OP -- deze drie namen staan OOK in `_COUNCIL_ALLOWED_ACTION_TYPES` (auth/rbac.py), en
+  # die lijst wordt eerst geraadpleegd. Vandaag doen deze regels dus niets: `create_task` van
+  # een agent erft de copilot-behandeling en komt langs iedereen. De rechten hieronder zijn de
+  # eis die zou GELDEN zodra die botsing wordt opgelost -- niet een eis die nu al geldt. De
+  # botsing zelf staat als OP-142 in ADR-036 en wordt bewaakt door
+  # `tests/architecture/test_council_action_names_do_not_shadow_tool_permissions.py`.
+  # Ze staan hier omdat de guard elke uitvoerbare tool een regel laat hebben; een gat laten
+  # zitten zou de guard uitzetten voor de drie tools waar het het meest toe doet.
+  # Sinds 2026-10-23 het smalle recht `tasks:write` (rol editor, besluit Rakesh): een medewerker die workflows bouwt
+  # laat via een workflowstap taken aanmaken en wijzigen. De startertoets van een workflowstap
+  # (`RBACService.user_has_tool_right`) gebruikt deze regels WEL; het agent-pad (`user_has_scope_for`) nog niet (OP-142).
+  create_task: tasks:write
+  update_task: tasks:write
+  delete_task: tools:admin
+
+# Er is met opzet GEEN default. Een tool zonder regel hierboven wordt voor IEDEREEN geweigerd,
+# ook voor een beheerder. Een terugval op "het strengste bestaande recht" zou betekenen dat een
+# beheerder elke ongeclassificeerde tool mag draaien, en dan opent een nieuwe tool zichzelf
+# zolang niemand eraan denkt hem te classificeren.
+# `tests/architecture/test_every_executable_tool_has_a_required_permission.py` zorgt dat dit
+# nooit een echte tool raakt: die faalt zodra een uitvoerbare tool hier ontbreekt.

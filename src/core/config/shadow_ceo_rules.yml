@@ -1,0 +1,54 @@
+# Shadow CEO Rules Configuration
+# ADR-017: Deterministic Policy Enforcement
+
+policies:
+  - rule_id: POL-001
+    name: PII_ACCESS
+    description: Personal data access requires manual approval
+    risk_categories:
+      - HIGH
+      - CRITICAL
+    required_approvals:
+      - manual_approval
+    conditions: {}
+    enabled: true
+
+  - rule_id: POL-002
+    name: FINANCIAL_OPS
+    description: Financial operations require ShadowCEO approval above threshold
+    risk_categories:
+      - HIGH
+    required_approvals:
+      - shadow_ceo
+      - manual_approval
+    conditions:
+      threshold_amount: 10000
+    enabled: true
+
+  - rule_id: POL-003
+    name: VETO_CRITICAL
+    description: Critical risk tasks cannot be overridden
+    risk_categories:
+      - CRITICAL
+    required_approvals: []
+    conditions:
+      allow_override: false
+    enabled: true
+
+  - rule_id: POL-004
+    name: CROSS_DEPT
+    description: Cross-department access requires monitoring
+    risk_categories:
+      - MEDIUM
+      - HIGH
+    required_approvals:
+      - shadow_ceo
+    conditions:
+      monitor_only: true
+    enabled: true
+
+# Default settings
+defaults:
+  auto_approve_low_risk: true
+  hitl_timeout_hours: 24
+  audit_retention_days: 2555  # 7 years

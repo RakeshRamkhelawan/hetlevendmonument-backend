@@ -1,0 +1,20 @@
+agent_id: "mkb.ecommerce_retail.orderfulfillment.001"
+name: "OrderFulfillmentAgent"
+department: "ecommerce_retail"
+technology: "LLM"
+module_path: "src.core.als.agents.mkb.ecommerce_retail"
+class_name: "OrderFulfillmentAgent"
+description: "Manages shipping labels and customer tracking updates."
+is_active: true
+priority: "MEDIUM"
+version: "1.0.0"
+allowed_tools: ["shipping_gateways", "comms_tool"]
+ooda_profile:
+  observe:
+    data_sources: ["mkb_specific_api", "manual_uploads"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.85
+  act:
+    tools: ["shipping_gateways", "comms_tool"]

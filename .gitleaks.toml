@@ -1,0 +1,48 @@
+# Gitleaks configuratie voor SanskritiSetu
+# Gebruik: gitleaks detect --config .gitleaks.toml
+# Docs: https://github.com/gitleaks/gitleaks
+
+title = "SanskritiSetu Gitleaks Config"
+
+[extend]
+# Gebruik de standaard gitleaks ruleset als basis
+useDefault = true
+
+[allowlist]
+description = "Bekende veilige patronen die geen echte secrets zijn"
+
+# Bestanden die bewust placeholder-waarden bevatten
+paths = [
+    # .env.example bevat ${VAR} placeholders, geen echte waarden
+    ".env.example",
+    # Deprecated bestanden
+    "src/core/security/jwt_handler_deprecated.py",
+    # Test fixtures
+    "tests/",
+    "src/tests/",
+]
+
+# Regexes voor bekende false positives
+regexes = [
+    # Mock API keys in LLM client fallbacks (bewust gelabeld als mock, niet productie)
+    "mock-key-development-only",
+    # Placeholder-waarden in .env.example en setup scripts
+    "change_me_in_production",
+    "generate_random_32_char_secret_key",
+    "CHANGE_ME_USE_openssl_rand_base64_32",
+    # ActivePieces service account placeholder (echte waarde via GitHub Secrets)
+    "ACTIVEPIECES_PASSWORD=change_me_in_production",
+    "ACTIVEPIECES_WEBHOOK_SECRET=generate_random_32_char_secret_key",
+    # CI-only test JWT/secret keys — uitsluitend gebruikt in GitHub Actions unit tests
+    "test-secret-key-for-ci-pipeline-32c",
+    # Test database wachtwoord in Docker service containers (CI-only)
+    "POSTGRES_PASSWORD:\\s*postgres",
+    "password:\\s*postgres",
+    # Known placeholder secrets in Pydantic Settings defaults (never production values)
+    "a_default_secret_key_that_must_be_overridden_in_production",
+    "dev-static-secret-key-for-stability-12345",
+    "your-secret-key-change-in-production",
+]
+
+# Commits die bewust geskipt worden (indien van toepassing)
+# commits = []

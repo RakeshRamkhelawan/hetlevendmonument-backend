@@ -1,0 +1,48 @@
+id: GENERATED-SOP
+description: Visually created workflow
+version: '1.0'
+variables:
+- organizer_email
+- briefing_channel
+- iteration
+- project
+steps:
+- tool: local__gmail_send_email
+  params:
+    to: '{organizer_email}'
+    subject: Hello from SanskritiSetu
+    body: Draft content...
+  description: Check Variable Completeness
+- tool: local__llm_generate
+  params:
+    prompt: 'Write a website article about the visit to {iteration.iteration_vars.location}.
+
+      Style: {project.static_context.tone}.
+
+      Include mention of: {project.static_context.fixed_program} by {iteration.iteration_vars.ilo_name}.
+
+      Guidelines: {project.static_context.guidelines}.
+
+      '
+  description: Draft Website Article
+- tool: local__llm_generate
+  params:
+    prompt: Summarize the previous website article for a newsletter regarding {iteration.iteration_vars.location}.
+      Keep it punchy.
+  description: Draft Newsletter Item
+- tool: local__llm_generate
+  params:
+    prompt: Write a LinkedIn post about this visit to {iteration.iteration_vars.location}.
+      Use hashtags.
+  description: Draft LinkedIn Post
+- tool: local__gmail_send_email
+  params:
+    to: '{organizer_email}'
+    subject: Content Drafts for {iteration.iteration_vars.location}
+    body: 'Website draft: {step_1_output}\n\nNewsletter draft: {step_2_output}\n\nLinkedIn draft: {step_3_output}'
+  description: Send Content to Partners
+- tool: local__slack_post_message
+  params:
+    channel: '{briefing_channel}'
+    text: Briefing planned for {iteration.iteration_vars.date} with {iteration.iteration_vars.ilo_name}.
+  description: Schedule T-2 Day Briefing

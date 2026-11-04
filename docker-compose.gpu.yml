@@ -1,0 +1,28 @@
+# GPU-overlay voor het lokale taalmodel.
+#
+# Gebruik:
+#   docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d ollama
+#
+# WAAROM APART EN NIET IN DE BASIS. Ollama is sinds 2026-09-20 de bodem van de LLM-keten en
+# draait op elke installatie mee. Een `devices`-reservering in de basis zou die belofte breken
+# op elke machine zonder NVIDIA-kaart: Docker weigert de service dan met "could not select
+# device driver". Een GPU is echte, optionele hardware -- Ollama werkt er zonder, alleen
+# trager. Daarom een overlay: de basis blijft overal startbaar, de versnelling is een
+# expliciete, draagbare keuze.
+#
+# GEMETEN 2026-09-20 op deze machine (RTX 4060 Laptop, 8188 MiB, driver 610.62):
+#   - zonder deze overlay koos Ollama de processor. Zijn eigen log zei
+#     `system_info: n_threads = 10 ... CPU : SSE3 = 1 ...` en noemde CUDA niet.
+#   - `docker run --gpus all --entrypoint nvidia-smi ollama/ollama:0.34.2` zag de kaart wel,
+#     dus de doorgifte werkte al; alleen de reservering ontbrak.
+#
+# Op WSL2 ondersteunt NVIDIA alleen "alle GPU's" -- filteren op index of UUID kan daar niet.
+services:
+  ollama:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

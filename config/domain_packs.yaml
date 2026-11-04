@@ -1,0 +1,529 @@
+# SanskritiSetu - The Ultimate Domain Pack Catalog
+# 50 Enterprise-Ready Agent Bundles across 12+ Domains
+
+packs:
+  # --- 1. FINANCE & COMPLIANCE ---
+  - pack_id: "finance.monthly_close"
+    name: "Monthly Financial Close"
+    display_name: "Maandafsluiting boekhouding"
+    steps:
+      - { agent_id: "auditcompliance", mode: "sequential", sla_seconds: 3600 }
+      - { agent_id: "taxcompliance", mode: "parallel", sla_seconds: 1800 }
+      - { agent_id: "forecasting", mode: "parallel", sla_seconds: 1800 }
+
+  - pack_id: "finance.global_tax_shield"
+    name: "Global Tax & Risk Shield"
+    display_name: "Internationale belasting en risico"
+    steps:
+      - { agent_id: "taxcompliance", mode: "sequential", sla_seconds: 900 }
+      - { agent_id: "geopoliticalrisk", mode: "parallel", sla_seconds: 1200 }
+      - { agent_id: "karmaauditor", mode: "parallel", sla_seconds: 1200 }
+
+  - pack_id: "finance.ipo_ready"
+    name: "IPO Preparation Audit"
+    display_name: "Beursgang voorbereiden"
+    steps:
+      - { agent_id: "auditcompliance", mode: "sequential", sla_seconds: 7200 }
+      - { agent_id: "regulatorytracking", mode: "sequential", sla_seconds: 3600 }
+      - { agent_id: "shareholderrelations", mode: "sequential", sla_seconds: 3600 }
+
+  # --- 2. SUSTAINABILITY & ESG (NEW) ---
+  - pack_id: "esg.annual_report"
+    name: "Annual ESG Compliance Report"
+    display_name: "Jaarlijks duurzaamheidsverslag"
+    steps:
+      - { agent_id: "carbontracker", mode: "sequential", sla_seconds: 1800 }
+      - { agent_id: "esgauditor", mode: "sequential", sla_seconds: 1800 }
+      - { agent_id: "karmaauditor", mode: "sequential", sla_seconds: 1800 }
+
+  - pack_id: "esg.green_supply_chain"
+    name: "Sustainable Sourcing Optimizer"
+    display_name: "Duurzame inkoop"
+    steps:
+      - { agent_id: "sustainablesourcing", mode: "sequential", sla_seconds: 1200 }
+      - { agent_id: "inventoryforecasting", mode: "parallel", sla_seconds: 900 }
+      - { agent_id: "carbontracker", mode: "parallel", sla_seconds: 900 }
+
+  # --- 3. RESEARCH & DEVELOPMENT (NEW) ---
+  - pack_id: "rd.innovation_scout"
+    name: "R&D Patent & Paper Scout"
+    display_name: "Octrooien en onderzoek volgen"
+    steps:
+      - { agent_id: "researchsynthesizer", mode: "sequential", sla_seconds: 1800 }
+      - { agent_id: "patentscout", mode: "sequential", sla_seconds: 1200 }
+      - { agent_id: "marketgapanalysis", mode: "sequential", sla_seconds: 1200 }
+
+  - pack_id: "rd.prototype_acceleration"
+    name: "Rapid Prototype Optimization"
+    display_name: "Prototypes sneller verbeteren"
+    steps:
+      - { agent_id: "prototypeoptimizer", mode: "sequential", sla_seconds: 3600 }
+      - { agent_id: "technicalarchitect", mode: "sequential", sla_seconds: 1800 }
+      - { agent_id: "qabugdetection", mode: "sequential", sla_seconds: 1200 }
+
+  # --- 4. IT, INFRA & SECURITY ---
+  - pack_id: "it.zero_day_resilience"
+    name: "Zero-Day Resilience Test"
+    display_name: "Weerbaarheid tegen nieuwe lekken"
+    steps:
+      - { agent_id: "chaosengineering", mode: "sequential", sla_seconds: 1800 }
+      - { agent_id: "incidentresponder", mode: "sequential", sla_seconds: 300 }
+      - { agent_id: "zerodaypredictor", mode: "sequential", sla_seconds: 600 }
+
+  - pack_id: "it.cyber_warroom"
+    name: "Rapid Incident Response"
+    display_name: "Snelle incidentafhandeling"
+    steps:
+      - { agent_id: "threathunter", mode: "sequential", sla_seconds: 120 }
+      - { agent_id: "incidentresponder", mode: "sequential", sla_seconds: 120 }
+      - { agent_id: "crisismanager", mode: "sequential", sla_seconds: 300 }
+
+  # --- 5. LOGISTICS & TRADE (NEW) ---
+  - pack_id: "logistics.global_route_shield"
+    name: "Global Trade Route Optimizer"
+    display_name: "Handelsroutes optimaliseren"
+    steps:
+      - { agent_id: "routeoptimizer", mode: "sequential", sla_seconds: 600 }
+      - { agent_id: "customscompliance", mode: "parallel", sla_seconds: 600 }
+      - { agent_id: "geopoliticalrisk", mode: "parallel", sla_seconds: 900 }
+
+  # --- 6. HR & CULTURE ---
+  - pack_id: "hr.executive_hiring"
+    name: "Executive Talent Acquisition"
+    display_name: "Topfuncties werven"
+    steps:
+      - { agent_id: "talentacquisition", mode: "sequential", sla_seconds: 600 }
+      - { agent_id: "employeesentiment", mode: "sequential", sla_seconds: 300 }
+      - { agent_id: "dharmaalignment", mode: "sequential", sla_seconds: 600 }
+
+  - pack_id: "hr.reskilling_engine"
+    name: "Employee Reskilling & Mobility"
+    display_name: "Medewerkers omscholen en laten doorstromen"
+    description: "Helpt medewerkers omscholen en laten doorstromen: zoekt de vaardigheden die ontbreken en stelt een leerpad voor."
+    # HR-pilot (besluit Rakesh 2026-10-09): voorlopig alleen de kloofanalyse. internalmobility
+    # en employeesentiment zijn uitgesteld; ze waren niet bedraad (packs.py
+    # _PILOT_WIRED_AGENT_IDS), dus elke run meldde partial of failed.
+    steps:
+      - { agent_id: "skillsgaptraining", mode: "sequential", sla_seconds: 600 }
+
+  # --- 7. STRATEGY & BUSINESS ---
+  - pack_id: "strategy.competitor_war_room"
+    name: "Competitive Intelligence Suite"
+    display_name: "Concurrentieoverzicht"
+    steps:
+      - { agent_id: "competitorshadow", mode: "sequential", sla_seconds: 1200 }
+      - { agent_id: "competitiveintelligence", mode: "parallel", sla_seconds: 900 }
+      - { agent_id: "marketintelligence", mode: "parallel", sla_seconds: 900 }
+
+  - pack_id: "strategy.ma_lifecycle"
+    name: "End-to-End M&A Analysis"
+    display_name: "Overname-analyse van begin tot eind"
+    steps:
+      - { agent_id: "mergeracquisitionscout", mode: "sequential", sla_seconds: 3600 }
+      - { agent_id: "maanalyst", mode: "sequential", sla_seconds: 1800 }
+      - { agent_id: "regulatorytracking", mode: "sequential", sla_seconds: 1200 }
+
+  # --- 8. SALES & MARKETING ---
+  - pack_id: "marketing.viral_engine"
+    name: "Viral Product Launch"
+    display_name: "Productlancering met bereik"
+    steps:
+      - { agent_id: "socialmediastrategist", mode: "sequential", sla_seconds: 600 }
+      - { agent_id: "contentpersonalization", mode: "parallel", sla_seconds: 300 }
+      - { agent_id: "multichannelcontent", mode: "parallel", sla_seconds: 300 }
+
+  - pack_id: "sales.pricing_optimization"
+    name: "Dynamic Revenue Optimizer"
+    display_name: "Prijzen en omzet optimaliseren"
+    steps:
+      - { agent_id: "pricingstrategist", mode: "sequential", sla_seconds: 600 }
+      - { agent_id: "dynamicpricing", mode: "sequential", sla_seconds: 300 }
+      - { agent_id: "competitiveintelligence", mode: "sequential", sla_seconds: 600 }
+
+  # --- 9. CUSTOMER EXPERIENCE ---
+  - pack_id: "cx.smart_onboarding"
+    name: "SaaS Onboarding Optimization"
+    display_name: "Nieuwe klanten wegwijs maken"
+    steps:
+      - { agent_id: "useronboarding", mode: "sequential", sla_seconds: 300 }
+      - { agent_id: "sentimentsupport", mode: "parallel", sla_seconds: 300 }
+      - { agent_id: "customersuccess", mode: "parallel", sla_seconds: 600 }
+
+  # --- 10. COMMUNICATIONS & PR (NEW) ---
+  - pack_id: "comms.reputation_shield"
+    name: "Enterprise Reputation Shield"
+    display_name: "Bedrijfsreputatie bewaken"
+    steps:
+      - { agent_id: "publicrelations", mode: "sequential", sla_seconds: 600 }
+      - { agent_id: "brandguardian", mode: "parallel", sla_seconds: 300 }
+      - { agent_id: "sentimentsupport", mode: "parallel", sla_seconds: 300 }
+
+  # --- 11. DATA & GOVERNANCE ---
+  - pack_id: "data.knowledge_graph"
+    name: "Enterprise Knowledge Curator"
+    display_name: "Bedrijfskennis ordenen"
+    steps:
+      - { agent_id: "knowledgecurator", mode: "sequential", sla_seconds: 1800 }
+      - { agent_id: "dataintegrity", mode: "sequential", sla_seconds: 600 }
+      - { agent_id: "researchsynthesizer", mode: "sequential", sla_seconds: 1200 }
+
+  # --- 12. PRODUCT INNOVATION ---
+  - pack_id: "product.doc_automation"
+    name: "Autonomous Product Documentation"
+    display_name: "Productdocumentatie automatisch"
+    steps:
+      - { agent_id: "technicalwriter", mode: "sequential", sla_seconds: 1200 }
+      - { agent_id: "technicalarchitect", mode: "sequential", sla_seconds: 1200 }
+      - { agent_id: "uxuidesigner", mode: "sequential", sla_seconds: 1200 }
+
+  # [ADDITIONAL 30 PACKS DEFINED BELOW...]
+  - pack_id: "product.vibe_check"
+    name: "AI Visual Interface Optimizer"
+    display_name: "Gebruikersscherm beoordelen"
+    steps: [{ agent_id: "uxuidesigner", mode: "sequential" }, { agent_id: "testautomator", mode: "sequential" }]
+  - pack_id: "finance.fraud_detection"
+    name: "Real-time Transaction Audit"
+    display_name: "Transacties direct controleren"
+    steps: [{ agent_id: "auditcompliance", mode: "sequential" }, { agent_id: "dataintegrity", mode: "sequential" }]
+  - pack_id: "hr.workplace_safety"
+    name: "Crisis Safety Coordination"
+    display_name: "Veiligheid bij een crisis"
+    steps: [{ agent_id: "crisismanager", mode: "sequential" }, { agent_id: "employeesentiment", mode: "sequential" }]
+  - pack_id: "legal.ma_compliance"
+    name: "M&A Due Diligence"
+    display_name: "Overname-onderzoek juridisch"
+    steps: [{ agent_id: "contractanalysis", mode: "sequential" }, { agent_id: "regulatorytracking", mode: "sequential" }]
+  - pack_id: "marketing.seo_dominance"
+    name: "Search Engine Dominance"
+    display_name: "Beter gevonden in zoekmachines"
+    steps: [{ agent_id: "seospecialist", mode: "sequential" }, { agent_id: "multichannelcontent", mode: "sequential" }]
+  - pack_id: "ops.last_mile"
+    name: "Last-Mile Delivery Logic"
+    display_name: "Laatste stuk bezorging"
+    steps: [{ agent_id: "routeoptimizer", mode: "sequential" }, { agent_id: "logisticsoptimization", mode: "sequential" }]
+  - pack_id: "strategy.global_expansion"
+    name: "Global Expansion Strategy"
+    display_name: "Internationaal uitbreiden"
+    steps: [{ agent_id: "geopoliticalrisk", mode: "sequential" }, { agent_id: "marketintelligence", mode: "sequential" }]
+  - pack_id: "data.bias_audit"
+    name: "ML Algorithm Bias Audit"
+    display_name: "Vooringenomenheid in modellen toetsen"
+    steps: [{ agent_id: "aiethicsauditor", mode: "sequential" }, { agent_id: "datascience", mode: "sequential" }]
+  - pack_id: "it.k8s_optimization"
+    name: "Kubernetes Cost Optimizer"
+    display_name: "Kubernetes-kosten verlagen"
+    steps: [{ agent_id: "kubernetesarchitect", mode: "sequential" }, { agent_id: "cloudorchestration", mode: "sequential" }]
+  - pack_id: "cx.community_shield"
+    name: "Social Community Protection"
+    display_name: "Online gemeenschap beschermen"
+    steps: [{ agent_id: "communitymanagement", mode: "sequential" }, { agent_id: "brandguardian", mode: "sequential" }]
+  - pack_id: "product.api_first"
+    name: "API-First Development Sprint"
+    display_name: "Ontwikkelsprint met API vooraan"
+    steps: [{ agent_id: "technicalarchitect", mode: "sequential" }, { agent_id: "fastapipro", mode: "sequential" }]
+  - pack_id: "finance.investment_flow"
+    name: "Asset Allocation Strategy"
+    display_name: "Beleggingen verdelen"
+    steps: [{ agent_id: "investmentallocation", mode: "sequential" }, { agent_id: "forecasting", mode: "sequential" }]
+  - pack_id: "hr.remote_culture"
+    name: "Remote Team Sentiment Engine"
+    display_name: "Stemming van thuiswerkers"
+    steps: [{ agent_id: "employeesentiment", mode: "sequential" }, { agent_id: "communitymanagement", mode: "sequential" }]
+  - pack_id: "it.terraform_shield"
+    name: "Infrastructure-as-Code Audit"
+    display_name: "Infrastructuur als code toetsen"
+    steps: [{ agent_id: "terraformspecialist", mode: "sequential" }, { agent_id: "securityauditor", mode: "sequential" }]
+  - pack_id: "strategy.risk_mitigation"
+    name: "Strategic Risk Framework"
+    display_name: "Strategische risico's beperken"
+    steps: [{ agent_id: "karmaauditor", mode: "sequential" }, { agent_id: "regulatorytracking", mode: "sequential" }]
+  - pack_id: "marketing.crm_automator"
+    name: "Hyper-Segmented CRM Flow"
+    display_name: "Klantcontact per doelgroep"
+    steps: [{ agent_id: "crmmanager", mode: "sequential" }, { agent_id: "contentpersonalization", mode: "sequential" }]
+  - pack_id: "data.lake_governance"
+    name: "Data Lake Integrity Guard"
+    display_name: "Datameer beheersen"
+    steps: [{ agent_id: "dataengineer", mode: "sequential" }, { agent_id: "dataintegrityethics", mode: "sequential" }]
+  - pack_id: "rd.scientific_synthesis"
+    name: "Scientific Literature Review"
+    display_name: "Wetenschappelijke literatuur samenvatten"
+    steps: [{ agent_id: "researchsynthesizer", mode: "sequential" }, { agent_id: "nlpexpert", mode: "sequential" }]
+  - pack_id: "esg.carbon_reduction"
+    name: "Carbon Footprint Minimizer"
+    display_name: "Uitstoot verminderen"
+    steps: [{ agent_id: "carbontracker", mode: "sequential" }, { agent_id: "routeoptimizer", mode: "sequential" }]
+  - pack_id: "comms.investor_shield"
+    name: "Shareholder Trust Engine"
+    display_name: "Vertrouwen van aandeelhouders"
+    steps: [{ agent_id: "shareholderrelations", mode: "sequential" }, { agent_id: "auditcompliance", mode: "sequential" }]
+  - pack_id: "product.fullstack_launch"
+    name: "Full-Stack Development Cycle"
+    display_name: "Complete ontwikkelronde"
+    steps: [{ agent_id: "pythonpro", mode: "sequential" }, { agent_id: "typescriptpro", mode: "sequential" }, { agent_id: "testautomator", mode: "sequential" }]
+  - pack_id: "it.cloud_migration"
+    name: "Legacy-to-Cloud Migration"
+    display_name: "Oude systemen naar de cloud"
+    steps: [{ agent_id: "cloudarchitect", mode: "sequential" }, { agent_id: "terraformspecialist", mode: "sequential" }]
+  - pack_id: "sales.lead_enrichment"
+    name: "Deep Lead Intelligence"
+    display_name: "Prospects uitgebreid onderzoeken"
+    steps: [{ agent_id: "leadgen", mode: "sequential" }, { agent_id: "marketintelligence", mode: "sequential" }]
+  - pack_id: "data.mlops_hardening"
+    name: "Production ML Resilience"
+    display_name: "Modellen in productie robuust maken"
+    steps: [{ agent_id: "mlopsspecialist", mode: "sequential" }, { agent_id: "chaosengineering", mode: "sequential" }]
+  - pack_id: "cx.empathy_engine"
+    name: "Emotional Tone Optimizer"
+    display_name: "Toon van berichten verbeteren"
+    steps: [{ agent_id: "emotionalmirror", mode: "sequential" }, { agent_id: "sentimentsupport", mode: "sequential" }]
+  - pack_id: "finance.debt_recovery"
+    name: "Smart AR/AP Recovery"
+    display_name: "Openstaande facturen innen"
+    steps: [{ agent_id: "accountsreceivablepayable", mode: "sequential" }, { agent_id: "sentimentsupport", mode: "sequential" }]
+  - pack_id: "it.db_performance"
+    name: "Database Scalability Audit"
+    display_name: "Database-schaalbaarheid toetsen"
+    steps: [{ agent_id: "databaseadmin", mode: "sequential" }, { agent_id: "dataintegrity", mode: "sequential" }]
+  - pack_id: "strategy.culture_audit"
+    name: "Ethical Culture Alignment"
+    display_name: "Bedrijfscultuur toetsen"
+    steps: [{ agent_id: "dharmaalignment", mode: "sequential" }, { agent_id: "employeesentiment", mode: "sequential" }]
+  - pack_id: "ops.vendor_shield"
+    name: "Vendor Negotiation War-room"
+    display_name: "Onderhandelen met leveranciers"
+    steps: [{ agent_id: "vendornegotiation", mode: "sequential" }, { agent_id: "maanalyst", mode: "sequential" }]
+  - pack_id: "it.red_team_attack"
+    name: "Continuous Pen-Testing"
+    display_name: "Doorlopend inbraaktesten"
+    steps: [{ agent_id: "redteaming", mode: "sequential" }, { agent_id: "threathunter", mode: "sequential" }]
+  # --- 13. MKB / SME START (NEW) ---
+  - pack_id: "mkb.digital_storefront"
+    name: "Digital Storefront Management"
+    display_name: "Webwinkel beheren"
+    steps:
+      - { agent_id: "shopifysync", mode: "sequential" }
+      - { agent_id: "localseospecialist", mode: "parallel" }
+      - { agent_id: "reviewresponder", mode: "parallel" }
+
+  - pack_id: "mkb.zero_admin"
+    name: "Zero-Admin Bookkeeping"
+    display_name: "Boekhouding zonder gedoe"
+    description: "Leest uw bonnen, maakt het btw-overzicht van een kwartaal en laat zien welke betalingsherinneringen nog open staan. Er wordt niets ingediend of verstuurd zonder uw akkoord."
+    steps:
+      - { agent_id: "receiptscanner", mode: "sequential" }
+      - { agent_id: "vatcompliance", mode: "sequential" }
+      - { agent_id: "dunning", mode: "sequential" }
+
+  - pack_id: "mkb.smart_retail"
+    name: "Smart Inventory & Sales"
+    display_name: "Voorraad en verkoop slim"
+    steps:
+      - { agent_id: "inventoryforecasting", mode: "sequential" }
+      - { agent_id: "retailpriceoptimizer", mode: "sequential" }
+      - { agent_id: "orderfulfillment", mode: "sequential" }
+
+  - pack_id: "mkb.team_logic"
+    name: "Staff Planning & Sentiment"
+    display_name: "Personeelsplanning en sfeer"
+    steps:
+      - { agent_id: "shiftplanner", mode: "sequential" }
+      - { agent_id: "leavemanager", mode: "parallel" }
+      - { agent_id: "employeesentiment", mode: "parallel" }
+
+  - pack_id: "mkb.reputation_shield"
+    name: "Local Reputation Shield"
+    display_name: "Lokale reputatie bewaken"
+    steps:
+      - { agent_id: "reviewresponder", mode: "sequential" }
+      - { agent_id: "brandguardian", mode: "sequential" }
+      - { agent_id: "discountcampaign", mode: "sequential" }
+
+  - pack_id: "mkb.office_hero"
+    name: "Office & Facility Hero"
+    display_name: "Kantoor en gebouw regelen"
+    steps:
+      - { agent_id: "officesupplybot", mode: "sequential" }
+      - { agent_id: "maintenancescheduler", mode: "parallel" }
+      - { agent_id: "contractnegotiatorlite", mode: "parallel" }
+
+  - pack_id: "mkb.compliance_basic"
+    name: "Basic Regulatory Shield"
+    display_name: "Basis regelgeving op orde"
+    steps:
+      - { agent_id: "safetycompliance", mode: "sequential" }
+      - { agent_id: "gdprprivacyguard", mode: "sequential" }
+
+  - pack_id: "mkb.local_growth"
+    name: "Local Growth Accelerator"
+    display_name: "Lokaal groeien"
+    steps:
+      - { agent_id: "discountcampaign", mode: "sequential" }
+      - { agent_id: "localseospecialist", mode: "sequential" }
+      - { agent_id: "leadgen", mode: "sequential" }
+
+  - pack_id: "mkb.customer_pulse"
+    name: "Small Biz Customer Pulse"
+    display_name: "Klanttevredenheid in de gaten"
+    steps:
+      - { agent_id: "sentimentsupport", mode: "sequential" }
+      - { agent_id: "reviewresponder", mode: "sequential" }
+
+  - pack_id: "mkb.operations_flow"
+    name: "MKB Daily Ops Flow"
+    display_name: "Dagelijkse bedrijfsvoering"
+    steps:
+      - { agent_id: "processmining", mode: "sequential" }
+      - { agent_id: "officesupplybot", mode: "sequential" }
+  # --- 14. ZZP / FREELANCE FREEDOM (NEW) ---
+  - pack_id: "zzp.business_launch"
+    name: "Solo Business Kickstart"
+    display_name: "Starten als zelfstandige"
+    steps:
+      - { agent_id: "bioarchitect", mode: "sequential" }
+      - { agent_id: "linkedinoptimizer", mode: "parallel" }
+      - { agent_id: "portfoliogen", mode: "parallel" }
+
+  - pack_id: "zzp.tax_survival"
+    name: "Tax & Cashflow Survival"
+    display_name: "Belasting en kasstroom op orde"
+    steps:
+      - { agent_id: "expenseclassifier", mode: "sequential" }
+      - { agent_id: "taxpredictor", mode: "sequential" }
+      - { agent_id: "profitoptimizer", mode: "sequential" }
+
+  - pack_id: "zzp.client_acquisition"
+    name: "High-Velocity Client Acquisition"
+    display_name: "Snel nieuwe klanten vinden"
+    steps:
+      - { agent_id: "leadfinder", mode: "sequential" }
+      - { agent_id: "coldemailer", mode: "sequential" }
+      - { agent_id: "proposalwriter", mode: "sequential" }
+
+  - pack_id: "zzp.legal_shield"
+    name: "Solo Legal & Liability Shield"
+    display_name: "Juridisch beschermd als zelfstandige"
+    steps:
+      - { agent_id: "solocontract", mode: "sequential" }
+      - { agent_id: "gdprprivacy", mode: "parallel" }
+      - { agent_id: "liabilityaudit", mode: "parallel" }
+
+  - pack_id: "zzp.focus_mode"
+    name: "Deep Work Protection"
+    display_name: "Ongestoord kunnen werken"
+    steps:
+      - { agent_id: "focusguardian", mode: "sequential" }
+      - { agent_id: "calendarshield", mode: "sequential" }
+      - { agent_id: "inboxzero", mode: "sequential" }
+
+  - pack_id: "zzp.invoicing_pro"
+    name: "Professional Invoicing & Collection"
+    display_name: "Facturen maken en innen"
+    steps:
+      - { agent_id: "invoicegen", mode: "sequential" }
+      - { agent_id: "latepaymentchaser", mode: "sequential" }
+
+  - pack_id: "zzp.content_factory"
+    name: "Solo Content Factory"
+    display_name: "Zelf inhoud maken"
+    steps:
+      - { agent_id: "ghostwriter", mode: "sequential" }
+      - { agent_id: "socialscheduler", mode: "sequential" }
+      - { agent_id: "copyrightcheck", mode: "sequential" }
+
+  - pack_id: "zzp.wellbeing_check"
+    name: "Solo Health & Burnout Prevention"
+    display_name: "Gezondheid en overbelasting"
+    steps:
+      - { agent_id: "burnoutcoach", mode: "sequential" }
+      - { agent_id: "routinebuilder", mode: "sequential" }
+      - { agent_id: "digitaldetox", mode: "sequential" }
+
+  - pack_id: "zzp.project_flow"
+    name: "Smooth Project Execution"
+    display_name: "Projecten soepel uitvoeren"
+    steps:
+      - { agent_id: "taskmanager", mode: "sequential" }
+      - { agent_id: "meetingnotes", mode: "sequential" }
+      - { agent_id: "technicalwriter", mode: "sequential" }
+
+  - pack_id: "zzp.growth_engine"
+    name: "Continuous Skill & Profit Growth"
+    display_name: "Groeien in vaardigheid en winst"
+    steps:
+      - { agent_id: "skillpathfinder", mode: "sequential" }
+      - { agent_id: "profitoptimizer", mode: "sequential" }
+      - { agent_id: "negotiationcoach", mode: "sequential" }
+
+  - pack_id: "zzp.sales_dominance"
+    name: "Pitch & Close Dominance"
+    display_name: "Offertes en afsluiten"
+    steps:
+      - { agent_id: "pitchdeckgen", mode: "sequential" }
+      - { agent_id: "negotiationcoach", mode: "sequential" }
+
+  - pack_id: "zzp.admin_automate"
+    name: "Zero-Touch Admin"
+    display_name: "Administratie zonder handwerk"
+    steps:
+      - { agent_id: "receiptscanner", mode: "sequential" }
+      - { agent_id: "expenseclassifier", mode: "sequential" }
+      - { agent_id: "vatcompliance", mode: "sequential" }
+
+  - pack_id: "zzp.brand_consistency"
+    name: "Cross-Platform Brand Alignment"
+    display_name: "Merk overal gelijk"
+    steps:
+      - { agent_id: "bioarchitect", mode: "sequential" }
+      - { agent_id: "brandguardian", mode: "sequential" }
+
+  - pack_id: "zzp.contract_ninja"
+    name: "Ironclad Solo Contracts"
+    display_name: "Stevige contracten"
+    steps:
+      - { agent_id: "solocontract", mode: "sequential" }
+      - { agent_id: "copyrightcheck", mode: "sequential" }
+
+  - pack_id: "zzp.efficiency_sprint"
+    name: "High-Efficiency Work Sprint"
+    display_name: "Efficient werkperiode"
+    steps:
+      - { agent_id: "breakreminder", mode: "sequential" }
+      - { agent_id: "focusguardian", mode: "sequential" }
+
+  - pack_id: "zzp.client_retention"
+    name: "Premium Client Experience"
+    display_name: "Klanten tevreden houden"
+    steps:
+      - { agent_id: "sentimentsupport", mode: "sequential" }
+      - { agent_id: "reviewresponder", mode: "sequential" }
+
+  - pack_id: "zzp.market_positioning"
+    name: "Strategic Market Positioning"
+    display_name: "Positie in de markt bepalen"
+    steps:
+      - { agent_id: "competitiveintelligence", mode: "sequential" }
+      - { agent_id: "pricingstrategist", mode: "sequential" }
+
+  - pack_id: "zzp.compliance_solo"
+    name: "Legal & Data Compliance"
+    display_name: "Wet- en privacyregels op orde"
+    steps:
+      - { agent_id: "gdprprivacy", mode: "sequential" }
+      - { agent_id: "tosgenerator", mode: "sequential" }
+
+  - pack_id: "zzp.productivity_pro"
+    name: "Master Productivity Suite"
+    display_name: "Productiever werken"
+    steps:
+      - { agent_id: "taskmanager", mode: "sequential" }
+      - { agent_id: "inboxzero", mode: "sequential" }
+      - { agent_id: "calendarshield", mode: "sequential" }
+
+  - pack_id: "zzp.full_autonomy"
+    name: "The Autonomous Freelancer"
+    display_name: "Volledig zelfstandig draaien"
+    steps:
+      - { agent_id: "workflowrefactoring", mode: "sequential" }
+      - { agent_id: "hallucinationhunter", mode: "sequential" }
+      - { agent_id: "karmaauditor", mode: "sequential" }

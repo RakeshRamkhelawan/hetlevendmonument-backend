@@ -1,0 +1,39 @@
+id: SOP-FIN-PAYROLL
+description: "Payroll Prep - Validate hours and bonus calculations"
+version: "1.0"
+variables:
+  - hr_api_base_url
+  - hr_api_token
+  - payroll_email
+
+steps:
+  - tool: local__openapi_call_endpoint
+    description: "Export timesheet data"
+    params:
+      base_url: "{hr_api_base_url}"
+      method: "GET"
+      path: "/hr/timesheets/current-period"
+      headers:
+        Authorization: "Bearer {hr_api_token}"
+
+  - tool: local__llm_generate
+    description: "Validate working hours"
+    params:
+      prompt: "Review the timesheet data. Flag entries exceeding 45 hours/week, missing days, or inconsistent clock-in/out patterns."
+
+  - tool: local__llm_generate
+    description: "Calculate bonuses"
+    params:
+      prompt: "Based on performance metrics and company bonus policy, calculate bonus amounts per employee. Apply tax withholding rules."
+
+  - tool: local__llm_generate
+    description: "Generate payroll summary"
+    params:
+      prompt: "Create a payroll summary report including base salary, overtime, bonuses, deductions, and net pay per employee."
+
+  - tool: local__gmail_send_email
+    description: "Send to payroll admin"
+    params:
+      to: "{payroll_email}"
+      subject: "Payroll Validation Report"
+      body: "{step_3_output}"

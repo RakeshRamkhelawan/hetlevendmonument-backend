@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Pack Deactivated - {{ pack_name }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .content {
+            padding: 30px;
+            background: #f9f9f9;
+        }
+
+        .notice-box {
+            background: #fee;
+            border: 1px solid #e74c3c;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .info-box {
+            background: #e8f5e9;
+            border: 1px solid #4caf50;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .button {
+            display: inline-block;
+            padding: 12px 30px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+
+        .footer {
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+        }
+
+        .pack-details {
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+            border-left: 4px solid #e74c3c;
+        }
+
+        .pack-details dt {
+            font-weight: bold;
+            color: #555;
+        }
+
+        .pack-details dd {
+            margin: 5px 0 15px 0;
+        }
+
+        .deactivation-date {
+            font-weight: bold;
+            color: #e74c3c;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Pack Deactivated</h1>
+        </div>
+
+        <div class="content">
+            <p>Dear Department Manager,</p>
+
+            <p>We are writing to inform you that a domain pack in your department has been deactivated due to extended
+                inactivity.</p>
+
+            <div class="pack-details">
+                <dl>
+                    <dt>Pack Name:</dt>
+                    <dd>{{ pack_name }}</dd>
+
+                    <dt>Pack ID:</dt>
+                    <dd>{{ pack_id }}</dd>
+
+                    <dt>Department:</dt>
+                    <dd>{{ department }}</dd>
+
+                    <dt>Deactivation Date:</dt>
+                    <dd class="deactivation-date">{{ deactivation_date }}</dd>
+                </dl>
+            </div>
+
+            <div class="notice-box">
+                <strong>Deactivation Reason:</strong> This pack had been in "critical" health status for more than the
+                grace period without any usage. To maintain system performance and organization, it has been archived.
+            </div>
+
+            <div class="info-box">
+                <strong>Can This Pack Be Reactivated?</strong><br>
+                Yes! Deactivated packs can be reactivated by your system administrator. If you need this pack restored,
+                please contact your administrator with the Pack ID listed above.
+            </div>
+
+            <p>To prevent future deactivations, ensure packs are used periodically in workflows, or request an exemption
+                from automatic lifecycle management.</p>
+
+            <p style="text-align: center;">
+                <a href="{{ contact_url | default('#') }}" class="button">Contact Administrator</a>
+            </p>
+
+            <p>If you have any questions, please contact our support team.</p>
+
+            <p>Best regards,<br>The SanskritiSetu Team</p>
+        </div>
+
+        <div class="footer">
+            <p>&copy; {{ year | default('2025') }} SanskritiSetu.org. All rights reserved.</p>
+            <p>This is an automated message from the Pack Lifecycle Management system.</p>
+        </div>
+    </div>
+</body>
+
+</html>

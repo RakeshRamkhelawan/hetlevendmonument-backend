@@ -1,0 +1,481 @@
+"""
+Unit Tests: Tenant Isolation
+PHASE 2 - TEST SUITE FOUNDATION
+
+Tests verify:
+1. ContextVar tenant_id propagation (no data leaks)
+2. Query auto-filtering by tenant (SQLAlchemy hook)
+3. JWT tenant_id claim validation
+4. Permission-based access control (RBAC)
+5. Feature flag enforcement
+
+Coverage Target: 95% of isolation logic
+Execution: pytest tests/unit/test_tenant_isolation.py -v
+"""
+
+import pytest
+import json
+from datetime import datetime, timedelta
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from core.middleware.tenant_middleware import current_tenant_id, current_user_id
+from core.auth.jwt_handler import jwt_handler
+from core.database.models import (
+    Tenant, User, Agent, Conversation, AuditLog,
+    FeatureFlag, TenantConfig
+)
+from core.feature_flags.manager import FeatureFlagManager, Feature, Tier
+from core.auth.rbac_service import RBACService, Role, Permission
+from core.shared.interfaces import User as UserInterface
+
+
+@pytest.fixture
+async def db_session(async_session):
+    """Provide database session for tests"""
+    async with async_session() as session:
+        yield session
+
+
+@pytest.fixture
+async def test_tenants(db_session: AsyncSession):
+    """Create test tenants"""
+    tenant_a = Tenant(
+        id="tenant_a_test",
+        name="Test Tenant A",
+        plan="starter",
+        status="active"
+    )
+    tenant_b = Tenant(
+        id="tenant_b_test",
+        name="Test Tenant B",
+        plan="pro",
+        status="active"
+    )
+
+    db_session.add(tenant_a)
+    db_session.add(tenant_b)
+    await db_session.commit()
+
+    return {"a": tenant_a, "b": tenant_b}
+
+
+@pytest.fixture
+async def test_users(db_session: AsyncSession, test_tenants):
+    """Create test users in different tenants"""
+    user_a = User(
+        id="user_a_test",
+        tenant_id="tenant_a_test",
+        email="user_a@test.com",
+        password_hash="hash_a",
+        role="admin",
+        is_active=True
+    )
+    user_b = User(
+        id="user_b_test",
+        tenant_id="tenant_b_test",
+        email="user_b@test.com",
+        password_hash="hash_b",
+        role="user",
+        is_active=True
+    )
+
+    db_session.add(user_a)
+    db_session.add(user_b)
+    await db_session.commit()
+
+    return {"a": user_a, "b": user_b}
+
+
+@pytest.fixture
+async def test_agents(db_session: AsyncSession, test_tenants):
+    """Create test agents in different tenants"""
+    agent_a = Agent(
+        id="agent_a_test",
+        tenant_id="tenant_a_test",
+        name="Agent A",
+        agent_type="core",
+        description="Test agent A",
+        is_active=True
+    )
+    agent_b = Agent(
+        id="agent_b_test",
+        tenant_id="tenant_b_test",
+        name="Agent B",
+        agent_type="core",
+        description="Test agent B",
+        is_active=True
+    )
+
+    db_session.add(agent_a)
+    db_session.add(agent_b)
+    await db_session.commit()
+
+    return {"a": agent_a, "b": agent_b}
+
+
+# ==================== CONTEXTVARS TESTS ====================
+
+class TestContextVarIsolation:
+    """Verify ContextVar tenant context isolation"""
+
+    @pytest.mark.asyncio
+    async def test_context_var_set_get(self):
+        """ContextVar can be set and retrieved"""
+        tenant_id = "test_tenant_123"
+        current_tenant_id.set(tenant_id)
+
+        assert current_tenant_id.get() == tenant_id
+
+    @pytest.mark.asyncio
+    async def test_context_var_isolation_between_tasks(self):
+        """Each async task has independent ContextVar"""
+        import asyncio
+
+        async def task_a():
+            current_tenant_id.set("tenant_a")
+            await asyncio.sleep(0.1)
+            return current_tenant_id.get()
+
+        async def task_b():
+            current_tenant_id.set("tenant_b")
+            await asyncio.sleep(0.05)
+            return current_tenant_id.get()
+
+        # Run concurrently
+        result_a, result_b = await asyncio.gather(task_a(), task_b())
+
+        # Verify: Each task sees its own value
+        assert result_a == "tenant_a"
+        assert result_b == "tenant_b"
+
+    @pytest.mark.asyncio
+    async def test_context_var_missing_returns_default(self):
+        """ContextVar returns default if not set"""
+        # Reset context
+        try:
+            current_tenant_id.set(None)
+        except:
+            pass
+
+        # Should return None (or default value)
+        value = current_tenant_id.get(None)
+        assert value is None
+
+
+# ==================== QUERY AUTO-FILTERING TESTS ====================
+
+class TestQueryAutoFiltering:
+    """Verify SQLAlchemy auto-filtering by tenant_id"""
+
+    @pytest.mark.asyncio
+    async def test_agent_query_filtered_by_tenant(
+        self,
+        db_session: AsyncSession,
+        test_agents
+    ):
+        """Query returns only agents from current tenant"""
+        # Set tenant context
+        current_tenant_id.set("tenant_a_test")
+
+        # Query ALL agents (no explicit filter)
+        stmt = select(Agent)
+        result = await db_session.execute(stmt)
+        agents = result.scalars().all()
+
+        # Verify: Only Tenant A's agent
+        assert len(agents) == 1
+        assert agents[0].id == "agent_a_test"
+        assert agents[0].name == "Agent A"
+
+        # Verify: Tenant B's agent NOT returned
+        assert not any(a.id == "agent_b_test" for a in agents)
+
+    @pytest.mark.asyncio
+    async def test_user_query_filtered_by_tenant(
+        self,
+        db_session: AsyncSession,
+        test_users
+    ):
+        """User queries respect tenant_id filtering"""
+        current_tenant_id.set("tenant_a_test")
+
+        stmt = select(User)
+        result = await db_session.execute(stmt)
+        users = result.scalars().all()
+
+        # Only User A from Tenant A
+        assert len(users) == 1
+        assert users[0].email == "user_a@test.com"
+
+    @pytest.mark.asyncio
+    async def test_filtering_prevents_cross_tenant_read(
+        self,
+        db_session: AsyncSession,
+        test_agents
+    ):
+        """CRITICAL: Cross-tenant data access prevented"""
+
+        # Tenant A user tries to read all agents
+        current_tenant_id.set("tenant_a_test")
+        stmt = select(Agent)
+        result = await db_session.execute(stmt)
+        agents = result.scalars().all()
+
+        # Must NOT include Tenant B's agent
+        tenant_ids = {a.tenant_id for a in agents}
+        assert tenant_ids == {"tenant_a_test"}
+        assert "tenant_b_test" not in tenant_ids
+
+
+# ==================== JWT TESTS ====================
+
+class TestJWTTenantContext:
+    """Verify JWT includes tenant_id claim"""
+
+    @pytest.mark.asyncio
+    async def test_create_token_includes_tenant_id(self):
+        """JWT payload contains tenant_id"""
+        user_id = "user_123"
+        tenant_id = "tenant_123"
+        email = "test@example.com"
+        roles = ["admin"]
+
+        token = jwt_handler.create_access_token(
+            user_id=user_id,
+            tenant_id=tenant_id,
+            email=email,
+            roles=roles
+        )
+
+        assert isinstance(token, str)
+        assert len(token) > 0
+
+    @pytest.mark.asyncio
+    async def test_verify_token_extracts_tenant_id(self):
+        """Token verification extracts tenant_id"""
+        user_id = "user_123"
+        tenant_id = "tenant_123"
+        email = "test@example.com"
+        roles = ["admin"]
+
+        # Create token
+        token = jwt_handler.create_access_token(
+            user_id=user_id,
+            tenant_id=tenant_id,
+            email=email,
+            roles=roles
+        )
+
+        # Verify token
+        decoded = jwt_handler.verify_token(token)
+
+        assert decoded["user_id"] == user_id
+        assert decoded["tenant_id"] == tenant_id
+        assert decoded["email"] == email
+        assert "admin" in decoded["roles"]
+
+    @pytest.mark.asyncio
+    async def test_verify_token_fails_without_tenant_id(self):
+        """Token missing tenant_id raises error"""
+        import jwt as pyjwt
+        from core.auth.jwt_handler import jwt_handler as handler
+
+        # Create invalid token (no tenant_id)
+        payload = {
+            "user_id": "user_123",
+            # Missing tenant_id!
+            "exp": datetime.utcnow() + timedelta(hours=24)
+        }
+
+        invalid_token = pyjwt.encode(
+            payload,
+            handler.secret_key,
+            algorithm="HS256"
+        )
+
+        # Verification should fail
+        with pytest.raises(ValueError, match="tenant_id"):
+            jwt_handler.verify_token(invalid_token)
+
+
+# ==================== RBAC TESTS ====================
+
+class TestRBACPermissions:
+    """Verify role-based access control"""
+
+    @pytest.mark.asyncio
+    async def test_admin_has_all_permissions(self, db_session: AsyncSession):
+        """Admin role has all permissions"""
+        rbac = RBACService(db_session)
+
+        user = UserInterface(
+            id="admin_user",
+            tenant_id="tenant_123",
+            email="admin@test.com",
+            role="admin",
+            is_active=True
+        )
+
+        # Admin should have all permissions
+        permissions_to_check = [
+            Permission.VIEW_AGENTS,
+            Permission.CREATE_AGENTS,
+            Permission.MANAGE_AGENTS,
+            Permission.MANAGE_TEAM,
+            Permission.MANAGE_BILLING
+        ]
+
+        for perm in permissions_to_check:
+            has_permission = await rbac.check_permission(user, perm, raise_error=False)
+            assert has_permission is True, f"Admin should have {perm}"
+
+    @pytest.mark.asyncio
+    async def test_user_role_restricted_permissions(self, db_session: AsyncSession):
+        """User role only has basic permissions"""
+        rbac = RBACService(db_session)
+
+        user = UserInterface(
+            id="regular_user",
+            tenant_id="tenant_123",
+            email="user@test.com",
+            role="user",
+            is_active=True
+        )
+
+        # User should have limited permissions
+        has_view = await rbac.check_permission(
+            user,
+            Permission.VIEW_AGENTS,
+            raise_error=False
+        )
+        assert has_view is True
+
+        # User should NOT have admin permissions
+        has_manage_team = await rbac.check_permission(
+            user,
+            Permission.MANAGE_TEAM,
+            raise_error=False
+        )
+        assert has_manage_team is False
+
+
+# ==================== FEATURE FLAG TESTS ====================
+
+class TestFeatureFlags:
+    """Verify feature flag gating"""
+
+    @pytest.mark.asyncio
+    async def test_feature_disabled_by_default(self, db_session: AsyncSession):
+        """Features disabled until explicitly enabled"""
+        manager = FeatureFlagManager(db_session)
+
+        is_enabled = await manager.is_enabled(
+            tenant_id="tenant_123",
+            feature=Feature.CUSTOM_AGENTS
+        )
+
+        assert is_enabled is False
+
+    @pytest.mark.asyncio
+    async def test_enable_feature_for_tenant(self, db_session: AsyncSession):
+        """Feature can be enabled for specific tenant"""
+        manager = FeatureFlagManager(db_session)
+        tenant_id = "tenant_pro"
+
+        # Initially disabled
+        is_enabled = await manager.is_enabled(tenant_id, Feature.MEMORY_MCP)
+        assert is_enabled is False
+
+        # Enable feature
+        await manager.enable_features_for_tier(tenant_id, Tier.PRO)
+
+        # Now enabled
+        is_enabled = await manager.is_enabled(tenant_id, Feature.MEMORY_MCP)
+        assert is_enabled is True
+
+    @pytest.mark.asyncio
+    async def test_feature_flags_per_tenant_isolated(self, db_session: AsyncSession):
+        """Feature flags don't leak between tenants"""
+        manager = FeatureFlagManager(db_session)
+
+        # Enable feature for Tenant A only
+        await manager.enable_features_for_tier("tenant_a", Tier.ENTERPRISE)
+
+        # Tenant A has feature
+        assert await manager.is_enabled("tenant_a", Feature.OLLAMA_MCP) is True
+
+        # Tenant B should NOT have feature
+        assert await manager.is_enabled("tenant_b", Feature.OLLAMA_MCP) is False
+
+
+# ==================== AUDIT LOGGING TESTS ====================
+
+class TestAuditLogging:
+    """Verify audit trail creation"""
+
+    @pytest.mark.asyncio
+    async def test_audit_log_includes_tenant_id(self, db_session: AsyncSession):
+        """Audit logs always capture tenant_id"""
+        current_tenant_id.set("tenant_123")
+        current_user_id.set("user_123")
+
+        audit_log = AuditLog(
+            id="log_1",
+            tenant_id="tenant_123",
+            user_id="user_123",
+            action="CREATE",
+            resource="agent",
+            resource_id="agent_456",
+            ip_address="192.168.1.1"
+        )
+
+        db_session.add(audit_log)
+        await db_session.commit()
+
+        # Verify: tenant_id saved
+        stmt = select(AuditLog).where(AuditLog.id == "log_1")
+        result = await db_session.execute(stmt)
+        log = result.scalars().first()
+
+        assert log.tenant_id == "tenant_123"
+        assert log.action == "CREATE"
+
+
+# ==================== INTEGRATION TESTS ====================
+
+class TestEndToEndTenantIsolation:
+    """End-to-end isolation verification"""
+
+    @pytest.mark.asyncio
+    async def test_full_request_flow_maintains_isolation(
+        self,
+        db_session: AsyncSession,
+        test_agents
+    ):
+        """Full flow: JWT → context → query → result is isolated"""
+
+        # Step 1: Create JWT for Tenant A user
+        token = jwt_handler.create_access_token(
+            user_id="user_a_test",
+            tenant_id="tenant_a_test",
+            email="user_a@test.com",
+            roles=["admin"]
+        )
+
+        # Step 2: Verify token extracts tenant_id
+        decoded = jwt_handler.verify_token(token)
+        tenant_id = decoded["tenant_id"]
+
+        # Step 3: Set context (middleware does this)
+        current_tenant_id.set(tenant_id)
+
+        # Step 4: Query agents (no explicit filter!)
+        stmt = select(Agent)
+        result = await db_session.execute(stmt)
+        agents = result.scalars().all()
+
+        # Step 5: Verify isolation
+        assert len(agents) == 1
+        assert agents[0].tenant_id == "tenant_a_test"
+        assert agents[0].id == "agent_a_test"

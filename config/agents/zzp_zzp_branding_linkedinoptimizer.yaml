@@ -1,0 +1,20 @@
+agent_id: "zzp.zzp_branding.linkedinoptimizer.001"
+name: "LinkedInOptimizerAgent"
+department: "zzp_branding"
+technology: "LLM"
+module_path: "src.core.als.agents.zzp.zzp_branding"
+class_name: "LinkedInOptimizerAgent"
+description: "Optimizes personal brand and post reach on LinkedIn."
+is_active: true
+priority: "MEDIUM"
+version: "1.0.0"
+allowed_tools: ["linkedin_api", "viral_hook_gen"]
+ooda_profile:
+  observe:
+    data_sources: ["solo_business_data", "social_apis"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.85
+  act:
+    tools: ["linkedin_api", "viral_hook_gen"]

@@ -1,0 +1,20 @@
+agent_id: "mkb.hr_lite.safetycompliance.001"
+name: "SafetyComplianceAgent"
+department: "hr_lite"
+technology: "LLM"
+module_path: "src.core.als.agents.mkb.hr_lite"
+class_name: "SafetyComplianceAgent"
+description: "Checks and alerts on staff safety certifications."
+is_active: true
+priority: "MEDIUM"
+version: "1.0.0"
+allowed_tools: ["cert_registry", "alert_system"]
+ooda_profile:
+  observe:
+    data_sources: ["mkb_specific_api", "manual_uploads"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.85
+  act:
+    tools: ["cert_registry", "alert_system"]

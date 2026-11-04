@@ -1,0 +1,19 @@
+agent_id: "it.security.infra.kubernetesarchitect.001"
+name: "KubernetesArchitectAgent"
+department: "it_security"
+technology: "LLM"
+module_path: "src.core.als.agents.specialists.infra"
+class_name: "KubernetesArchitectAgent"
+description: "Elite specialist for KubernetesArchitect operations and architecture."
+is_active: true
+priority: "CRITICAL"
+version: "1.0.0"
+ooda_profile:
+  observe:
+    data_sources: ["cloud_metrics", "logs", "k8s_api"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.95
+  act:
+    tools: ["cloud_cli", "k8s_client", "terraform_engine", "security_scanner"]

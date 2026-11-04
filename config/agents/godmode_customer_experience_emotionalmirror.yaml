@@ -1,0 +1,20 @@
+agent_id: "godmode.customer_experience.emotionalmirror.001"
+name: "EmotionalMirrorAgent"
+department: "customer_experience"
+technology: "Hybrid"
+module_path: "src.core.als.agents.godmode.customer_experience"
+class_name: "EmotionalMirrorAgent"
+description: "Dynamically adapts platform personality."
+is_active: true
+priority: "CRITICAL"
+version: "1.0.0"
+allowed_tools: ["sentiment_analyzer", "tone_generator"]
+ooda_profile:
+  observe:
+    data_sources: ["global_signals", "deep_context"]
+  orient:
+    model: "gpt-4o"
+  decide:
+    confidence_threshold: 0.95
+  act:
+    tools: ["sentiment_analyzer", "tone_generator"]

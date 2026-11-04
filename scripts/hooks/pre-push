@@ -1,0 +1,362 @@
+#!/usr/bin/env bash
+# scripts/hooks/pre-push
+#
+# Git pre-push hook -- runs local CI before every push.
+# Blocks the push if any CI job fails.
+#
+# Installed by: bash scripts/install-hooks.sh
+# To bypass (NEVER in normal use): git push --no-verify
+#   -> Note: --no-verify is itself blocked by .claude/hooks/block-dangerous-commands.sh
+#
+# Waarom dit bestand op 2026-09-10 is uitgebreid. `ci-local-fast.sh` draait NOOIT de
+# pytest-suite (staat expliciet in zijn eigen kop: te traag, PostgreSQL nodig) -- dus
+# "de hook is groen" betekent altijd alleen "ruff/bandit/een los architectuurbestand
+# zijn groen", nooit "de suite die CI blokkerend draait is groen". Op develop leidde dat
+# er twee dagen achter elkaar toe dat een push CI rood liet zien terwijl de hook net
+# daarvoor akkoord had gegeven: een STATUS-waarde buiten de toegestane woordenlijst in
+# het ADR-036-register (test_adr036_register_is_parseable.py) en een tijdgevoelige
+# testfout (`hour must be in 0..23`), geen van beide iets dat de fast-hook ooit had
+# kunnen zien. Beide waren al bekend en gefixt VOORDAT deze testpoort bestond -- dit
+# bestand voorkomt de VOLGENDE keer, niet die twee specifieke gevallen.
+#
+# De volledige, 4-mappen-brede testpoort (~15 minuten) bij ELKE push draaien zou elke
+# push naar een kortlevende iter/-branch net zo traag maken als een push naar develop,
+# terwijl alleen een push naar develop CD Staging triggert en dus de testpoort is waar CI
+# daadwerkelijk op test. Daarom: alleen wanneer `develop` een van de refs is die
+# daadwerkelijk gepusht wordt, komt de volledige testpoort erbij; elke andere push (een
+# iter/-branch, main) blijft bij de snelle hook.
+#
+# Uitgebreid (later dezelfde dag): Rakesh wil dat elke sessie zelf naar develop kan
+# pushen, met een door hem aangewezen sessie ("de regie") die de push-momenten
+# coordineert. `scripts/push_gate.py` legt vast welke exacte commit die regie-sessie
+# heeft goedgekeurd; een push naar develop zonder die goedkeuring wordt hier
+# geblokkeerd, VOOR de trage suite draait (geen zin om 15 minuten te wachten op een
+# testpoort die toch niet mag pushen). Zie scripts/push_gate.py voor het protocol en de
+# eerlijke grens (dit is een sterke afspraak, geen ijzeren slot -- CLAUDE.md sectie
+# Projectstructuur).
+#
+# Uitgebreid 2026-09-27 (BE-HOOK-001): twee verbeteringen aan volgorde en scope.
+#
+# 1. VOLGORDE: de goedkeuringscontrole stond NA ci-local-fast.sh (39 seconden). Een
+#    niet-goedgekeurde push wachtte die 39 seconden voor niets. De controle staat nu
+#    VOOR ci-local-fast.sh: milliseconden tot weigering.
+#
+# 2. DOCS-PAD: 41% van de commits op develop bevat uitsluitend documentatiewijzigingen.
+#    Die kostten elk een volledige ronde van 12-18 minuten. Gemeten alternatief:
+#    impact_tests.py plus de globtests plus validate_feature_docs.py draait in 25 s.
+#
+#    GRENS van het docs-pad: impact_tests.py koppelt een gewijzigd .md-bestand aan
+#    tests die het bij naam LEZEN. Tests die alle documenten globben worden apart
+#    meegenomen (afgeleid op aanroeptijd, zie hieronder). Er is een derde categorie
+#    die het docs-pad NIET afdekt: een test die een document indirect raakt via een
+#    derde module die het pad doorexporteert. Het docs-pad dekt wat een test bij naam
+#    leest en wat alles globt, niet wat een test indirect raakt. Bij twijfel over een
+#    extensie: volledige poort.
+
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>&1)" || {
+  echo "[pre-push] ERROR: git rev-parse --show-toplevel failed: $REPO_ROOT"
+  exit 1
+}
+CI_SCRIPT="$REPO_ROOT/scripts/ci-local-fast.sh"
+
+if [ ! -f "$CI_SCRIPT" ]; then
+  echo "[pre-push] ERROR: scripts/ci-local-fast.sh not found at $CI_SCRIPT"
+  echo "[pre-push] Cannot validate -- push blocked."
+  exit 1
+fi
+
+# Git levert op stdin een regel per gepushte ref: "<local ref> <local sha1> <remote
+# ref> <remote sha1>". Eerst volledig inlezen -- de pytest-suite die hieronder mogelijk
+# draait, mag deze stdin niet zelf (leeg) overnemen.
+PUSHES_DEVELOP=0
+DEVELOP_SHA=""
+DEVELOP_REMOTE_SHA=""
+ZIJTAK_BEREIK=""
+while read -r local_ref local_sha remote_ref remote_sha; do
+  if [ "$remote_ref" = "refs/heads/develop" ]; then
+    PUSHES_DEVELOP=1
+    DEVELOP_SHA="$local_sha"
+    DEVELOP_REMOTE_SHA="$remote_sha"
+  else
+    # Een zijtak (iter/..., regie/...). Wat is er nieuw in deze push?
+    # Een nieuwe tak heeft een remote-sha van alleen nullen; dan is `develop` het
+    # ijkpunt -- anders zou het bereik de hele geschiedenis omvatten.
+    case "$remote_sha" in
+      *[!0]*) ZIJTAK_BEREIK="$remote_sha..$local_sha" ;;
+      *)      ZIJTAK_BEREIK="develop..$local_sha" ;;
+    esac
+  fi
+done
+
+# De testronde en de checks hieronder lezen de WERKMAP, niet de gepushte commit. Staat
+# HEAD op een andere sha dan die naar develop gaat, dan test de hook andere code dan
+# er landt. Gemeten (commit 20c48b3c): 17883 tests in de testronde, 17888 in de push.
+# Daarom geweigerd, voor de docs-detectie, zodat ook het snelle documentpad dit toetst.
+if [ "$PUSHES_DEVELOP" -eq 1 ]; then
+  HEAD_SHA=$(git rev-parse HEAD 2>/dev/null || true)
+  if [ "$HEAD_SHA" != "$DEVELOP_SHA" ]; then
+    echo "[pre-push] GEWEIGERD: de werkmap staat niet op de sha die naar develop gaat."
+    echo "[pre-push]   HEAD van de werkmap: $HEAD_SHA"
+    echo "[pre-push]   gepushte sha:        $DEVELOP_SHA"
+    echo "[pre-push] De testronde zou andere code testen dan er landt."
+    echo "[pre-push] Breng de werkmap eerst naar die sha, of push vanuit de werkkopie die erop staat."
+    exit 1
+  fi
+fi
+
+# === STAP 0: BEREIK EN DOCS-DETECTIE (milliseconden, alleen git en grep) ===
+# Stond tot 2026-09-28 NA de goedkeuringscontrole, als onderdeel van het docs-pad. Naar
+# voren gehaald omdat de goedkeuringseis sindsdien van de UITKOMST afhangt: een push met
+# uitsluitend .md-bestanden gaat zonder aparte handtekening (besluit Rakesh; zie
+# .claude/rules/git-safety.md). Deze detectie kost geen python en geen meetbare tijd.
+PUSH_BEREIK=""
+if [ "$PUSHES_DEVELOP" -eq 1 ]; then
+  case "$DEVELOP_REMOTE_SHA" in
+    *[!0]*) PUSH_BEREIK="$DEVELOP_REMOTE_SHA..$DEVELOP_SHA" ;;
+    *)      PUSH_BEREIK="develop..$DEVELOP_SHA" ;;
+  esac
+elif [ -n "$ZIJTAK_BEREIK" ]; then
+  PUSH_BEREIK="$ZIJTAK_BEREIK"
+fi
+
+DOCS_ALLEEN=0
+if [ -n "$PUSH_BEREIK" ]; then
+  ALLE_BESTANDEN=$(git diff --name-only "$PUSH_BEREIK" 2>/dev/null || true)
+  if [ -n "$ALLE_BESTANDEN" ]; then
+    # ALLEEN `.md` telt als documentatie, waar het bestand ook staat.
+    #
+    # Het patroon was '^(docs/|\.claude/|.*\.md$|CLAUDE\.md)' en dat was op twee plaatsen
+    # te ruim, gemeten 2026-09-28: onder `.claude/` staan TWAALF bestanden die geen
+    # documentatie zijn -- acht shell-hooks, settings.json, launch.json en twee
+    # workflow-scripts -- en onder `docs/` nog 78, waaronder .py-bestanden. Een wijziging
+    # aan `.claude/hooks/block-dangerous-commands.sh` kreeg daarmee het snelpad van 25
+    # seconden. Nu de goedkeuringseis van deze uitkomst afhangt, zou dat betekenen dat een
+    # sessie in haar eentje een beveiligingshook kan wijzigen en pushen.
+    #
+    # Wat de aanscherping kost: over de laatste 100 commits op develop haalde het oude
+    # patroon 38 keer het snelpad en dit patroon 37 keer. Een commit op honderd.
+    NIET_DOCS=$(printf '%s\n' "$ALLE_BESTANDEN" | grep -cvE '\.md$' || true)
+    [ "$NIET_DOCS" -eq 0 ] && DOCS_ALLEEN=1
+  fi
+fi
+
+# === STAP 1: GOEDKEURINGSCONTROLE (milliseconden) ===
+# Staat VOOR ci-local-fast.sh: wie geen goedkeuring heeft, wacht niet 39 seconden voor
+# niets. Inhoud van dit blok ongewijzigd t.o.v. de originele positie (BE-HOOK-001 Fix 1).
+PUSH_GATE="$REPO_ROOT/scripts/push_gate.py"
+if [ "$PUSHES_DEVELOP" -eq 1 ] && [ "$DOCS_ALLEEN" -eq 1 ]; then
+  # Uitsluitend .md: geen aparte handtekening. De docs-poort hieronder blijft wel gelden,
+  # en die draait onder meer validate_feature_docs.py en de tests die een document bij
+  # naam noemt. Wat hier wegvalt is het OORDEEL van een tweede lezer, niet een meting.
+  echo "[pre-push] Uitsluitend .md-bestanden -- geen aparte goedkeuring nodig."
+elif [ "$PUSHES_DEVELOP" -eq 1 ] && [ -f "$PUSH_GATE" ]; then
+  # Zoek een python-interpreter alleen om deze lichte check te draaien; de volledige
+  # detectie (met venv/-fallbacks) komt hieronder pas echt van pas voor de zware suite.
+  GATE_PY="python"
+  command -v python &>/dev/null || GATE_PY="python3"
+  if ! "$GATE_PY" "$PUSH_GATE" check "$DEVELOP_SHA"; then
+    echo ""
+    echo "[pre-push] Push naar develop NIET goedgekeurd door de regie-sessie -- geblokkeerd."
+    echo "[pre-push] Vraag goedkeuring (SendMessage) en laat de regie-sessie draaien:"
+    echo "[pre-push]   python scripts/push_gate.py approve --sha $DEVELOP_SHA --by <regie-sessienaam>"
+    exit 1
+  fi
+fi
+
+# === STAP 2: PYTHON-INTERPRETER DETECTEREN ===
+# Hier neergezet (voor docs-pad en zijtak-impact-tests) zodat de detectie niet pas bij
+# de volledige testpoort beschikbaar is. Zelfde meervoudige detectie als ci-local-fast.sh
+# (bulletproof: .venv/venv, Windows/Linux, en tot slot python3/python op PATH), zodat
+# deze stap niet onnodig blokkeert in een omgeving waar alleen de padnaam afwijkt.
+PY_EXE=""
+for candidate in \
+  "$REPO_ROOT/.venv/Scripts/python.exe" \
+  "$REPO_ROOT/.venv/Scripts/python" \
+  "$REPO_ROOT/.venv/bin/python" \
+  "$REPO_ROOT/venv/Scripts/python.exe" \
+  "$REPO_ROOT/venv/Scripts/python" \
+  "$REPO_ROOT/venv/bin/python"; do
+  if [ -f "$candidate" ]; then
+    PY_EXE="$candidate"
+    break
+  fi
+done
+if [ -z "$PY_EXE" ] && command -v python3 &>/dev/null; then
+  PY_EXE="python3"
+elif [ -z "$PY_EXE" ] && command -v python &>/dev/null; then
+  PY_EXE="python"
+fi
+
+# === STAP 3: DOCS-POORT (ca. 25 seconden i.p.v. 12-18 minuten) ===
+if [ "$DOCS_ALLEEN" -eq 1 ]; then
+  echo ""
+  echo "================================================================="
+  echo " pre-push: alleen documentwijzigingen -- docs-poort (ca. 25 s)."
+  echo "================================================================="
+  echo ""
+
+  # Tests die ALLE documenten globben: impact_tests.py kan die per definitie niet
+  # koppelen (geen directe naam). Afgeleid op aanroeptijd zodat een nieuwe globtest
+  # automatisch meegaat -- niet hardgecodeerd.
+  GLOB_TESTS=$(git grep -lE 'rglob\("?\*\.md|glob\("?\*\.md' -- tests/ 2>/dev/null || true)
+
+  # Tests die de gerichte bestanden bij naam lezen of importeren.
+  IMPACT_TESTS=$("$PY_EXE" "$REPO_ROOT/scripts/impact_tests.py" \
+    --range "$PUSH_BEREIK" 2>/dev/null || true)
+
+  # Gecombineerd en ontdubbeld: union van beide sets.
+  ALLE_TESTS=$(printf '%s\n%s\n' "$IMPACT_TESTS" "$GLOB_TESTS" \
+    | sort -u | grep -v '^$' || true)
+
+  if [ -n "$ALLE_TESTS" ]; then
+    AANTAL=$(printf '%s\n' "$ALLE_TESTS" | wc -l)
+    echo "[pre-push] Docs-poort: $AANTAL testbestand(en)..."
+    if ! printf '%s\n' "$ALLE_TESTS" | xargs "$PY_EXE" "$REPO_ROOT/scripts/testronde_waakhond.py" -m pytest -x -q --timeout=60; then
+      echo ""
+      echo "[pre-push] Docs-poort ROOD -- push geblokkeerd."
+      exit 1
+    fi
+  fi
+
+  # Feature doc validatie: altijd mee, ook als er geen gerichte tests zijn.
+  if ! "$PY_EXE" "$REPO_ROOT/scripts/validate_feature_docs.py"; then
+    echo ""
+    echo "[pre-push] validate_feature_docs.py FAALDE -- push geblokkeerd."
+    exit 1
+  fi
+
+  echo ""
+  echo "[pre-push] Docs-poort GROEN -- push toegestaan."
+  exit 0
+fi
+
+# === STAP 4: SNELLE CI (ruff, bandit, architectuur-basis) -- 39 seconden ===
+# Bereikt alleen als er niet-documentbestanden in de push zitten, of als docs-detectie
+# niet mogelijk was (geen PY_EXE, leeg bereik). Inhoud ongewijzigd (BE-HOOK-001 Fix 1).
+echo ""
+echo "================================================="
+echo " pre-push: Running local fast CI before push..."
+echo " Run 'bash scripts/ci-local-fast.sh' to see details."
+echo "================================================="
+echo ""
+
+if ! bash "$CI_SCRIPT"; then
+  echo ""
+  echo "[pre-push] Fast CI FAILED -- push blocked."
+  echo "[pre-push] Fix the failures above, then push again."
+  exit 1
+fi
+
+if [ "$PUSHES_DEVELOP" -eq 0 ]; then
+  # Een zijtak kreeg tot 2026-09-25 GEEN ENKEL testsignaal. Dat is hoe op
+  # iter/genuine-implementations een test 45 commits lang rood kon staan: de volledige
+  # testpoort draait alleen bij een push naar develop, en de pre-commit hook draaide
+  # toen nog nul tests. Hier komt daarom de derde stand tussen "twintig minuten" en
+  # "niets": alleen de tests die de gepushte wijzigingen echt IMPORTEREN.
+  if [ -n "$ZIJTAK_BEREIK" ] && [ -n "$PY_EXE" ]; then
+    GERAAKT=$("$PY_EXE" "$REPO_ROOT/scripts/impact_tests.py" \
+      --range "$ZIJTAK_BEREIK" 2>/dev/null || true)
+    if [ -n "$GERAAKT" ]; then
+      AANTAL=$(printf '%s\n' "$GERAAKT" | wc -l)
+      echo ""
+      echo "[pre-push] Gerichte tests op $AANTAL geraakt testbestand(en) ($ZIJTAK_BEREIK)..."
+      if ! printf '%s\n' "$GERAAKT" | xargs "$PY_EXE" "$REPO_ROOT/scripts/testronde_waakhond.py" -m pytest -x -q --timeout=60; then
+        echo ""
+        echo "[pre-push] Een test die deze push raakt, FAALT -- push geblokkeerd."
+        echo "[pre-push] Dit is de snelle selectie, niet de volledige testpoort: er kan dus"
+        echo "[pre-push] meer stuk zijn dan wat je hier ziet."
+        echo "[pre-push] Welke tests geraakt zijn:"
+        echo "[pre-push]   python scripts/impact_tests.py --range $ZIJTAK_BEREIK"
+        exit 1
+      fi
+    fi
+  fi
+  echo ""
+  echo "[pre-push] Fast CI passed -- push allowed."
+  exit 0
+fi
+
+# === STAP 5: VOLLEDIGE TESTPOORT -- alleen bij een develop-push ===
+if [ -z "$PY_EXE" ]; then
+  echo "[pre-push] ERROR: geen Python-interpreter gevonden -- de volledige testpoort kan niet"
+  echo "[pre-push] draaien. Push naar develop is geblokkeerd; los dit op of draai de"
+  echo "[pre-push] testpoort handmatig en push daarna met --no-verify (na Rakesh's GO)."
+  exit 1
+fi
+
+# Machinebreed slot: er draait nooit meer dan EEN volledige testpoort tegelijk.
+#
+# Gemeten 2026-09-17 op deze machine, met precies EEN poortrun en verder niets:
+#   piek python      7844 MB werkgeheugen
+#   committed        64,6 GB -> 78,8 GB  (de run zelf kost +14,2 GB)
+#   commit-limiet    79,2 GB             (0,4 GB over op de piek)
+# Er past dus geen tweede naast. Draaien er toch twee, dan weigert Windows
+# geheugenaanvragen, sterven xdist-werkers en meldt pytest willekeurige tests als
+# FAILED (ADR-036 OP-19) -- een rode testpoort zonder defect, en dat kost uren zoeken.
+#
+# Het slot wacht; het breekt niets af. Zie scripts/testpoort_slot.py voor de eerlijke grens.
+SLOT="$REPO_ROOT/scripts/testpoort_slot.py"
+SLOT_SESSIE="pre-push-$$"
+# De pid van DEZE shell, zodat een volgende sessie kan zien of de houder nog leeft
+# (SP-WF-001 dag 2). Bewust NIET `$$`: dat is een MSYS-pid en geen Windows-pid --
+# gemeten 2026-09-19: bash $$ = 618 bestaat niet als Windows-proces, de WINPID uit
+# kolom 4 van `ps` wel (49392, naam "bash.exe"). Python kijkt naar Windows-pids.
+# Levert `ps` geen getal op, dan geven we niets mee en geldt alleen de leeftijdsgrens.
+SLOT_WINPID="$(ps -p $$ 2>/dev/null | awk 'NR==2{print $4}')"
+case "$SLOT_WINPID" in
+  ''|*[!0-9]*) SLOT_PID_ARG="" ;;
+  *)           SLOT_PID_ARG="--houder-pid $SLOT_WINPID" ;;
+esac
+if [ -f "$SLOT" ]; then
+  if "$PY_EXE" "$SLOT" pak --sessie "$SLOT_SESSIE" --reden "pre-push testpoort naar develop" $SLOT_PID_ARG; then
+    # Ook teruggeven als de testpoort faalt, als iemand Ctrl+C geeft, of als de shell stopt.
+    trap '"$PY_EXE" "$SLOT" geef --sessie "$SLOT_SESSIE" >/dev/null 2>&1' EXIT INT TERM
+  else
+    echo "[pre-push] Het poort-slot kwam niet vrij -- push GEBLOKKEERD."
+    echo "[pre-push] Draai 'python scripts/testpoort_slot.py status' om te zien wie hem heeft."
+    exit 1
+  fi
+fi
+
+echo ""
+echo "================================================================="
+echo " pre-push: push naar develop -- volledige officiele testpoort draait nu"
+echo " (tests/unit tests/architecture tests/core tests/contracts, ~15 min)."
+echo " Dit is de testpoort die CI ook draait; de snelle hook hierboven dekt"
+echo " deze bestanden niet (geen pytest, zie de kop van dit script)."
+echo "================================================================="
+echo ""
+
+# De VOLLEDIGE uitvoer gaat altijd naar een bestand, ook als hij groen is.
+#
+# Waarom: wie `git push ... | tail` draait -- en dat is de normale manier om de uitvoer
+# van een half uur behapbaar te houden -- gooit bij een RODE ronde precies de regels weg
+# die zeggen WELKE test faalde. Gemeten 2026-09-17: dat gebeurde hier, en het kostte een
+# extra ronde van 16 minuten om te achterhalen dat het om een vastgepinde ketenkop ging.
+# Dezelfde valkuil staat al in `.claude/skills/valkuilen`; een bestand dat er altijd is,
+# werkt beter dan een regel die je moet onthouden.
+POORT_LOG="${TMPDIR:-/tmp}/sanskritisetu-testpoort-$(date +%Y%m%d-%H%M%S).log"
+
+echo "[pre-push] Volledige uitvoer komt in: $POORT_LOG"
+echo ""
+
+# Via de waakhond (scripts/testronde_waakhond.py, brief 2026-10-25): een werker waarvan een test over zijn
+# tijdgrens gaat en niet wordt gestopt (pytest-timeout hing, gemeten met py-spy) laat de ronde ROOD eindigen met
+# de naam van de test, in plaats van eeuwig te wachten. De pytest-argumenten zijn ongewijzigd.
+if "$PY_EXE" "$REPO_ROOT/scripts/testronde_waakhond.py" -m pytest tests/unit tests/architecture tests/core tests/contracts \
+    -n 4 --timeout=60 -q --tb=short 2>&1 | tee "$POORT_LOG"; then
+  echo ""
+  echo "[pre-push] Volledige testpoort GROEN -- push naar develop toegestaan."
+  echo "[pre-push] Uitvoer bewaard in: $POORT_LOG"
+  exit 0
+else
+  echo ""
+  echo "[pre-push] Volledige testpoort ROOD -- push naar develop GEBLOKKEERD."
+  echo "[pre-push] WELKE tests faalden staat hier, ook als je deze uitvoer door een pipe"
+  echo "[pre-push] haalt:  grep -E '^FAILED|^ERROR|crashed' $POORT_LOG"
+  echo "[pre-push] Dit is exact wat CI ook zou melden. Los de faling op, commit, en"
+  echo "[pre-push] push opnieuw -- verzin geen aparte reden om dit keer wel te pushen."
+  exit 1
+fi

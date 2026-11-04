@@ -1,0 +1,193 @@
+# SanskritiSetu Docker Compose - Blue Deployment
+
+# Blue Environment - Docker Compose Configuration
+# Part of Blue-Green Deployment Strategy
+#
+# This file defines the "blue" deployment environment.
+# Traffic is switched between blue and green environments for zero-downtime deployments.
+#
+# Usage:
+#   docker-compose -f docker-compose.blue.yml -p sanskritisetu-blue up -d
+#   docker-compose -f docker-compose.blue.yml -p sanskritisetu-blue down
+
+x-backend-common: &backend-common
+  image: ${DOCKER_REGISTRY:-ghcr.io/rakeshramkhelawan}/sanskritisetu-backend:${VERSION:-latest}
+  environment:
+    - ENVIRONMENT=blue
+    - DATABASE_URL=postgresql+asyncpg://postgres:${DB_PASSWORD:-secure_password}@postgres:5432/sanskritisetu
+    - REDIS_URL=redis://redis:6379/0
+    - API_BASE_URL=${API_BASE_URL:-https://api.sanskritisetu.org}
+    - FRONTEND_URL=${FRONTEND_URL:-https://www.sanskritisetu.org}
+    - TENANT_MODE=multi
+    - LOG_LEVEL=${LOG_LEVEL:-info}
+    - UVICORN_HOST=0.0.0.0
+    - UVICORN_PORT=8000
+    - UVICORN_WORKERS=${WORKERS:-4}
+    - SECRET_KEY=${SECRET_KEY}
+    - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+    # ADR-036 OP-27: zonder deze sleutel weigert elke tool-uitvoering (fail-closed).
+    - TOOL_PAYLOAD_PSEUDONYM_KEY=${TOOL_PAYLOAD_PSEUDONYM_KEY:?TOOL_PAYLOAD_PSEUDONYM_KEY is verplicht in blue/green (min. 32 tekens)}
+    - AUDIT_CHAIN_HMAC_KEY=${AUDIT_CHAIN_HMAC_KEY:-}
+    - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  networks:
+    - blue_network
+    - shared_network
+  restart: unless-stopped
+  healthcheck:
+    test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
+    interval: 30s
+    timeout: 10s
+    retries: 3
+    start_period: 40s
+  logging:
+    driver: "json-file"
+    options:
+      max-size: "10m"
+      max-file: "3"
+  deploy:
+    resources:
+      limits:
+        cpus: '1.0'
+        memory: 1G
+      reservations:
+        cpus: '0.5'
+        memory: 512M
+
+services:
+  # ==================== BACKEND REPLICAS ====================
+  backend-blue-1:
+    <<: *backend-common
+    container_name: sanskritisetu_backend_blue_1
+    environment:
+      - INSTANCE_ID=blue-1
+      - ENVIRONMENT=blue
+      - DATABASE_URL=postgresql+asyncpg://postgres:${DB_PASSWORD:-secure_password}@postgres:5432/sanskritisetu
+      - REDIS_URL=redis://redis:6379/0
+      - API_BASE_URL=${API_BASE_URL:-https://api.sanskritisetu.org}
+      - FRONTEND_URL=${FRONTEND_URL:-https://www.sanskritisetu.org}
+      - TENANT_MODE=multi
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - UVICORN_HOST=0.0.0.0
+      - UVICORN_PORT=8000
+      - UVICORN_WORKERS=${WORKERS:-4}
+      - SECRET_KEY=${SECRET_KEY}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      # ADR-036 OP-27: zonder deze sleutel weigert elke tool-uitvoering (fail-closed).
+      - TOOL_PAYLOAD_PSEUDONYM_KEY=${TOOL_PAYLOAD_PSEUDONYM_KEY:?TOOL_PAYLOAD_PSEUDONYM_KEY is verplicht in blue/green (min. 32 tekens)}
+      - AUDIT_CHAIN_HMAC_KEY=${AUDIT_CHAIN_HMAC_KEY:-}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+    ports:
+      - "8001:8000"
+    labels:
+      - com.sanskritisetu.service=backend
+      - com.sanskritisetu.environment=blue
+      - com.sanskritisetu.instance=1
+
+  backend-blue-2:
+    <<: *backend-common
+    container_name: sanskritisetu_backend_blue_2
+    environment:
+      - INSTANCE_ID=blue-2
+      - ENVIRONMENT=blue
+      - DATABASE_URL=postgresql+asyncpg://postgres:${DB_PASSWORD:-secure_password}@postgres:5432/sanskritisetu
+      - REDIS_URL=redis://redis:6379/0
+      - API_BASE_URL=${API_BASE_URL:-https://api.sanskritisetu.org}
+      - FRONTEND_URL=${FRONTEND_URL:-https://www.sanskritisetu.org}
+      - TENANT_MODE=multi
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - UVICORN_HOST=0.0.0.0
+      - UVICORN_PORT=8000
+      - UVICORN_WORKERS=${WORKERS:-4}
+      - SECRET_KEY=${SECRET_KEY}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      # ADR-036 OP-27: zonder deze sleutel weigert elke tool-uitvoering (fail-closed).
+      - TOOL_PAYLOAD_PSEUDONYM_KEY=${TOOL_PAYLOAD_PSEUDONYM_KEY:?TOOL_PAYLOAD_PSEUDONYM_KEY is verplicht in blue/green (min. 32 tekens)}
+      - AUDIT_CHAIN_HMAC_KEY=${AUDIT_CHAIN_HMAC_KEY:-}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+    ports:
+      - "8011:8000"
+    labels:
+      - com.sanskritisetu.service=backend
+      - com.sanskritisetu.environment=blue
+      - com.sanskritisetu.instance=2
+
+  backend-blue-3:
+    <<: *backend-common
+    container_name: sanskritisetu_backend_blue_3
+    environment:
+      - INSTANCE_ID=blue-3
+      - ENVIRONMENT=blue
+      - DATABASE_URL=postgresql+asyncpg://postgres:${DB_PASSWORD:-secure_password}@postgres:5432/sanskritisetu
+      - REDIS_URL=redis://redis:6379/0
+      - API_BASE_URL=${API_BASE_URL:-https://api.sanskritisetu.org}
+      - FRONTEND_URL=${FRONTEND_URL:-https://www.sanskritisetu.org}
+      - TENANT_MODE=multi
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - UVICORN_HOST=0.0.0.0
+      - UVICORN_PORT=8000
+      - UVICORN_WORKERS=${WORKERS:-4}
+      - SECRET_KEY=${SECRET_KEY}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      # ADR-036 OP-27: zonder deze sleutel weigert elke tool-uitvoering (fail-closed).
+      - TOOL_PAYLOAD_PSEUDONYM_KEY=${TOOL_PAYLOAD_PSEUDONYM_KEY:?TOOL_PAYLOAD_PSEUDONYM_KEY is verplicht in blue/green (min. 32 tekens)}
+      - AUDIT_CHAIN_HMAC_KEY=${AUDIT_CHAIN_HMAC_KEY:-}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+    ports:
+      - "8021:8000"
+    labels:
+      - com.sanskritisetu.service=backend
+      - com.sanskritisetu.environment=blue
+      - com.sanskritisetu.instance=3
+
+  # ==================== SHARED SERVICES ====================
+  postgres:
+    image: postgres:16-alpine
+    container_name: sanskritisetu_postgres_shared
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-secure_password}
+      - POSTGRES_DB=sanskritisetu
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - shared_network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: sanskritisetu_redis_shared
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - shared_network
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+networks:
+  blue_network:
+    driver: bridge
+    name: sanskritisetu_blue
+  shared_network:
+    driver: bridge
+    name: sanskritisetu_shared
+
+volumes:
+  postgres_data:
+  redis_data:

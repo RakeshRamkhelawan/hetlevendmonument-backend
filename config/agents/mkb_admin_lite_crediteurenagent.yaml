@@ -1,0 +1,23 @@
+# Crediteuren dag 2 (2026-10-24): de catalogusregel van de crediteurenagent. De loader leidt de sleutel `crediteuren` af uit
+# class_name en laadt de ECHTE skill (src/core/als/agents/skills/crediteuren.py), die zijn configuratie uit
+# src/core/als/agents/skills/manifests/crediteuren.yml bouwt en de velden hieronder NEGEERT (zie mkb_admin_lite_dunningagent.yaml).
+agent_id: "mkb.admin_lite.crediteurenagent.001"
+name: "CrediteurenAgent"
+department: "admin_lite"
+technology: "LLM"
+module_path: "src.core.als.agents.mkb.admin_lite"
+class_name: "CrediteurenAgent"
+description: "Processes received supplier invoices and hands every exception to a human."
+is_active: true
+priority: "MEDIUM"
+version: "1.0.0"
+allowed_tools: ["record_supplier_invoice", "propose_supplier_invoice", "propose_payment_run"]
+ooda_profile:
+  observe:
+    data_sources: ["manual_uploads"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.85
+  act:
+    tools: ["record_supplier_invoice", "propose_supplier_invoice", "propose_payment_run"]

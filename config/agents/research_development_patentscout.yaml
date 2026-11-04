@@ -1,0 +1,20 @@
+agent_id: "ext.research_development.patentscout.001"
+name: "PatentScoutAgent"
+department: "research_development"
+technology: "ML"
+module_path: "src.core.als.agents.specialists.research_development"
+class_name: "PatentScoutAgent"
+description: "Scans global patent databases for innovation opportunities."
+is_active: true
+priority: "HIGH"
+version: "1.0.0"
+allowed_tools: ["patent_api", "prior_art_searcher"]
+ooda_profile:
+  observe:
+    data_sources: ["external_api", "internal_lake"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.90
+  act:
+    tools: ["patent_api", "prior_art_searcher"]

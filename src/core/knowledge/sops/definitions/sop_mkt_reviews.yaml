@@ -1,0 +1,65 @@
+id: SOP-MKT-REVIEWS
+description: "Customer Reviews Management Workflow - Monitor and respond to reviews"
+version: "1.0"
+variables:
+  - brand_name
+  - review_platforms
+  - response_tone
+  - customer_success_email
+  - review_api_base_url
+  - review_api_token
+
+steps:
+  - tool: local__openapi_call_endpoint
+    description: "Fetch Recent Reviews"
+    params:
+      base_url: "{review_api_base_url}"
+      method: "POST"
+      path: "/reviews/fetch"
+      headers:
+        Authorization: "Bearer {review_api_token}"
+      body:
+        brand_name: "{brand_name}"
+        platforms: "{review_platforms}"
+
+  - tool: local__llm_generate
+    description: "Analyze Review Sentiment"
+    params:
+      prompt: |
+        Analyze the sentiment of recent customer reviews for {brand_name}.
+        Categorize reviews: positive, neutral, negative.
+        Identify: common themes, recurring issues, and praise points.
+
+  - tool: local__llm_generate
+    description: "Generate Response Templates"
+    params:
+      prompt: |
+        Create response templates for customer reviews.
+        Tone: {response_tone}
+        Generate templates for: positive reviews, constructive feedback, complaints.
+        Ensure responses are personalized and genuine.
+
+  - tool: local__llm_generate
+    description: "Draft Individual Responses"
+    params:
+      prompt: |
+        Draft personalized responses to the most recent 5 reviews.
+        Follow the brand voice and response guidelines.
+        Address specific points mentioned by each reviewer.
+
+  - tool: local__llm_generate
+    description: "Create Review Insights Report"
+    params:
+      prompt: |
+        Generate a monthly review insights report:
+        - Overall sentiment trend
+        - Key areas for improvement
+        - Customer appreciation highlights
+        - Recommended actions
+
+  - tool: local__gmail_send_email
+    description: "Send Review Report"
+    params:
+      to: "{customer_success_email}"
+      subject: "Monthly Customer Reviews Report: {brand_name}"
+      body: "The customer review analysis and response drafts are ready."

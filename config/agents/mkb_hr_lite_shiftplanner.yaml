@@ -1,0 +1,20 @@
+agent_id: "mkb.hr_lite.shiftplanner.001"
+name: "ShiftPlannerAgent"
+department: "hr_lite"
+technology: "ML"
+module_path: "src.core.als.agents.mkb.hr_lite"
+class_name: "ShiftPlannerAgent"
+description: "Creates weekly staff schedules based on availability."
+is_active: true
+priority: "MEDIUM"
+version: "1.0.0"
+allowed_tools: ["roster_engine", "whatsapp_comms"]
+ooda_profile:
+  observe:
+    data_sources: ["mkb_specific_api", "manual_uploads"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.85
+  act:
+    tools: ["roster_engine", "whatsapp_comms"]

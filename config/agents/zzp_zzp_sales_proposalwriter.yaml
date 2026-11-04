@@ -1,0 +1,20 @@
+agent_id: "zzp.zzp_sales.proposalwriter.001"
+name: "ProposalWriterAgent"
+department: "zzp_sales"
+technology: "LLM"
+module_path: "src.core.als.agents.zzp.zzp_sales"
+class_name: "ProposalWriterAgent"
+description: "Drafts high-converting project proposals."
+is_active: true
+priority: "MEDIUM"
+version: "1.0.0"
+allowed_tools: ["proposal_engine", "benefit_calculator"]
+ooda_profile:
+  observe:
+    data_sources: ["solo_business_data", "social_apis"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.85
+  act:
+    tools: ["proposal_engine", "benefit_calculator"]

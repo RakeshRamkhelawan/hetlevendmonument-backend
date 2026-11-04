@@ -1,0 +1,91 @@
+name: Deep health check
+description: >
+  Check /health/ready and assert database + redis are both "connected".
+  Retries with a configurable wait between attempts.
+
+inputs:
+  url:
+    description: Base URL of the backend (no trailing slash, no path)
+    required: true
+  retries:
+    description: Number of attempts before failure
+    required: false
+    default: "5"
+  wait_seconds:
+    description: Seconds to wait between attempts
+    required: false
+    default: "20"
+  initial_wait:
+    description: Seconds to sleep before the first attempt (image pull time)
+    required: false
+    default: "0"
+
+runs:
+  using: composite
+  steps:
+    - name: Wait for initial startup
+      if: inputs.initial_wait != '0'
+      shell: bash
+      run: |
+        echo "Waiting ${{ inputs.initial_wait }}s for container startup..."
+        sleep "${{ inputs.initial_wait }}"
+
+    - name: Check /health/ready (database + redis sub-status)
+      shell: bash
+      run: |
+        URL="${{ inputs.url }}/health/ready"
+        RETRIES="${{ inputs.retries }}"
+        WAIT="${{ inputs.wait_seconds }}"
+
+        for i in $(seq 1 "$RETRIES"); do
+          HTTP=$(curl -s -o /tmp/health_ready.json -w "%{http_code}" \
+            --max-time 10 "$URL" 2>/dev/null || echo "000")
+
+          echo "[$i/$RETRIES] HTTP $HTTP — $URL"
+
+          if [ "$HTTP" = "200" ]; then
+            echo "Response:"
+            python3 -c "
+        import json, sys
+
+        try:
+            d = json.load(open('/tmp/health_ready.json'))
+        except Exception as e:
+            print(f'ERROR: Could not parse JSON: {e}')
+            sys.exit(1)
+
+        print(json.dumps(d, indent=2))
+
+        deps = d.get('dependencies', d)
+        db    = str(deps.get('database', 'unknown'))
+        redis = str(deps.get('redis', 'unknown'))
+
+        print(f'database : {db}')
+        print(f'redis    : {redis}')
+
+        ok_values = {'connected', 'ok', 'healthy'}
+        bad = []
+        if db not in ok_values:
+            bad.append(f'database={db}')
+        if redis not in ok_values:
+            bad.append(f'redis={redis}')
+
+        if bad:
+            print('UNHEALTHY: ' + ', '.join(bad))
+            sys.exit(1)
+
+        print('All dependencies healthy.')
+            "
+            exit 0
+          fi
+
+          if [ "$i" -lt "$RETRIES" ]; then
+            echo "Retrying in ${WAIT}s..."
+            sleep "$WAIT"
+          fi
+        done
+
+        echo "ERROR: health check failed after $RETRIES attempts."
+        echo "Last response:"
+        cat /tmp/health_ready.json 2>/dev/null || echo "(no response body)"
+        exit 1

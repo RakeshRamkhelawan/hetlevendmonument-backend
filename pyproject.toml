@@ -1,0 +1,396 @@
+
+[project]
+name = "sanskriti-setu"
+version = "2.0.0"
+description = "Enterprise AI Agent Orchestration Platform"
+requires-python = ">=3.11"
+
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+exclude = ["src/alembic"]
+
+[tool.ruff.lint]
+select = ["E", "F", "TID252"]
+ignore = [
+    "E402",  # Module level import not at top (intentional pattern in many modules)
+    "E501",  # Line too long (enforced by black formatter separately)
+    "E722",  # Bare except - many intentional catch-all handlers
+    "F401",  # Unused import (too many re-exports and __init__ patterns)
+    "F841",  # Unused variable (handled case-by-case)
+]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "parents"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["F401", "F811", "F841"]
+"**/tests/**/*.py" = ["F401", "F811", "F841"]
+
+[tool.black]
+line-length = 100
+target-version = ['py311']
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.mypy]
+# python_version = runtime Python version (3.13 local venv).
+# NOTE: Dockerfile + ci-feature.yml still use Python 3.11 â€” TODO upgrade before
+#       Python 3.11 EOL (October 2026).
+python_version = "3.13"
+# cache_dir OUTSIDE OneDrive: 23k JSON files inside OneDrive caused random
+# KeyError (setter_type, is_bound, is_type_form) because OneDrive file-sync
+# locks files while mypy tries to read them back. Moving cache to AppData/Local
+# (not synced) fixes this completely. Uses ~ expansion (os.path.expanduser).
+cache_dir = "~/.mypy_cache/SanskritiSetu"
+# incremental=false: fixes KeyError:'setter_type' crash in mypy 1.19.1+Python 3.13
+# caused by warn_unused_ignores=true (part of strict) + incremental cache interaction.
+incremental = false
+strict = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = false
+check_untyped_defs = true
+no_implicit_optional = true
+no_implicit_reexport = true
+strict_optional = true
+strict_equality = true
+disallow_untyped_defs = true
+disallow_untyped_calls = true
+disallow_incomplete_defs = true
+disallow_untyped_decorators = true
+disallow_any_generics = true
+# Plugins disabled: pydantic 2.12.4 incompatible with mypy 1.19.1, sqlalchemy also problematic
+# plugins = ["sqlalchemy.ext.mypy.plugin"]
+
+# Error handling
+show_error_codes = true
+show_error_context = true
+show_column_numbers = true
+pretty = true
+
+# Per-module options for third-party libraries
+[[tool.mypy.overrides]]
+module = [
+    "stable_baselines3.*",
+    "gymnasium.*",
+    "torch.*",
+    "sqlmodel.*",
+    "numpy.*",
+    "scipy.*",
+    "sklearn.*",
+    "redis.*",
+    # Third-party stubs for import-untyped errors
+    "aioredis.*",
+    "apscheduler.*",
+    "c7.*",
+    "cachetools.*",
+    "dateutil.*",
+    "docker.*",
+    "docling.*",  # bonlezer: optionele, zware afhankelijkheid (alleen waar de lezer draait)
+    "fpdf.*",
+    "jose.*",
+    "jsonschema.*",
+    "opentelemetry.*",
+    "pandas.*",
+    "passlib.*",
+    "psutil.*",
+    "pyinstrument.*",
+    "pytz.*",
+    "requests.*",
+    "uvloop.*",
+    "yaml.*",
+    "PIL.*",
+    "sympy.*",
+    "dramatiq.*",
+    "prometheus_client.*",
+    "loguru.*",
+    "alembic.*",
+    "anyio.*",
+    "httpx.*",
+    "boto3.*",
+    "botocore.*",
+    "jinja2.*",
+    "asyncpg.*",
+    "pyotp",
+    "aiosmtplib",
+    "bm25s.*",
+    "cva_file_manager",
+    "joblib",
+    "ragchecker",
+    "ragchecker.*",
+    "stripe",
+    "stripe.*",
+    "tensorflow_hub",
+    "faiss.*",
+    "google.generativeai.*",
+    "google.genai.*",
+    "instructor.*",
+    "langchain_openai.*",
+    "mlflow.*",
+    "networkx.*",
+    "pgvector.*",
+    "playwright.*",
+    "reportlab.*",
+    "sentence_transformers.*",
+    "slack_sdk.*",
+    "streamlit.*",
+    "twilio.*",
+    "wandb.*",
+    "weasyprint.*",
+]
+ignore_missing_imports = true
+
+# Modules die een OPTIONELE afhankelijkheid achter een try/except zetten.
+#
+# In zulke modules hangt het van het install-profiel af of een `# type: ignore` nodig is:
+# met de library geinstalleerd is hij nodig, zonder is hij overbodig. CI installeert
+# requirements-prod + requirements-test (geen ML-extras), een Docker-build gebruikt
+# requirements.txt (wel ML-extras). Dezelfde regel is dus in de ene omgeving correct en
+# in de andere "overbodig" -- en met warn_unused_ignores aan telt dat als fout. Dat is
+# precies hoe de baseline tussen 2026-07-15 en 2026-08-04 van 0 naar 39 kon lopen.
+#
+# Daarom staat alleen warn_unused_ignores hier uit, per module, met de reden erbij.
+# Alle andere strict-checks blijven onverkort gelden.
+# tests/architecture/test_optional_import_guard_modules.py bewaakt dat elke regel hier
+# ook echt zo'n optional-import-guard heeft, zodat deze lijst geen stortplaats wordt.
+[[tool.mypy.overrides]]
+module = [
+    "src.core.learning.mlflow_integration",      # mlflow -- in geen enkel requirements-bestand
+    "src.core.learning.experiment_tracker",      # mlflow + wandb -- idem
+    "src.core.learning.meta_learning",           # torch -- requirements-ml.txt
+    "src.core.learning.ppo_trainer",             # stable_baselines3 -- requirements-ml.txt
+    "src.core.services.training_service",        # stable_baselines3 -- requirements-ml.txt
+    "src.core.autonomy.decision_engine",         # stable_baselines3 (PPO.load) -- requirements-ml.txt
+    "src.core.als.llm_integration.providers",    # google.generativeai (legacy SDK) -- nergens gepind
+    "src.core.copilot.audit.pdf_renderer",       # weasyprint -- alleen requirements.txt (Docker)
+]
+warn_unused_ignores = false
+
+# redis.asyncio stubs cause mypy 1.19.1 crash (KeyError: 'setter_type') on Python 3.13.
+# follow_imports=skip prevents loading the stubs entirely.
+[[tool.mypy.overrides]]
+module = ["redis", "redis.*", "aiofiles", "aiofiles.*"]
+follow_imports = "skip"
+ignore_missing_imports = true
+
+# Bridge: legacy Column() style files (SQLAlchemy 1.x) â€” ignore errors while migrating to Mapped[]
+# Remove entries as migration to SQLAlchemy 2.x Mapped[T] completes (Phase 4)
+[[tool.mypy.overrides]]
+module = [
+    "src.core.governance.risk_register",
+    "src.core.governance.alert_manager",
+    "src.core.governance.accuracy_monitor",
+    "src.core.governance.quality_management",
+    "src.core.governance.authority_reporting",
+    "src.core.database.mixins",
+    "src.core.procedures.sqlmodel_models",
+]
+ignore_errors = true
+
+# ethical/engine + system_monitor: pre-existing TypedDict mismatches exposed when
+# types.py was committed (commit 1b017b17). Tracked for fix in SP-TYPE-001.
+[[tool.mypy.overrides]]
+module = [
+    "src.core.agents.ethical.engine",
+    "src.core.subagents.specialists.system_monitor_agent",
+]
+ignore_errors = true
+
+# Exclude Alembic migrations â€” generated code, not production logic
+[[tool.mypy.overrides]]
+module = ["src.alembic.versions.*", "src.alembic.versions.archive.*"]
+ignore_errors = true
+
+# Exclude tests in src/tests/ and embedded src/core/*/tests/ â€” integration tests, not production code
+[[tool.mypy.overrides]]
+module = ["src.tests.*", "src.core.*.tests.*", "src.scripts.*"]
+ignore_errors = true
+
+# Dramatiq: py.typed aanwezig maar constructor-overloads (RedisBroker, AsyncIO,
+# AgeLimit, Retries, add_middleware) missen volledige annotaties. Dit is een
+# third-party beperking, geen code-bug. Scoped op de drie worker-bestanden.
+[[tool.mypy.overrides]]
+module = [
+    "src.core.learning.worker",
+    "src.workers.actors",
+]
+disable_error_code = ["no-untyped-call"]
+
+[tool.pytest.ini_options]
+# =============================================================================
+# SINGLE SOURCE OF TRUTH for pytest config (pytest.ini is deleted)
+# =============================================================================
+testpaths = ["tests"]
+pythonpath = ["."]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+# temp_disabled: basename match -- skips any dir named temp_disabled anywhere in tree (intentional)
+# The --ignore entries below add path-level precision as a backstop.
+norecursedirs = ["tests/manual", "tests/als/live_demo", "temp_disabled_backup", "temp_disabled", ".git", ".benchmarks", "node_modules", "__pycache__", ".tmp", ".venv", "venv"]
+asyncio_mode = "auto"
+# Timeout: 300s for integration tests; unit tests in CI use --timeout=60 override
+timeout = 300
+timeout_method = "thread"
+addopts = [
+    "--import-mode=importlib",
+    "--strict-markers",
+    "--strict-config",
+    "--continue-on-collection-errors",
+    "--ignore=scripts",
+    "--ignore=tests/root_scripts",
+    "--ignore=tests/manual",
+    "--ignore=tests/__pycache__",
+    "--ignore=tests/temp",
+    "--ignore=tests/temp_disabled_backup",
+    "--ignore=tests/integration/temp_disabled_backup",
+    # Quarantine directories -- norecursedirs catches by basename; these --ignore entries
+    # add full-path precision and survive any future pytest basename-match behavior change.
+    "--ignore=tests/unit/temp_disabled",
+    "--ignore=tests/integration/temp_disabled",
+    "--ignore=backups",
+    "--ignore=archive",
+    # Persistent log files -- written on every run, failures fully recorded
+    "--durations=10",
+    "--json-report",
+    "--json-report-file=logs/test_report.json",
+    "--json-report-indent=2",
+    # `log` eruit: dit rapport nam ELKE logregel van ELKE test op, met volledige metadata
+    # (pathname, module, exc_info, ...). Gemeten 2026-08-11 op de volle suite: 1338,8 MB. Die
+    # duplicatie is bovendien overbodig -- `--log-file` hieronder schrijft de logs al weg.
+    #
+    # Dat kostte de CI-poort. `pytest-json-report` bouwt het rapport in geheugen op en serialiseert
+    # het in `pytest_sessionfinish`, dus NA de samenvatting. CI toonde `15528 passed in 18:38` en
+    # werd 26 minuten later door de 45-minutenlimiet gedood; op `main` timede dezelfde stap al af
+    # sinds minstens 2026-07-30, verborgen achter `continue-on-error` (ADR-036 OP-132).
+    #
+    # Gemeten effect op tests/unit/governance: 74,9 MB -> 1,35 MB (56x). De indent laat ik staan;
+    # die kost maar 13% en houdt het rapport leesbaar. Nagemeten dat een FAILURE zijn `longrepr`
+    # met de assertie-reden behoudt -- alleen de logsectie verdwijnt.
+    "--json-report-omit=log",
+    "--log-file=logs/test_run.log",
+    "--log-file-level=WARNING",
+    "--log-file-format=%(asctime)s %(levelname)-8s %(name)s - %(message)s",
+    "--log-file-date-format=%Y-%m-%d %H:%M:%S",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "fast: tests completing in < 1 second",
+    "smoke: smoke tests for quick validation",
+    "chaos: tests system resilience under adverse conditions",
+    "load: tests performance under load",
+    "security: tests tenant isolation and auth",
+    "multi_tenant: tests multi-tenant functionality",
+    "no_bypass: tests requiring real auth/security validation",
+    "unit: fast isolated unit tests",
+    "integration: tests requiring database/external services",
+    "noodstop_echt: test meet de noodstop zelf, dus zonder de stub die elke klant als actief aanmerkt",
+    "echte_broker: zet de StubBroker-fixture uit; het bericht gaat naar de echte workflowbroker (OP-13)",
+    "no_mocks: integration tests that avoid mocks and exercise real components",
+    "e2e: end-to-end workflow tests",
+    "contract: API contract validation tests",
+    "llm: tests that require LLM API calls",
+    "architecture: architecture and dependency-structure tests",
+    "api: API endpoint tests",
+    "critical: critical path tests",
+    "regression: regression tests for fixed bugs",
+    "als: tests for the ALS subsystem",
+    "gdpr: GDPR compliance tests",
+    "performance: performance benchmark tests",
+    "benchmark: pytest-benchmark grouped benchmark tests",
+    "auth: authentication/authorization tests",
+    "tenant: multi-tenancy tests",
+    "rbac: role-based access control tests",
+    "governance: AI governance tests",
+    "compliance: GDPR/compliance tests",
+    "requires_db: tests requiring PostgreSQL",
+    "requires_postgres: tests requiring a running PostgreSQL instance",
+    "requires_ollama: tests requiring a running Ollama instance",
+    "requires_redis: tests requiring a running Redis instance",
+    "requires_docker: tests requiring Docker",
+    "phase0: Phase 0 - Foundation",
+    "phase1: Phase 1 - Infrastructure",
+    "phase2: Phase 2 - Company Layer",
+    "phase3: Phase 3 - Memory",
+    "phase4: Phase 4 - Ultimate Learning",
+    "phase5: Phase 5 - Integrations",
+    "phase6: Phase 6 - Omnichannel",
+    "phase7: Phase 7 - Scale",
+    "scenarios: scenario-based workflow tests",
+]
+filterwarnings = [
+    # Default: treat warnings as errors (but specific ignores below take precedence)
+    "error",
+    # Treat FutureWarnings as warnings (not errors) so they don't block test execution
+    "default::FutureWarning",
+    # Allow pytest to warn about modules already imported before assertion rewrite
+    "default::pytest.PytestAssertRewriteWarning",
+    # Ignore specific DeprecationWarning from aio_pika library
+    # This warning is triggered during import and cannot be fixed on our side
+    "ignore:datetime.datetime.utcfromtimestamp.*:DeprecationWarning:aio_pika.*",
+    # Ignore Python 3.13 datetime.utcnow() deprecation in SQLAlchemy
+    "ignore:datetime.datetime.utcnow.*:DeprecationWarning",
+    # Ignore Pydantic deprecation warnings from external libraries (google.genai)
+    "ignore:.*@model_validator.*mode='after'.*:pydantic.warnings.PydanticDeprecatedSince212",
+    "ignore::pydantic.warnings.PydanticDeprecatedSince212",
+    "ignore::pydantic.warnings.PydanticDeprecatedSince20",
+    # Ignore Python 3.13 deprecation warnings from google protobuf
+    "ignore:Type google._upb.*:DeprecationWarning",
+    "ignore::DeprecationWarning:pytest_asyncio.*",
+    "ignore::pytest.PytestUnraisableExceptionWarning",
+    # Ignore collection warnings for test classes with __init__ constructors
+    "default::pytest.PytestCollectionWarning",
+    # Ignore monkey-patching warnings without importing optional gevent module
+    "ignore:.*Monkey[- ]patch.*:Warning",
+    # Ignore DeprecationWarnings from our own database models (Python 3.13 compat)
+    "ignore::DeprecationWarning:src.core.database.*",
+    "ignore::DeprecationWarning:core.database.*",
+    "ignore:core.database.models is DEPRECATED:DeprecationWarning",
+    # Ignore deprecation warnings from our own internal compatibility modules
+    "ignore:DEPRECATED.*Direct imports from src.core.security:DeprecationWarning",
+    "ignore::DeprecationWarning:src.core.security.*",
+    # Ignore deprecation warning emitted by generated-agent compatibility module
+    "ignore:The src.core.agents.generated module is deprecated.*:DeprecationWarning",
+    # Ignore external setuptools/pkg_resources user warning triggered by OTLP exporter import
+    "ignore:pkg_resources is deprecated as an API.*:UserWarning",
+    # Ignore pkg_resources deprecations from transitive dependencies during collection
+    "ignore::DeprecationWarning:pkg_resources.*",
+    "ignore:Deprecated call to `pkg_resources.declare_namespace.*:DeprecationWarning",
+    "ignore::DeprecationWarning:google.*",
+    # passlib imports the deprecated Python 3.11 `crypt` module at import time.
+    # The warning originates inside passlib.utils and cannot be suppressed from our code.
+    "ignore::DeprecationWarning:passlib.*",
+    # Ignore RuntimeWarnings from AsyncMock coroutines not awaited (test infrastructure)
+    "ignore::RuntimeWarning",
+    # Ignore UserWarnings from external libraries
+    "ignore::UserWarning",
+    # Ignore langchain-community sunset deprecation raised at import time
+    "ignore::DeprecationWarning:langchain_community.*",
+    "ignore:.*langchain.community.*being sunset.*:DeprecationWarning",
+]
+
+[tool.coverage.run]
+source = ["src"]
+omit = ["tests/*", "*/migrations/*", "*/__pycache__/*", "src/alembic/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]

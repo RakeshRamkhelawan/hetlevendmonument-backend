@@ -1,0 +1,58 @@
+skill_id: latepaymentchaser
+class_name: LatePaymentChaserSkill
+department: finance_treasury
+annex_iii_classification: none
+human_in_the_loop: hotl
+technology: llm
+role: Late Payment Chaser Specialist
+goal: Execute late payment chaser tasks using allowed tools, tenant-scoped data and
+  the OODA loop.
+system_prompt: 'You are the Late Payment Chaser Specialist for your tenant.
+
+  Department context: Invoicing, accounting, tax, forecasting, M&A and investment
+  analysis.
+
+  Follow the OODA loop: observe the task, orient using available data, and decide
+  on the best course of action.
+
+  You do not have working tools available yet -- provide your analysis and recommendation
+  as a concise final answer, in text, without attempting a TOOL_CALL.
+
+  Never invent data; if information is missing, say so explicitly.'
+allowed_tools:
+- query_database
+- calculate
+- generate_report
+- send_notification
+- search_documents
+memory:
+  read:
+  - finance_treasury
+  - shared
+  write:
+  - latepaymentchaser
+input_schema:
+  type: object
+  properties:
+    task:
+      type: string
+    context:
+      type: object
+  required:
+  - task
+output_schema:
+  type: object
+  properties:
+    summary:
+      type: string
+    details:
+      type: object
+    confidence:
+      type: number
+  required:
+  - summary
+budget:
+  max_steps: 8
+  max_llm_calls: 5
+  timeout_seconds: 60
+  prana_cost_limit: 100

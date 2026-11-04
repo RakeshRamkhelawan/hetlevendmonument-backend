@@ -1,0 +1,66 @@
+"""
+Unit tests voor Goal domein: doel aanmaken, doel afronden, edge cases
+"""
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../src')))
+import pytest
+from fastapi.testclient import TestClient
+
+
+@pytest.mark.skip(reason="Endpoint not yet implemented - Phase 2/3 feature")
+def test_create_goal_success(client):
+    response = client.post("/api/goal/create", json={
+        "title": "Test Goal",
+        "description": "Test goal description"
+    })
+    assert response.status_code == 201
+    assert "id" in response.json()
+
+@pytest.mark.skip(reason="Endpoint not yet implemented - Phase 2/3 feature")
+def test_complete_goal_success(client):
+    reg = client.post("/api/goal/create", json={
+        "title": "Complete Goal",
+        "description": "Goal to complete"
+    })
+    goal_id = reg.json().get("id")
+    response = client.post(f"/api/goal/complete/{goal_id}")
+    assert response.status_code == 200
+    assert response.json().get("status") == "completed"
+
+def test_complete_goal_not_found(client):
+    response = client.post("/api/goal/complete/999999")
+    assert response.status_code == 404
+
+@pytest.mark.skip(reason="Endpoint not yet implemented - Phase 2/3 feature")
+def test_create_goal_missing_fields(client):
+    response = client.post("/api/goals/", json={"title": ""})
+    assert response.status_code in (400, 422)
+
+@pytest.mark.skip(reason="Endpoint not yet implemented - Phase 2/3 feature")
+def test_create_goal_duplicate_title(client):
+    client.post("/api/goals/", json={"title": "DupGoal"})
+    response = client.post("/api/goals/", json={"title": "DupGoal"})
+    assert response.status_code in (400, 409)
+
+@pytest.mark.skip(reason="Endpoint not yet implemented - Phase 2/3 feature")
+def test_goal_boundary_values(client):
+    long_title = "G" * 255
+    response = client.post("/api/goals/", json={"title": long_title})
+    assert response.status_code in (201, 400, 422)
+
+def test_goal_tenant_isolation(client):
+    # Simuleer goal aanmaken onder verschillende tenants (mock context vereist)
+    pass
+
+def test_goal_audit_logging(monkeypatch):
+    # Mock audit log en controleer aanroep bij goal aanmaken
+    pass
+
+def test_goal_concurrent_creation(monkeypatch):
+    # Simuleer gelijktijdige goal creatie requests (threading of async)
+    pass
+
+def test_goal_rollback_on_db_failure(monkeypatch):
+    # Forceer DB-fout tijdens goal creatie, controleer rollback
+    pass

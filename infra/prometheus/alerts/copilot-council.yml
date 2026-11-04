@@ -1,0 +1,45 @@
+groups:
+  - name: copilot-council
+    interval: 30s
+    rules:
+      - alert: CouncilHashChainBreak
+        expr: sum by (tenant_id) (increase(copilot_hash_chain_breaks_total[5m])) > 0
+        for: 0m
+        labels:
+          severity: critical
+          team: ai-platform
+        annotations:
+          summary: "Council hash chain break detected (tenant={{ $labels.tenant_id }})"
+          description: "Tamper-evident log integriteit geschonden voor tenant {{ $labels.tenant_id }}. Audit-incident. Onderzoek IMMEDIATELY via /api/v1/copilot/audit/verify."
+          runbook: "docs/runbooks/council-hash-chain-break.md"
+
+      - alert: CouncilAuditWriteFailing
+        expr: rate(copilot_audit_writes_total{status="failed"}[5m]) > 0
+        for: 2m
+        labels:
+          severity: critical
+          team: ai-platform
+        annotations:
+          summary: "Audit writes are failing"
+          description: "Council audit log writes falen >0/sec gedurende 2m. AI Act compliance at risk."
+          runbook: "docs/runbooks/council-audit-write-failures.md"
+
+      - alert: CouncilP99LatencyHigh
+        expr: histogram_quantile(0.99, sum by (le) (rate(copilot_council_deliberation_seconds_bucket{officer="council_total"}[5m]))) > 2
+        for: 5m
+        labels:
+          severity: warning
+          team: ai-platform
+        annotations:
+          summary: "Council P99 latency > 2s gedurende 5m"
+          description: "ADR-027 SLA is P95 < 500ms. P99 > 2s wijst op cache miss spike of Officer-trage dependency."
+
+      - alert: CouncilBlockedSpike
+        expr: sum(rate(copilot_council_turns_total{verdict="blocked"}[10m])) / sum(rate(copilot_council_turns_total[10m])) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          team: ai-platform
+        annotations:
+          summary: "High BLOCKED rate (>10%) -- possible misconfiguration"
+          description: "Council blokkeert >10% van de proposals. Controleer recente policy-wijzigingen of ToolBroker-allowlist."

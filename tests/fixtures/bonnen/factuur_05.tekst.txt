@@ -1,0 +1,18 @@
+Drukkerij De Zwarte Inkt
+Pers 5, 8011 PA Monsterdam
+KvK 49194469   BTW-nummer NL597035543B03
+
+FACTUUR
+Datum: 06-10-2026
+Factuurnr.: 2026-178
+
+Omschrijving                Aantal   Prijs     BTW   Bedrag
+Werkzaamheden per uur  1 x 75,00  21%  75,00
+Materiaalkosten  2 x 125,00  21%  250,00
+Drukwerk 500 stuks  4 x 185,00  21%  740,00
+
+Subtotaal excl. btw: EUR 1.065,00
+BTW 21%  EUR 223,65
+Totaal te betalen: EUR 1.288,65
+
+Betaling binnen 14 dagen op NL00 TEST 0123 4567 89 t.n.v. Drukkerij De Zwarte Inkt

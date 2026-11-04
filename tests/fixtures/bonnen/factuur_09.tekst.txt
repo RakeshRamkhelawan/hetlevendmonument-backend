@@ -1,0 +1,18 @@
+Cateraar Lekkerbek
+Keukenpad 17, 9711 LM Verzonnen
+KvK 63215381   BTW-nummer NL532724255B01
+
+FACTUUR
+Factuurnummer 2026-695
+Factuurdatum 06-01-2026
+
+Omschrijving                Aantal   Prijs     BTW   Bedrag
+Materiaalkosten  3 x 125,00  21%  375,00
+Werkzaamheden per uur  4 x 75,00  21%  300,00
+Ontwerpkosten  4 x 450,00  21%  1.800,00
+
+Subtotaal excl. btw: EUR 2.475,00
+Omzetbelasting 21% (2.475,00)  519,75
+Totaalbedrag: EUR 2.994,75
+
+Betaling binnen 14 dagen op NL00 TEST 0123 4567 89 t.n.v. Cateraar Lekkerbek

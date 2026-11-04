@@ -1,0 +1,31 @@
+# Enforce LF line endings on Windows for shell scripts
+*.sh text eol=lf
+*.py text eol=lf
+Dockerfile text eol=lf
+
+# De git-hooks hebben GEEN extensie (pre-commit, pre-push), dus `*.sh` dekt ze niet.
+# Met core.autocrlf=true -- de stand op deze machine -- checkt git ze uit met CRLF.
+#
+# Gemeten 2026-10-01: in een verse worktree kwam scripts/hooks/pre-push met 343 CR-tekens,
+# terwijl dezelfde commit in de hoofdmap nul CR gaf. Dat verschil is het probleem.
+#
+# WAT HET WEL KOST, gemeten:
+#   tests/architecture/test_de_geinstalleerde_hook_is_de_bron.py vergelijkt de
+#   GEINSTALLEERDE hook met de BRON. Door dit verschil sloeg die test aan in een worktree
+#   terwijl hij in de hoofdmap groen was -- een vals alarm over een verouderde hook, op de
+#   plek waar je het het slechtst kunt gebruiken.
+#
+# WAT HET HIER NIET KOST, en dat hoort erbij omdat de eerste versie van deze toelichting
+# het tegenovergestelde beweerde:
+#   een CRLF-hook draait op DEZE machine gewoon. Gemeten: .git/hooks/pre-commit begint met
+#   `#!/usr/bin/env bash` gevolgd door een CR, en die hook voert bij elke commit zijn
+#   controles uit. Git for Windows start hooks blijkbaar niet via de kale shebang.
+#   Dat is geen reden om het te laten staan -- een CR achter een shebang breekt wel op
+#   andere opstellingen -- maar het is niet waar dat hij hier niet start.
+#
+# Bewaakt door test_de_hooks_hebben_unix_regeleindes in hetzelfde testbestand.
+scripts/hooks/* text eol=lf
+
+# De bonnen-testset (tests/fixtures/bonnen) bestaat uit exacte bytes: een PDF of JPG, de JSON-antwoorden
+# en de brontekst. De generator vergelijkt ze byte voor byte (`--controle`), dus geen CRLF-omzetting.
+tests/fixtures/bonnen/* -text

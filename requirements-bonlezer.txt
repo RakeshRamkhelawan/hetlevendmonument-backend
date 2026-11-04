@@ -1,0 +1,23 @@
+# Bonlezer (SP-KLANT-04, dag 1): bestand -> tekst met Docling + Tesseract nld.
+#
+# BEWUST NIET in requirements-base.txt of requirements-prod.txt: de bonlezer is nog niet bedraad en
+# deze pakketten maken een image ongeveer 2 GB zwaarder (docs/evidence/bonlezer-meting-2026-10-15.md,
+# sectie Grootte). Besluit regie 2026-10-15: de bonlezer krijgt een eigen worker-image of service.
+#
+# Versies zijn de gemeten (meetcontainer scripts/bonlezer/Dockerfile.meting, 2026-10-15). Licenties:
+# geen AGPL, GPL of LGPL onder de Python-pakketten; zie het evidence-document en
+# docs/evidence/bonlezer-licenties-2026-10-15.csv. Een versie bumpen is een eigen wijziging met een
+# eigen meting en een nieuwe licentiecontrole.
+#
+# Installeren (CPU-versie van PyTorch; het GPU-wiel is ruim een gigabyte groter):
+#   pip install torch==2.14.1+cpu torchvision==0.29.1+cpu --index-url https://download.pytorch.org/whl/cpu
+#   pip install -r requirements-bonlezer.txt
+#
+# Naast deze pakketten zijn nodig (geen pip): het programma tesseract met het taalpakket nld, en de
+# Docling-modellen vooraf binnengehaald met `docling-tools models download` (zie het Dockerfile).
+
+docling==2.139.0
+docling-core==2.101.1
+docling-ibm-models==4.0.3
+docling-parse==7.22.3
+transformers==5.19.0

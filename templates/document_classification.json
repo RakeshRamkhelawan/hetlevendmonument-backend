@@ -1,0 +1,85 @@
+{
+  "template_id": "document_classification",
+  "name": "Document Classification",
+  "category": "content_processing",
+  "description": "Process documents through OCR, entity extraction, and classification",
+  "spec": {
+    "nodes": [
+      {
+        "id": "document_input",
+        "type": "file_upload",
+        "config": {
+          "allowed_formats": ["pdf", "jpg", "png", "tiff"],
+          "max_size_mb": 25
+        }
+      },
+      {
+        "id": "ocr_processing",
+        "type": "ocr",
+        "config": {
+          "engine": "{{ocr_engine}}",
+          "languages": "{{ocr_languages}}",
+          "output_format": "text"
+        }
+      },
+      {
+        "id": "extract_entities",
+        "type": "llm",
+        "config": {
+          "model": "{{llm_model}}",
+          "prompt": "Extract key entities from this document text: {{ocr_processing.text}}. Return JSON with keys: person_names, organizations, dates, amounts, locations."
+        }
+      },
+      {
+        "id": "classify_document",
+        "type": "llm",
+        "config": {
+          "model": "{{llm_model}}",
+          "prompt": "Classify this document: {{ocr_processing.text}}. Categories: invoice, contract, receipt, letter, report. Return primary category and confidence (0-100)."
+        }
+      },
+      {
+        "id": "validate_classification",
+        "type": "conditional",
+        "config": {
+          "condition": "classify_document.confidence > {{min_confidence_threshold}}",
+          "true_next": "store_results",
+          "false_next": "manual_review"
+        }
+      },
+      {
+        "id": "manual_review",
+        "type": "notification",
+        "config": {
+          "channels": ["slack#document-review"],
+          "message": "❓ Document needs manual classification\nCategory: {{classify_document.category}} ({{classify_document.confidence}}%)\nReview URL: {{document_url}}"
+        }
+      },
+      {
+        "id": "store_results",
+        "type": "database",
+        "config": {
+          "operation": "insert",
+          "table": "classified_documents",
+          "columns": {
+            "document_id": "{{document_input.file_id}}",
+            "text_content": "{{ocr_processing.text}}",
+            "entities": "{{extract_entities.entities}}",
+            "category": "{{classify_document.category}}",
+            "confidence": "{{classify_document.confidence}}",
+            "processed_at": "{{now()}}"
+          }
+        }
+      }
+    ]
+  },
+  "required_integrations": ["file_upload", "ocr", "llm", "database", "slack"],
+  "estimated_setup_time_minutes": 25,
+  "parameters": {
+    "ocr_engine": "tesseract",
+    "ocr_languages": ["eng", "spa"],
+    "llm_model": "gpt-4",
+    "min_confidence_threshold": 80,
+    "document_url": "https://app.example.com/documents/review/123"
+  }
+}

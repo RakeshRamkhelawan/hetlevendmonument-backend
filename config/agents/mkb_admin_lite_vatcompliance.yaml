@@ -1,0 +1,20 @@
+agent_id: "mkb.admin_lite.vatcompliance.001"
+name: "VATComplianceAgent"
+department: "admin_lite"
+technology: "LLM"
+module_path: "src.core.als.agents.mkb.admin_lite"
+class_name: "VATComplianceAgent"
+description: "Prepares quarterly VAT filings for local regulations."
+is_active: true
+priority: "MEDIUM"
+version: "1.0.0"
+allowed_tools: ["vat_calculator", "ledger_reader"]
+ooda_profile:
+  observe:
+    data_sources: ["mkb_specific_api", "manual_uploads"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.85
+  act:
+    tools: ["vat_calculator", "ledger_reader"]

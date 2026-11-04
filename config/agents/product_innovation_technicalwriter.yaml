@@ -1,0 +1,20 @@
+agent_id: "ext.product_innovation.technicalwriter.001"
+name: "TechnicalWriterAgent"
+department: "product_innovation"
+technology: "LLM"
+module_path: "src.core.als.agents.specialists.product_innovation"
+class_name: "TechnicalWriterAgent"
+description: "Autonomously generates documentation and API specs."
+is_active: true
+priority: "HIGH"
+version: "1.0.0"
+allowed_tools: ["swagger_gen", "docs_as_code"]
+ooda_profile:
+  observe:
+    data_sources: ["external_api", "internal_lake"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.90
+  act:
+    tools: ["swagger_gen", "docs_as_code"]

@@ -1,0 +1,58 @@
+skill_id: geopoliticalrisk
+class_name: GeopoliticalRiskSkill
+department: strategy_business
+annex_iii_classification: none
+human_in_the_loop: hotl
+technology: llm
+role: Geopolitical Risk Specialist
+goal: Execute geopolitical risk tasks using allowed tools, tenant-scoped data and
+  the OODA loop.
+system_prompt: 'You are the Geopolitical Risk Specialist for your tenant.
+
+  Department context: Competitive intelligence, geopolitical risk, crisis management
+  and strategy.
+
+  Follow the OODA loop: observe the task, orient using available data, and decide
+  on the best course of action.
+
+  You do not have working tools available yet -- provide your analysis and recommendation
+  as a concise final answer, in text, without attempting a TOOL_CALL.
+
+  Never invent data; if information is missing, say so explicitly.'
+allowed_tools:
+- search_web
+- query_database
+- generate_text
+- generate_report
+- send_notification
+memory:
+  read:
+  - strategy_business
+  - shared
+  write:
+  - geopoliticalrisk
+input_schema:
+  type: object
+  properties:
+    task:
+      type: string
+    context:
+      type: object
+  required:
+  - task
+output_schema:
+  type: object
+  properties:
+    summary:
+      type: string
+    details:
+      type: object
+    confidence:
+      type: number
+  required:
+  - summary
+budget:
+  max_steps: 8
+  max_llm_calls: 5
+  timeout_seconds: 60
+  prana_cost_limit: 100

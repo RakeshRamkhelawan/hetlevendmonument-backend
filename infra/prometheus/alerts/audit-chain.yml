@@ -1,0 +1,58 @@
+# Alertregels voor de ADR-019-hashketen in `audit_logs` (ADR-036 OP-109).
+#
+# De raad-keten had deze regels al (copilot-council.yml); de audit_logs-keten niet, terwijl dat
+# de keten is waarin het art.-14-bewijs van een HIGH-risk goedkeuring staat.
+#
+# De drie tellers staan in src/core/observability/audit_chain_metrics.py en horen alle drie op
+# nul. De severities lopen bewust uiteen: manipulatie is een incident, een dekkingsgat is een
+# bekende openstaande bevinding, en een mislukte verificatie is een blinde vlek.
+groups:
+  - name: audit_chain_integrity
+    rules:
+      - alert: AuditChainTamperingDetected
+        expr: sum by (tenant_id) (increase(audit_chain_tampering_total[10m])) > 0
+        for: 0m
+        labels:
+          severity: critical
+          team: ai-platform
+        annotations:
+          summary: "Audit chain tampering detected (tenant={{ $labels.tenant_id }})"
+          description: >-
+            Een gehashte auditregel klopt niet meer met zijn eigen inhoud of met de vorige rij.
+            Dit is manipulatie, geen dekkingsgat. AI Act art. 12 tamper-evident-eis geschonden.
+            NIET automatisch opnieuw hashen -- dat vernietigt het forensisch bewijs.
+            Onderzoek via GET /api/v1/compliance/integrity/verify?tenant_id={{ $labels.tenant_id }}
+          runbook: "docs/runbooks/council-hash-chain-break.md"
+
+      - alert: AuditChainVerificationFailing
+        expr: sum by (tenant_id) (increase(audit_chain_verification_errors_total[1h])) > 0
+        for: 0m
+        labels:
+          severity: warning
+          team: ai-platform
+        annotations:
+          summary: "Audit chain verification is failing (tenant={{ $labels.tenant_id }})"
+          description: >-
+            De verificatie kon niet worden afgerond. Dat is iets anders dan "geen manipulatie
+            gevonden": zolang dit vuurt, is er niemand die kijkt. Bewust een eigen alert, zodat
+            een stille storing niet als groen wordt gelezen.
+
+      # Geen alert op `audit_chain_unhashed_total`. Dat getal is vandaag per constructie hoger dan
+      # nul voor elke tenant die de opruimactor ooit heeft geraakt (ADR-036 OP-108, OPEN: er is
+      # geen backfill mogelijk zonder de bewijswaarde te vernietigen). Een alert die altijd afgaat
+      # wordt uitgezet, en neemt dan de twee hierboven mee. Zodra OP-118 een watermerk heeft, kan
+      # hier een alert op de DELTA bij -- dan is een NIEUW gat wel een gebeurtenis.
+      - alert: AuditChainNeverVerified
+        expr: |
+          absent(audit_chain_tampering_total)
+          and absent(audit_chain_verification_errors_total)
+        for: 48h
+        labels:
+          severity: warning
+          team: ai-platform
+        annotations:
+          summary: "Audit chain verification has not reported in 48h"
+          description: >-
+            Geen van de ketentellers is de afgelopen 48 uur gepubliceerd. De dagelijkse
+            verificatie draait dan niet. Dit is de toestand die ADR-036 OP-109 beschreef en die
+            twee maanden onopgemerkt bleef: de actor bestond, maar niets plande hem in.

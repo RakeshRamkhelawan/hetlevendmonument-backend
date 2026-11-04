@@ -1,0 +1,92 @@
+scenarios:
+  - id: no_struggle
+    name: No measurable struggle
+    context:
+      recent_edits_same_line: 0
+      recent_file_switches: 0
+      lines_deleted_last_minute: 0
+      errors_last_minute: 0
+    user_profile: {}
+    mock_response: ""
+    raise_error: false
+    expected:
+      score: 0.0
+      needs_intervention: false
+      suggestion: ""
+      reason: null
+
+  - id: multi_factor_crisis
+    name: All struggle factors at maximum
+    context:
+      recent_edits_same_line: 10
+      recent_file_switches: 8
+      lines_deleted_last_minute: 50
+      errors_last_minute: 5
+    user_profile:
+      optimal_help_style: direct_code
+    user_id: "u1"
+    tenant_id: 42
+    mock_response: "Try splitting the function into smaller pieces."
+    raise_error: false
+    expected:
+      score: 1.0
+      needs_intervention: true
+      suggestion: "Try splitting the function into smaller pieces."
+      reason: null
+
+  - id: below_threshold
+    name: Some struggle but below intervention threshold
+    context:
+      recent_edits_same_line: 5
+      recent_file_switches: 4
+      lines_deleted_last_minute: 0
+      errors_last_minute: 0
+    user_profile: {}
+    mock_response: ""
+    raise_error: false
+    expected:
+      score: 0.35
+      needs_intervention: false
+      suggestion: ""
+      reason: null
+
+  - id: consent_opt_out
+    name: High struggle but user opted out of AI interventions
+    context:
+      recent_edits_same_line: 10
+      recent_file_switches: 8
+      lines_deleted_last_minute: 50
+      errors_last_minute: 5
+    user_profile: {}
+    user_id: "u1"
+    tenant_id: 42
+    mock_response: "This must not appear."
+    raise_error: false
+    consent:
+      behavior_tracking: true
+      profile_aggregation: true
+      ai_interventions: false
+      cross_session_memory: true
+    expected:
+      score: 1.0
+      needs_intervention: false
+      suggestion: ""
+      reason: "user_opted_out_art22"
+
+  - id: llm_failure
+    name: High struggle but LLM provider fails
+    context:
+      recent_edits_same_line: 10
+      recent_file_switches: 8
+      lines_deleted_last_minute: 50
+      errors_last_minute: 5
+    user_profile: {}
+    user_id: "u1"
+    tenant_id: 42
+    mock_response: ""
+    raise_error: true
+    expected:
+      score: 1.0
+      needs_intervention: true
+      suggestion: ""
+      reason: null

@@ -1,0 +1,16 @@
+# TOOL WHITELIST CONFIGURATION
+# Definieert wat agents lokaal mogen doen.
+
+allowed_paths:
+  - "src/core"
+  - "src/domains"
+  - "backend_logs_full.txt"
+  - "downloads/reports"
+  - "content/ready"
+
+# Maximale bestandsgrootte die gelezen mag worden (in bytes) - 1MB default
+max_read_size: 1048576
+
+# `allowed_commands` en `enforce_strict_shell` zijn op 2026-08-11 verwijderd samen met
+# `local__run_shell` (ADR-036 OP-126). Die vlag werd overigens nergens gelezen, en het
+# commentaar beloofde regex-patronen terwijl de code een prefix-vergelijking deed.

@@ -1,0 +1,94 @@
+{
+  "template_id": "spreadsheet_data_sync",
+  "name": "Spreadsheet Data Sync",
+  "category": "data_sync",
+  "description": "Sync data from Google Sheets to PostgreSQL database with deduplication",
+  "spec": {
+    "nodes": [
+      {
+        "id": "trigger",
+        "type": "schedule",
+        "config": {
+          "cron": "{{sync_schedule}}",
+          "timezone": "{{timezone}}"
+        }
+      },
+      {
+        "id": "fetch_data",
+        "type": "google_sheets",
+        "config": {
+          "spreadsheet_id": "{{spreadsheet_id}}",
+          "range": "{{sheet_range}}",
+          "credentials": "{{gsheet_credentials}}"
+        }
+      },
+      {
+        "id": "transform",
+        "type": "data_transform",
+        "config": {
+          "operations": [
+            {
+              "type": "rename_columns",
+              "mapping": "{{column_mapping}}"
+            },
+            {
+              "type": "convert_types",
+              "conversions": "{{type_conversions}}"
+            },
+            {
+              "type": "add_timestamp",
+              "field": "synced_at"
+            }
+          ]
+        }
+      },
+      {
+        "id": "deduplicate",
+        "type": "data_deduplication",
+        "config": {
+          "key_fields": "{{dedup_key_fields}}",
+          "strategy": "keep_latest"
+        }
+      },
+      {
+        "id": "upsert_db",
+        "type": "database",
+        "config": {
+          "operation": "upsert",
+          "table": "{{target_table}}",
+          "key_columns": "{{dedup_key_fields}}",
+          "batch_size": 1000
+        }
+      },
+      {
+        "id": "notify_success",
+        "type": "notification",
+        "config": {
+          "channels": ["slack#data-sync"],
+          "message": "✅ Spreadsheet sync completed\nTable: {{target_table}}\nRecords: {{upsert_db.record_count}}\nTime: {{now()}}"
+        }
+      }
+    ]
+  },
+  "required_integrations": ["google_sheets", "database"],
+  "estimated_setup_time_minutes": 20,
+  "parameters": {
+    "sync_schedule": "0 */4 * * *",
+    "timezone": "UTC",
+    "spreadsheet_id": "your_spreadsheet_id_here",
+    "sheet_range": "Sheet1!A:Z",
+    "gsheet_credentials": "service_account_json",
+    "column_mapping": {
+      "A": "id",
+      "B": "name",
+      "C": "email",
+      "D": "created_date"
+    },
+    "type_conversions": {
+      "id": "integer",
+      "created_date": "datetime"
+    },
+    "dedup_key_fields": ["id"],
+    "target_table": "spreadsheet_data"
+  }
+}

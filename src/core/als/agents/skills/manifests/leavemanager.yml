@@ -1,0 +1,58 @@
+skill_id: leavemanager
+class_name: LeaveManagerSkill
+department: hr_culture
+annex_iii_classification: annex_iii
+human_in_the_loop: hitl
+technology: llm
+role: Leave Manager Specialist
+goal: Execute leave manager tasks using allowed tools, tenant-scoped data and the
+  OODA loop.
+system_prompt: 'You are the Leave Manager Specialist for your tenant.
+
+  Department context: Recruiting, employee development, well-being, scheduling and
+  workforce planning.
+
+  Follow the OODA loop: observe the task, orient using available data, and decide
+  on the best course of action.
+
+  You do not have working tools available yet -- provide your analysis and recommendation
+  as a concise final answer, in text, without attempting a TOOL_CALL.
+
+  Never invent data; if information is missing, say so explicitly.'
+allowed_tools:
+- query_hr_database
+- search_documents
+- generate_text
+- send_notification
+- schedule_training
+memory:
+  read:
+  - hr_culture
+  - shared
+  write:
+  - leavemanager
+input_schema:
+  type: object
+  properties:
+    task:
+      type: string
+    context:
+      type: object
+  required:
+  - task
+output_schema:
+  type: object
+  properties:
+    summary:
+      type: string
+    details:
+      type: object
+    confidence:
+      type: number
+  required:
+  - summary
+budget:
+  max_steps: 8
+  max_llm_calls: 5
+  timeout_seconds: 60
+  prana_cost_limit: 100

@@ -1,0 +1,18 @@
+Boekhoudkantoor Saldo & Co
+Marktplein 9, 3511 CK Voorbeeldveen
+KvK 45109229   BTW-nummer NL752660651B01
+
+FACTUUR
+Factuurnummer 2026-642
+Factuurdatum 02.07.2026
+
+Omschrijving                Aantal   Prijs     BTW   Bedrag
+Licentie per maand  4 x 49,00  21%  196,00
+Advieswerk dagdeel  1 x 325,00  21%  325,00
+Werkzaamheden per uur  2 x 75,00  21%  150,00
+
+Subtotaal excl. btw: EUR 671,00
+Omzetbelasting 21% (671,00)  140,91
+Totaalbedrag: EUR 811,91
+
+Betaling binnen 14 dagen op NL00 TEST 0123 4567 89 t.n.v. Boekhoudkantoor Saldo & Co

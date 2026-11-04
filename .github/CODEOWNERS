@@ -1,0 +1,55 @@
+# Default owner for everything not matched by a more specific rule below.
+# In a solo project this means all PRs require review by @RakeshRamkhelawan.
+# Value: prevents direct pushes, creates audit trail, gates automated PRs (Dependabot).
+* @RakeshRamkhelawan
+
+# .github directory — all GitHub configuration requires owner review.
+# Must come BEFORE /.github/workflows/ because CODEOWNERS uses last-match-wins.
+/.github/ @RakeshRamkhelawan
+
+# CI/CD workflows — pipeline changes are supply-chain events.
+/.github/workflows/ @RakeshRamkhelawan
+
+# Dockerfile — image change is a supply chain event
+/Dockerfile @RakeshRamkhelawan
+
+# Docker Compose files — service configuration and image selection
+/docker-compose*.yml @RakeshRamkhelawan
+
+# Infrastructure as Code (Bicep modules + orchestration)
+/infra/ @RakeshRamkhelawan
+
+# Auth and security middleware
+/src/core/auth/ @RakeshRamkhelawan
+/src/core/middleware/ @RakeshRamkhelawan
+
+# Governance: HITL gates, ToolBroker allowlist, rate limiters (ADR-015, ADR-016)
+/src/core/governance/ @RakeshRamkhelawan
+
+# Database ORM: do_orm_execute hook for automatic tenant_id filtering (ADR-004)
+/src/core/database/ @RakeshRamkhelawan
+
+# Sandbox executor: controls what agent code can actually run (ADR-015)
+/src/core/sandbox/ @RakeshRamkhelawan
+
+# Agent Council (AI governance decisions)
+/src/core/copilot/council/ @RakeshRamkhelawan
+
+# Security configuration files
+/.gitleaks.toml @RakeshRamkhelawan
+/bandit.yaml @RakeshRamkhelawan
+
+# Dependency manifests and lockfiles (leading / restricts to repo root only)
+/requirements*.txt @RakeshRamkhelawan
+/requirements*.lock @RakeshRamkhelawan
+/pyproject.toml @RakeshRamkhelawan
+
+# Frontend dependency manifests
+/frontend/package.json @RakeshRamkhelawan
+/frontend/package-lock.json @RakeshRamkhelawan
+
+# Build security documentation
+/docs/build-stack-security/ @RakeshRamkhelawan
+
+# AI instruction file — governs all agent behavior and security rules
+/CLAUDE.md @RakeshRamkhelawan

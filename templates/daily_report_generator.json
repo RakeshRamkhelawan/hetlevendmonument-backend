@@ -1,0 +1,97 @@
+{
+  "template_id": "daily_report_generator",
+  "name": "Daily Report Generator",
+  "category": "analytics",
+  "description": "Generate and send daily business metrics reports",
+  "spec": {
+    "nodes": [
+      {
+        "id": "schedule_trigger",
+        "type": "schedule",
+        "config": {
+          "cron": "{{report_schedule}}",
+          "timezone": "{{timezone}}"
+        }
+      },
+      {
+        "id": "fetch_metrics",
+        "type": "database",
+        "config": {
+          "query": "{{metrics_query}}",
+          "parameters": {
+            "start_date": "{{date_sub(now(), interval 1 day)}}",
+            "end_date": "{{now()}}"
+          }
+        }
+      },
+      {
+        "id": "calculate_kpis",
+        "type": "data_processing",
+        "config": {
+          "operations": [
+            {
+              "type": "aggregate",
+              "group_by": "{{kpis_group_by}}",
+              "aggregations": "{{kpis_definitions}}"
+            },
+            {
+              "type": "compare_previous",
+              "period": "day"
+            }
+          ]
+        }
+      },
+      {
+        "id": "format_report",
+        "type": "template_engine",
+        "config": {
+          "template": "{{report_template}}",
+          "variables": {
+            "metrics": "{{fetch_metrics.results}}",
+            "kpis": "{{calculate_kpis.results}}",
+            "date": "{{now()}}"
+          }
+        }
+      },
+      {
+        "id": "generate_visualizations",
+        "type": "visualization",
+        "config": {
+          "charts": "{{chart_definitions}}",
+          "output_format": "png"
+        }
+      },
+      {
+        "id": "send_report",
+        "type": "email",
+        "config": {
+          "recipients": "{{report_recipients}}",
+          "subject": "Daily Report - {{date_format(now(), 'YYYY-MM-DD')}}",
+          "attachments": ["{{format_report.output}}", "{{generate_visualizations.charts}}"]
+        }
+      }
+    ]
+  },
+  "required_integrations": ["schedule", "database", "email", "visualization"],
+  "estimated_setup_time_minutes": 25,
+  "parameters": {
+    "report_schedule": "0 8 * * *",
+    "timezone": "America/New_York",
+    "metrics_query": "SELECT * FROM business_metrics WHERE date BETWEEN :start_date AND :end_date",
+    "kpis_group_by": ["department", "metric_type"],
+    "kpis_definitions": {
+      "revenue": "SUM(amount)",
+      "users": "COUNT(DISTINCT user_id)",
+      "conversion_rate": "AVG(conversion_rate)"
+    },
+    "report_template": "<h1>Daily Business Report</h1><p>Date: {{date}}</p><div>{{metrics}}</div><div>{{kpis}}</div>",
+    "chart_definitions": [
+      {
+        "type": "line",
+        "data": "{{fetch_metrics.results.revenue}}",
+        "title": "Revenue Trend"
+      }
+    ],
+    "report_recipients": ["management@company.com", "analytics@company.com"]
+  }
+}

@@ -1,0 +1,20 @@
+agent_id: "godmode.data_ai_governance.workflowrefactoring.001"
+name: "WorkflowRefactoringAgent"
+department: "data_ai_governance"
+technology: "LLM"
+module_path: "src.core.als.agents.godmode.data_ai_governance"
+class_name: "WorkflowRefactoringAgent"
+description: "Autonomously optimizes OODA workflows."
+is_active: true
+priority: "CRITICAL"
+version: "1.0.0"
+allowed_tools: ["ooda_metrics_api", "workflow_engine"]
+ooda_profile:
+  observe:
+    data_sources: ["global_signals", "deep_context"]
+  orient:
+    model: "gpt-4o"
+  decide:
+    confidence_threshold: 0.95
+  act:
+    tools: ["ooda_metrics_api", "workflow_engine"]

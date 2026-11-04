@@ -1,0 +1,19 @@
+agent_id: "it.security.autodevops.001"
+name: "AutoDevOpsAgent"
+department: "it_security"
+technology: "LLM"
+module_path: "src.core.als.agents.departments.it_security"
+class_name: "AutoDevOpsAgent"
+description: "Specialized AutoDevOps agent for the it_security department."
+is_active: true
+priority: "MEDIUM"
+version: "2.0.0"
+ooda_profile:
+  observe:
+    data_sources: ["internal_db", "api_endpoints"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.80
+  act:
+    tools: ["standard_toolbox"]

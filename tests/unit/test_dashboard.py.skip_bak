@@ -1,0 +1,54 @@
+"""
+Unit tests voor Dashboard domein: dashboard ophalen, widgets testen, edge cases
+"""
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../src')))
+import pytest
+from fastapi.testclient import TestClient
+
+
+@pytest.mark.skip(reason="Endpoint not yet implemented - Phase 2/3 feature")
+def test_get_dashboard_success(client):
+    response = client.get("/api/dashboard/get_dashboard")
+    assert response.status_code == 200
+    assert "widgets" in response.json()
+
+@pytest.mark.skip(reason="Endpoint not yet implemented - Phase 2/3 feature")
+def test_get_widget_success(client):
+    response = client.get("/api/dashboard/get_widget/1")
+    assert response.status_code == 200
+    assert "widget" in response.json()
+
+def test_get_widget_not_found(client):
+    response = client.get("/api/dashboard/get_widget/999999")
+    assert response.status_code == 404
+
+@pytest.mark.skip(reason="Endpoint not yet implemented - Phase 2/3 feature")
+def test_dashboard_overview_success(client):
+    response = client.get("/api/dashboard/overview")
+    assert response.status_code == 200
+    assert "summary" in response.json()
+
+@pytest.mark.skip(reason="Endpoint not yet implemented - Phase 2/3 feature")
+def test_dashboard_metrics_format(client):
+    response = client.get("/api/dashboard/metrics")
+    assert response.status_code == 200
+    assert "application/json" in response.headers.get("content-type", "") or "text/plain" in response.headers.get("content-type", "")
+
+@pytest.mark.skip(reason="Endpoint not yet implemented - Phase 2/3 feature")
+def test_dashboard_security_headers(client):
+    response = client.get("/api/dashboard/overview")
+    assert "X-Frame-Options" in response.headers or "Strict-Transport-Security" in response.headers
+
+def test_dashboard_tenant_isolation(client):
+    # Simuleer dashboard requests onder verschillende tenants (mock context vereist)
+    pass
+
+def test_dashboard_audit_logging(monkeypatch):
+    # Mock audit log en controleer aanroep bij dashboard events
+    pass
+
+def test_dashboard_concurrent_requests(monkeypatch):
+    # Simuleer gelijktijdige dashboard requests (threading of async)
+    pass

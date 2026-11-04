@@ -1,0 +1,19 @@
+agent_id: "customer.experience.sentimentsupport.001"
+name: "SentimentSupportAgent"
+department: "customer_experience"
+technology: "LLM"
+module_path: "src.core.als.agents.departments.customer_experience"
+class_name: "SentimentSupportAgent"
+description: "Specialized SentimentSupport agent for the customer_experience department."
+is_active: true
+priority: "MEDIUM"
+version: "2.0.0"
+ooda_profile:
+  observe:
+    data_sources: ["internal_db", "api_endpoints"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.80
+  act:
+    tools: ["standard_toolbox"]

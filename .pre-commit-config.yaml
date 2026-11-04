@@ -1,0 +1,229 @@
+# =============================================================================
+# PRE-COMMIT CONFIGURATION
+# =============================================================================
+# Handmatig draaien: pre-commit run --all-files
+#   Let op: dat commando draait de muterende hooks NIET meer, zie de manual-stage hieronder.
+#   Wil je wel formatteren: pre-commit run --hook-stage manual --all-files
+#
+# DIT BESTAND IS NIET GEKOPPELD AAN .git/hooks/ -- en dat is een bewuste keuze.
+#
+# Vastgesteld 2026-08-13 (BE-CI-006): `pre-commit install` was hier nooit gedraaid.
+# .git/hooks/pre-commit was een handgeschreven, UNTRACKED bash-script uit december 2025 dat
+# alleen Alembic-migraties valideerde. Alle hooks hieronder -- inclusief de any-type-gate --
+# stonden dus zeven maanden op papier, en tegelijk vuurde de CI-variant nooit. Dat samen is
+# hoe de teller van 0 naar 40 kon lopen.
+#
+# Het framework alsnog koppelen zou black, isort EN ruff-format aanzetten op elke gestagede
+# file onder src/, tests/ en scripts/. Volgens .claude/rules/quality-gates.md is ongeveer een
+# derde van src/ nooit geformatteerd, dus dat herschrijft tientallen regels die de committer
+# niet heeft aangeraakt -- precies de onreviewbare diff die daar verboden wordt. Die
+# afweging is aan Rakesh, niet aan een gate die er stil bij komt.
+#
+# Wat WEL blokkerend draait staat in scripts/hooks/pre-commit (tracked, geinstalleerd door
+# scripts/install-hooks.sh): de any-type gate en de Alembic-validatie.
+#
+# MUTERENDE HOOKS STAAN OP `stages: [manual]` (BE-CI-006). Gemeten op 2026-08-13, met
+# --check zodat er niets gewijzigd is:
+#
+#   black          818 van 2222 bestanden in src/ zouden worden herschreven
+#   ruff-format    717 -- en niet dezelfde 717; die twee formatters zijn het oneens
+#   isort, ruff --fix                extra herschrijvingen bovenop
+#   trailing-whitespace              GEEN files:-filter, dus alle 12538 getrackte bestanden
+#   end-of-file-fixer                idem
+#
+# Dat zijn zes muterende hooks, niet drie, en ze raken ook markdown, JSON en YAML. Zonder
+# de manual-stage zou zowel `pre-commit install` als een simpele `pre-commit run --all-files`
+# honderden bestanden herschrijven die de committer niet heeft aangeraakt -- verboden per
+# .claude/rules/quality-gates.md, en een van de twee formatters zou het werk van de andere
+# meteen weer omgooien. Een repo-brede normalisatie naar EEN formatter is een aparte
+# beslissing voor Rakesh; tot die keuze gemaakt is mag geen hook het per ongeluk doen.
+# =============================================================================
+
+repos:
+  # ---------------------------------------------------------------------------
+  # Architecture contracts (ADR-033)
+  - repo: local
+    hooks:
+      - id: architecture-contracts
+        name: Architecture contracts (import-linter)
+        entry: lint-imports
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # Verhuisd uit het handgeschreven .git/hooks/pre-commit (BE-CI-006). Zelfde gedrag:
+      # draait alleen als er een migratiebestand in de commit zit, en zonder bestandsnamen
+      # omdat validate-migration.py de hele keten zelf bekijkt.
+      - id: validate-alembic-migrations
+        name: Alembic migratie-validatie
+        entry: python scripts/validate-migration.py
+        language: system
+        pass_filenames: false
+        files: ^src/alembic/versions/.*\.py$
+        stages: [pre-commit]
+
+      - id: architecture-fitness
+        name: Architecture fitness tests (orphan + size)
+        entry: python -m pytest tests/architecture/test_api_layer.py -x -q
+        language: system
+        pass_filenames: false
+        types: [python]
+
+  # ---------------------------------------------------------------------------
+  # Python Code Formatting -- ALLEEN op verzoek (stages: [manual]), zie de kop.
+  # Draaien: pre-commit run --hook-stage manual --all-files
+  # ---------------------------------------------------------------------------
+  - repo: https://github.com/psf/black
+    rev: 24.4.2
+    hooks:
+      - id: black
+        args: ['--line-length=100']
+        files: ^(src|tests|tests_reboot|scripts)/
+        stages: [manual]
+
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        args: ['--profile=black', '--line-length=100']
+        files: ^(src|tests|tests_reboot|scripts)/
+        stages: [manual]
+
+  # ---------------------------------------------------------------------------
+  # Python Linting (Ruff - fast, replaces flake8/pylint for basic checks)
+  #
+  # `ruff --fix` en `ruff-format` herschrijven bestanden en staan daarom ook op manual.
+  # Ruff als CONTROLE gaat niet verloren: ci-local-fast.sh draait `ruff check src/` bij
+  # elke push en ci-feature.yml doet hetzelfde blokkerend.
+  # ---------------------------------------------------------------------------
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.4
+    hooks:
+      - id: ruff
+        args: ['--fix', '--exit-non-zero-on-fix']
+        files: ^(src|tests|tests_reboot|scripts)/
+        stages: [manual]
+      - id: ruff-format
+        files: ^(src|tests|tests_reboot|scripts)/
+        stages: [manual]
+
+  # ---------------------------------------------------------------------------
+  # Security Scanning
+  # ---------------------------------------------------------------------------
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.8
+    hooks:
+      - id: bandit
+        args: ['-ll', '-ii', '-x', 'tests,tests_reboot']
+        files: ^(src|core|scripts)/
+
+  # Secret scanning with gitleaks (prevents credential leaks)
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.2
+    hooks:
+      - id: gitleaks
+        args: ['protect', '--verbose', '--redact']
+
+  # ---------------------------------------------------------------------------
+  # Type Checking (optional, can be slow)
+  # ---------------------------------------------------------------------------
+  # - repo: https://github.com/pre-commit/mirrors-mypy
+  #   rev: v1.10.0
+  #   hooks:
+  #     - id: mypy
+  #       args: ['--ignore-missing-imports']
+  #       files: ^src/
+
+  # ---------------------------------------------------------------------------
+  # General Checks
+  # ---------------------------------------------------------------------------
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      # Deze twee HERSCHRIJVEN bestanden en hebben geen files:-filter, dus ze raken alle
+      # 12538 getrackte bestanden inclusief markdown, JSON en YAML. Op manual, zie de kop.
+      - id: trailing-whitespace
+        stages: [manual]
+      - id: end-of-file-fixer
+        stages: [manual]
+      # Hieronder alleen nog controlerende hooks -- die muteren niets.
+      - id: check-yaml
+        args: ['--unsafe']
+      - id: check-json
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: check-merge-conflict
+      - id: debug-statements
+      - id: detect-private-key
+
+  # ---------------------------------------------------------------------------
+  # Local Hooks - Unit Tests (SB-3.2)
+  # ---------------------------------------------------------------------------
+  - repo: local
+    hooks:
+      - id: sop-quality
+        name: sop quality guardrails
+        entry: python scripts/validate_sop_quality.py
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
+
+      - id: pytest-unit
+        name: pytest unit tests
+        entry: >-
+          pytest tests/unit -x -q --tb=line
+          -m "not requires_postgres and not requires_redis and not requires_ollama"
+          --ignore=tests/unit/test_cva_chat_governance.py
+          --ignore=tests/unit/test_logging_unicode.py
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
+
+      - id: check-fastapi-di
+        name: check FastAPI DI anti-patterns
+        entry: python scripts/check_fastapi_di_patterns.py
+        language: system
+        files: ^src/.*\.py$
+        pass_filenames: true
+
+      - id: any-type-gate
+        name: Any type gate (blocks new Any without TODO(TYPE))
+        entry: python scripts/check_any_gate.py --fail
+        language: system
+        types: [python]
+        pass_filenames: true
+        files: ^(src|scripts)/
+        stages: [pre-commit]
+
+      - id: frontend-any-type-gate
+        name: Frontend any type gate (blocks new explicit any)
+        entry: node frontend/scripts/check-any-gate.mjs --fail
+        language: system
+        pass_filenames: true
+        files: ^frontend/src/.*\.(ts|tsx)$
+        stages: [pre-commit]
+
+# Skip these files/directories
+exclude: |
+  (?x)^(
+    \.git/|
+    \.venv/|
+    venv/|
+    __pycache__/|
+    \.mypy_cache/|
+    \.pytest_cache/|
+    htmlcov/|
+    dist/|
+    build/|
+    \.eggs/|
+    stichting-backup.*|
+    stichting-backend-ai/|
+    node_modules/|
+    frontend-app/|
+    mcp-debugger/|
+    docs/99-Archive/|
+    \.agents/skills/sanskritisetu-developer/assets/|
+    docs/4-Architecture/old-api/
+  )

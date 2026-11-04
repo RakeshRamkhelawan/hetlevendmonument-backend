@@ -1,0 +1,19 @@
+agent_id: "strategy.business.marketintelligence.001"
+name: "MarketIntelligenceAgent"
+department: "strategy_business"
+technology: "ML"
+module_path: "src.core.als.agents.departments.strategy_business"
+class_name: "MarketIntelligenceAgent"
+description: "Specialized MarketIntelligence agent for the strategy_business department."
+is_active: true
+priority: "MEDIUM"
+version: "2.0.0"
+ooda_profile:
+  observe:
+    data_sources: ["internal_db", "api_endpoints"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.80
+  act:
+    tools: ["standard_toolbox"]

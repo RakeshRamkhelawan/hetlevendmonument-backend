@@ -1,0 +1,55 @@
+id: SOP-MKT-WATCH
+description: "Market Watch Workflow - Monitor trends and competitor activity"
+version: "1.0"
+variables:
+  - keywords
+  - competitors
+  - industry
+  - strategy_email
+  - market_intel_api_base_url
+  - market_intel_api_token
+
+steps:
+  - tool: local__openapi_call_endpoint
+    description: "Fetch Industry News"
+    params:
+      base_url: "{market_intel_api_base_url}"
+      method: "POST"
+      path: "/market/news"
+      headers:
+        Authorization: "Bearer {market_intel_api_token}"
+      body:
+        industry: "{industry}"
+        keywords: "{keywords}"
+
+  - tool: local__llm_generate
+    description: "Analyze Market Trends"
+    params:
+      prompt: |
+        Analyze the current market trends for {industry}.
+        Keywords to focus on: {keywords}
+        Provide: key trends, opportunities, and threats.
+
+  - tool: local__llm_generate
+    description: "Competitor Analysis"
+    params:
+      prompt: |
+        Analyze competitor activity for: {competitors}
+        Focus on: recent announcements, product launches, marketing campaigns.
+        Provide actionable insights.
+
+  - tool: local__llm_generate
+    description: "Generate Market Report"
+    params:
+      prompt: |
+        Create a weekly market intelligence report summarizing:
+        - Market trends analysis
+        - Competitor movements
+        - Recommended actions for our team
+
+  - tool: local__gmail_send_email
+    description: "Distribute Market Report"
+    params:
+      to: "{strategy_email}"
+      subject: "Weekly Market Intelligence Report"
+      body: "The weekly market watch report is ready for review."

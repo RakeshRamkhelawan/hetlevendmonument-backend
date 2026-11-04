@@ -1,0 +1,33 @@
+id: SOP-LEGAL-NDA
+description: "NDA Generator - Create specific NDA for new partner or vendor"
+version: "1.0"
+variables:
+  - legal_email
+
+steps:
+  - tool: local__llm_generate
+    description: "Gather NDA parameters"
+    params:
+      prompt: "Extract NDA parameters from the request: party names, type (mutual/unilateral), scope of confidential information, duration, jurisdiction, and any special clauses required."
+
+  - tool: local__llm_generate
+    description: "Select NDA template"
+    params:
+      prompt: "Select the appropriate NDA template based on: relationship type (vendor, partner, employee, contractor), jurisdiction requirements, and industry-specific provisions. Apply standard legal terms."
+
+  - tool: local__llm_generate
+    description: "Draft NDA document"
+    params:
+      prompt: "Generate complete NDA document with: definitions, obligations of receiving party, exclusions from confidentiality, term and termination, remedies, governing law, and signature blocks. Use formal legal language."
+
+  - tool: local__llm_generate
+    description: "Legal review checklist"
+    params:
+      prompt: "Create a legal review checklist for the generated NDA: verify all required clauses present, check jurisdiction compliance, validate term lengths, confirm indemnification provisions, and flag any unusual terms."
+
+  - tool: local__gmail_send_email
+    description: "Send NDA for review"
+    params:
+      to: "{legal_email}"
+      subject: "NDA Draft Ready for Review"
+      body: "{step_2_output}"

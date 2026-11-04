@@ -1,0 +1,409 @@
+[importlinter]
+root_package = src
+include_external_packages = True
+
+# Contract 1: API routers may not directly import domain logic
+[importlinter:contract:api-no-domain]
+name = API routers mogen niet direct domeinlogica importeren
+type = forbidden
+source_modules =
+    src.core.api.v1.*.router
+    # SP-AGT-002 Dag 1 (2026-06-09): orchestration sub-routers added explicitly
+    # (these match src.core.api.v1.orchestration.X_router, not the *.router glob)
+    # SP-API-010 Dag 2 (2026-06-12): auth/router.py now inside Contract 1 scope
+    src.core.api.auth.router
+    src.core.api.v1.orchestration.workflow_router
+    src.core.api.v1.orchestration.critic_router
+    src.core.api.v1.orchestration.health_router
+    src.core.api.v1.orchestration.stats_router
+    # BE-AGT-045 dag 1 (2026-08-06): de HITL-goedkeuringsroutes zijn een sub-router en vallen
+    # dus buiten de `*.router`-glob. Expliciet toegevoegd, want juist dit bestand importeerde
+    # `src.core.database` en `src.core.governance` rechtstreeks (ADR-036, blinde review M3).
+    src.core.api.v1.tool_broker.hitl_router
+forbidden_modules =
+    src.core.database
+    src.core.governance
+    src.core.learning
+    src.core.agents
+    src.core.workflow
+    src.core.llm
+    src.core.services
+    src.core.ml
+    src.core.als
+    src.core.semantic_router
+    # ADR-036 OP-197 (2026-09-02): src.core.audit ontbrak hier, en dat is de map waar
+    # audit_service.py WOONT (`src/core/audit/audit_service.py`; de tweede kopie zit in
+    # src.core.governance.services en die viel al onder src.core.governance). Een router die de
+    # audit-service uit zijn eigen thuismap importeerde werd dus door niets betrapt. Gemeten
+    # voor toevoeging: NUL van de Contract-1-routers importeert src.core.audit, en
+    # `lint-imports` bleef daarna op `9 kept, 0 broken`.
+    src.core.audit
+# ADR-033 §2: router files must NOT import domain logic DIRECTLY.
+# Transitive imports via *.dependencies (the Facade aggregation layer) are
+# explicitly allowed — that IS the pattern. Using allow_indirect_imports=True
+# so the contract checks only the 1-hop edge from the router module itself.
+allow_indirect_imports = true
+# Warn instead of error for ignore_imports entries with no matching graph edge.
+# Occurs when a new *.dependencies file has no callers yet.
+unmatched_ignore_imports_alerting = warn
+# NOTE: legacy flat *_endpoints.py files are exempt until Strangler Fig migration reaches them.
+# Contract only applies to files matching src.core.api.v1.*.router — new files must comply.
+#
+# SP-API-009 Dag 4 (2026-06-09): all direct violations in *.router files fixed.
+# Remaining violations are TRANSITIVE via the ADR-033 *.dependencies aggregation pattern
+# or via auth/db infrastructure. These are INTENTIONAL — each *.dependencies file is the
+# single sanctioned import point per domain (ADR-033 §2). The ignore_imports below document
+# which edges are explicitly permitted; any NEW direct or transitive path NOT listed here
+# will still be caught by the contract.
+#
+# Auth/db infrastructure (post-MVP — requires refactoring auth + database modules):
+#   v1/*.router -> auth.dependencies -> {audit_service, auth_service, scope_validator}
+#                -> {database, tenant_query_filter, governance.models, agents.models}
+#
+# Orphan:exempt files (pending Strangler Fig migration Dag 5):
+#   agentic.router -> {agent_discovery, learning, agency_capabilities} -> domain modules
+ignore_imports =
+    # src.__init__.get_workers() uses a lazy import function — not a real domain coupling.
+    src -> src.workers
+    # rbac_service uses deferred (lazy) imports for circular-ref prevention — auth infra.
+    src.core.services.rbac_service -> src.core.agents.models
+    src.core.services.rbac_service -> src.core.workflow.models
+    src.core.services.rbac_service -> src.core.database.database
+    # ----------------------------------------------------------------
+    # ADR-033 *.dependencies aggregation pattern (Dag 3A-3D + Dag 4)
+    # Each entry is a *.dependencies -> forbidden_module edge that is
+    # intentionally allowed per the Facade design.
+    # ----------------------------------------------------------------
+    src.core.api.dependencies -> src.core.auth.dependencies
+    src.core.api.dependencies -> src.core.database.database
+    src.core.api.dependencies -> src.core.governance.rate_limiter
+    src.core.api.dependencies -> src.core.learning.services.tenant_admin_stats
+    src.core.api.v1.agentic.dependencies -> src.core.database.database
+    src.core.api.v1.agentic.dependencies -> src.core.governance.oversight_gate
+    src.core.api.v1.agentic.dependencies -> src.core.learning.cache
+    src.core.api.v1.agentic.dependencies -> src.core.learning.health
+    src.core.api.v1.agentic.dependencies -> src.core.learning.service
+    src.core.api.v1.als.council_dependencies -> src.core.copilot.council.factory
+    src.core.api.v1.als.council_dependencies -> src.core.copilot.council.governance_gate
+    src.core.api.v1.als.dependencies -> src.core.als.infrastructure.signal_bus
+    src.core.api.v1.als.dependencies -> src.core.als.models.organism_registry
+    src.core.api.v1.als.dependencies -> src.core.database.database
+    src.core.api.v1.cva.dependencies -> src.core.agents.ultimate_cva.system_prompt
+    src.core.api.v1.cva.dependencies -> src.core.database.database
+    src.core.api.v1.cva.dependencies -> src.core.services.cva_service
+    src.core.api.v1.cva.dependencies -> src.core.services.llm.base
+    src.core.api.v1.cva.dependencies -> src.core.services.llm.service
+    src.core.api.v1.gatekeeper.dependencies -> src.core.als.enterprise.gatekeeper_repository
+    src.core.api.v1.gatekeeper.dependencies -> src.core.governance.models
+    src.core.api.v1.agents.dependencies -> src.core.agents.agent_registry
+    src.core.api.v1.agents.dependencies -> src.core.auth.dependencies
+    src.core.api.v1.agents.dependencies -> src.core.database.database
+    src.core.api.v1.ai_copilot.dependencies -> src.core.llm.provider_factory
+    src.core.api.v1.analytics_ingest.dependencies -> src.core.auth.dependencies
+    src.core.api.v1.compliance.dependencies -> src.core.auth.dependencies
+    src.core.api.v1.compliance.dependencies -> src.core.database.database
+    src.core.api.v1.compliance.dependencies -> src.core.governance.compliance_score
+    src.core.api.v1.compliance.dependencies -> src.core.governance.hash_chain
+    src.core.api.v1.compliance.dependencies -> src.core.governance.models
+    src.core.api.v1.compliance.dependencies -> src.core.governance.rate_limiter
+    src.core.api.v1.dashboard.dependencies -> src.core.database.database
+    src.core.api.v1.documents.dependencies -> src.core.auth.dependencies
+    src.core.api.v1.documents.dependencies -> src.core.database.database
+    src.core.api.v1.feature_flags.dependencies -> src.core.auth.dependencies
+    src.core.api.v1.feature_flags.dependencies -> src.core.database.database
+    src.core.api.v1.focus_builder.dependencies -> src.core.copilot.council.factory
+    src.core.api.v1.focus_builder.dependencies -> src.core.database.database
+    src.core.api.v1.gamification.dependencies -> src.core.database.database
+    # SP-API-010 Dag 1 (2026-06-12): services facade entries
+    src.core.api.v1.collaboration.dependencies -> src.core.services.collaboration_service
+    src.core.api.v1.gamification.dependencies -> src.core.services.gamification_service
+    src.core.api.v1.personas.dependencies -> src.core.database.database
+    src.core.api.v1.personas.dependencies -> src.core.services.persona_service
+    src.core.api.v1.tenant_custom_data.dependencies -> src.core.services.tenant_custom_data_repository
+    src.core.api.v1.tenant_custom_data.dependencies -> src.core.services.tenant_custom_data_service
+    # SP-API-010 Dag 2 (2026-06-12): auth / ml / routing facade entries
+    src.core.api.auth.dependencies -> src.core.database.database
+    src.core.api.auth.dependencies -> src.core.database.redis
+    src.core.api.auth.dependencies -> src.core.database.tenant_query_filter
+    src.core.api.auth.dependencies -> src.core.services.audit_service
+    src.core.api.auth.dependencies -> src.core.services.email
+    src.core.api.auth.dependencies -> src.core.services.rbac_service
+    src.core.api.v1.routing.dependencies -> src.core.als.enterprise.departments.department_orchestrator
+    src.core.api.v1.gdpr_compliance.dependencies -> src.core.agents.models
+    src.core.api.v1.gdpr_compliance.dependencies -> src.core.auth.dependencies
+    src.core.api.v1.gdpr_compliance.dependencies -> src.core.database.database
+    src.core.api.v1.gdpr_compliance.dependencies -> src.core.governance.dependencies
+    src.core.api.v1.gdpr_compliance.dependencies -> src.core.governance.lawful_basis_registry
+    src.core.api.v1.gdpr_compliance.dependencies -> src.core.governance.models
+    src.core.api.v1.gdpr_compliance.dependencies -> src.core.workflow.models
+    src.core.api.v1.missions.dependencies -> src.core.auth.dependencies
+    src.core.api.v1.monitoring_v1.dependencies -> src.core.auth.auth_service
+    src.core.api.v1.monitoring_v1.dependencies -> src.core.auth.dependencies
+    src.core.api.v1.monitoring_v1.dependencies -> src.core.auth.scope_validator
+    src.core.api.v1.notifications.dependencies -> src.core.database.database
+    src.core.api.v1.notifications.dependencies -> src.core.governance.audit
+    src.core.api.v1.prediction.dependencies -> src.core.auth.dependencies
+    src.core.api.v1.security.dependencies -> src.core.auth
+    src.core.api.v1.security.dependencies -> src.core.auth.dependencies
+    src.core.api.v1.security.dependencies -> src.core.auth.scope_validator
+    src.core.api.v1.security.dependencies -> src.core.database.database
+    src.core.api.v1.subagents.dependencies -> src.core.agents.subagent_loader
+    src.core.api.v1.tenant_custom_data.dependencies -> src.core.database.database
+    src.core.api.v1.tenants.dependencies -> src.core.database.database
+    src.core.api.v1.tenants.dependencies -> src.core.governance.audit
+    src.core.api.v1.tools.dependencies -> src.core.database.database
+    src.core.api.v1.users.dependencies -> src.core.auth.auth_service
+    src.core.api.v1.users.dependencies -> src.core.auth.dependencies
+    src.core.api.v1.users.dependencies -> src.core.database.database
+    src.core.api.v1.workflow.dependencies -> src.core.api.dependencies
+    src.core.api.v1.workflow.dependencies -> src.core.llm.llm_service
+    src.core.api.v1.workflow.dependencies -> src.core.workflow.cancellation
+    src.core.api.v1.workflow.dependencies -> src.core.workflow.engine
+    src.core.api.v1.workflow.dependencies -> src.core.workflow.interfaces
+    src.core.api.v1.workflow.dependencies -> src.core.workflow.models
+    src.core.api.v1.workflow.dependencies -> src.core.workflow.visualizer
+    # SP-AGT-002 Dag 1: orchestration/dependencies.py is the sanctioned import point for agents.* (ADR-033/ADR-034)
+    src.core.api.v1.orchestration.dependencies -> src.core.agents.agent_health_monitor_agent
+    src.core.api.v1.orchestration.dependencies -> src.core.agents.agent_router_agent
+    src.core.api.v1.orchestration.dependencies -> src.core.agents.critic_agent
+    src.core.api.v1.orchestration.dependencies -> src.core.agents.master_orchestrator_agent
+    src.core.api.v1.orchestration.dependencies -> src.core.governance.governance_helper
+    # SP-DSM-002 Dag 3: activepieces/dependencies.py -> forbidden_module edge
+    src.core.api.v1.activepieces.dependencies -> src.core.governance.rate_limiter
+    # SP-DSM-002 Dag 4: governance.audit + database.* + services batch
+    src.core.api.v1.documents.dependencies -> src.core.governance.audit
+    src.core.api.v1.tenant_management.dependencies -> src.core.database.database
+    src.core.api.v1.tenant_management.dependencies -> src.core.database.tenant_query_filter
+    src.core.api.v1.tenant_management.dependencies -> src.core.governance.audit
+    src.core.api.v1.user_management.dependencies -> src.core.database.database
+    src.core.api.v1.user_management.dependencies -> src.core.database.tenant_query_filter
+    src.core.api.v1.user_management.dependencies -> src.core.governance.audit
+    src.core.api.v1.rbac.dependencies -> src.core.services.rbac_service
+    src.core.api.v1.admin.dependencies -> src.core.database.database
+    src.core.api.v1.admin.dependencies -> src.core.database.models.experiment
+    src.core.api.v1.admin.dependencies -> src.core.governance.models
+    src.core.api.v1.admin.dependencies -> src.core.services.audit_service
+    src.core.api.v1.admin.dependencies -> src.core.services.experiment_service
+    src.core.api.v1.admin.dependencies -> src.core.services.rbac_service
+    src.core.api.v1.company.dependencies -> src.core.database.database
+    src.core.api.v1.company.dependencies -> src.core.governance.models
+    src.core.api.v1.company.dependencies -> src.core.services.experiment_service
+    src.core.api.v1.health.dependencies -> src.core.database.database
+    src.core.api.v1.copilot_intent.dependencies -> src.core.database.database
+    src.core.api.v1.experimentation.dependencies -> src.core.database.database
+    # SP-DSM-002 Dag 5: services.* + privacy + webhooks + agents + models batch
+    src.core.api.v1.workflow.dependencies -> src.core.services.workflow_service
+    src.core.api.v1.workflow.dependencies -> src.core.services.workflow_generator_service
+    src.core.api.v1.workflow.dependencies -> src.core.services.workflow_versioning_service
+    src.core.api.v1.feature_flags.dependencies -> src.core.database.tenant_query_filter
+    src.core.api.v1.ai_act.dependencies -> src.core.governance.incident_service
+    src.core.api.v1.missions.dependencies -> src.core.copilot.council.models
+    src.core.api.v1.company.dependencies -> src.core.governance.policy_engine
+    src.core.api.v1.company.dependencies -> src.core.copilot.council.metrics
+    src.core.api.v1.privacy.dependencies -> src.core.governance.ai_transparency_service
+    src.core.api.v1.privacy.dependencies -> src.core.governance.cookie_consent
+    src.core.api.v1.privacy.dependencies -> src.core.governance.dependencies
+    src.core.api.v1.privacy.dependencies -> src.core.governance.lawful_basis_registry
+    src.core.api.v1.privacy.dependencies -> src.core.governance.models
+    src.core.api.v1.agents.dependencies -> src.core.agents.models
+    src.core.api.v1.knowledge.dependencies -> src.core.agents.agent_registry
+    # AUDIT-DB-01 (2026-06-27): tenants service-layer pilot -- dependencies facade
+    # is the single sanctioned import point for the TenantService.
+    src.core.api.v1.tenants.dependencies -> src.core.services.tenant_service
+    src.core.api.v1.analytics.dependencies -> src.core.database.models.analytics
+    src.core.api.v1.analytics.dependencies -> src.core.database.session
+    src.core.api.v1.autonomous.dependencies -> src.core.database.redis
+    # SP-DSM-002 Dag 2: learning/dependencies.py -> forbidden_module edges
+    src.core.api.v1.learning.dependencies -> src.core.database.database
+    src.core.api.v1.learning.dependencies -> src.core.learning.analytics
+    src.core.api.v1.learning.dependencies -> src.core.learning.feedback
+    src.core.api.v1.learning.dependencies -> src.core.learning.multi_region
+    src.core.api.v1.learning.dependencies -> src.core.learning.service
+    # ADR-033/034: router dependencies.py facade edges (council, digital_twin, tool_audit)
+    src.core.api.v1.council.dependencies -> src.core.als.enterprise.gatekeeper_repository
+    src.core.api.v1.council.dependencies -> src.core.governance.models
+    src.core.api.v1.digital_twin.dependencies -> src.core.agents.models
+    src.core.api.v1.digital_twin.dependencies -> src.core.database.database
+    src.core.api.v1.digital_twin.dependencies -> src.core.llm.fallback_chain
+    src.core.api.v1.tool_audit.dependencies -> src.core.database.database
+    # Auth/db infrastructure — known post-MVP issue (see comment above)
+    src.core.auth -> src.core.auth.auth_service
+    src.core.auth.auth_service -> src.core.database.tenant_query_filter
+    src.core.auth.dependencies -> src.core.auth.auth_service
+    src.core.auth.dependencies -> src.core.database.database
+    src.core.auth.dependencies -> src.core.models.rbac_models
+    src.core.auth.dependencies -> src.core.services.audit_service
+    src.core.auth.scope_validator -> src.core.auth.dependencies
+    src.core.auth.scope_validator -> src.core.database.database
+    src.core.auth.scope_validator -> src.core.services.rbac_service
+    src.core.dependencies -> src.core.autonomy.autonomous_agent
+
+# Contract 2: Cross-router imports forbidden (SP-DSM-003 Dag 1)
+# NOTE: wildcard self-reference (*.router -> *.router) triggers "Modules have shared descendants"
+# in import-linter. Redesigned as Option B: 4 domain packages may not import sync domain.
+# ADR-034 boundary is additionally enforced by AST tests in test_adr034_orchestration_boundary.py.
+[importlinter:contract:no-cross-router]
+name = API-routers mogen niet direct elkaars domeindependencies importeren
+type = forbidden
+source_modules =
+    src.core.api.v1.agentic
+    src.core.api.v1.als
+    src.core.api.v1.cva
+    src.core.api.v1.focus_builder
+forbidden_modules =
+    src.core.api.v1.sync
+allow_indirect_imports = false
+unmatched_ignore_imports_alerting = warn
+
+# Contract 3: Layered architecture (SP-DSM-003 Dag 2)
+# Herontwerp: domain-laag weggelaten (bewaakt door Contract 1, 2, 5, 6, 7).
+# Kern invariant: infrastructuur (database|caching|resilience) mag niet API/auth importeren.
+[importlinter:contract:layers]
+name = Infrastructuurlaag mag niet API-laag importeren
+type = layers
+containers = src.core
+layers =
+    api
+    auth
+    database | caching | resilience
+ignore_imports =
+    src.core.database.import_all_models -> src.core.auth.models.account_lockout
+    src.core.database.import_all_models -> src.core.auth.oauth2_service
+    src.core.database.import_all_models -> src.core.auth.two_factor_auth
+    src.core.database.seed -> src.core.auth.jwt_handler
+    src -> src.workers
+unmatched_ignore_imports_alerting = warn
+
+# Contract 3a: Aanpak B stap 1 -- infra->api expliciet naast layers (SP-DSM-004)
+# NOTE: Contract 3 (layers) dekt infra->api al via type=layers semantiek.
+# Dit contract maakt de infra->api grens expliciet als benoemde forbidden rule --
+# eerste stap van de geleidelijke migratie van type=layers naar type=forbidden (Aanpak B).
+[importlinter:contract:infra-no-api]
+name = Infrastructuurlaag mag niet naar API-laag importeren
+type = forbidden
+source_modules =
+    src.core.database
+    src.core.caching
+    src.core.resilience
+forbidden_modules =
+    src.core.api
+# allow_indirect_imports=true: Contract 3 (layers) bewaakt al zowel directe als transitieve
+# infra->api paden via type=layers semantiek. Dit contract maakt de directe infra->api
+# grens expliciet als benoemde forbidden rule; Contract 3 blijft de primaire handhaver.
+allow_indirect_imports = true
+unmatched_ignore_imports_alerting = warn
+
+# Contract 3b: Aanpak B stap 2 -- governance->workflow directe koppeling (SP-DSM-004)
+# NOTE: governance.dsar_service gebruikt lazy imports van workflow.models voor GDPR-verwijdering.
+# Dit is een bekende architectuurcoupling -- backlog SP-DSM-005 voor een proper adapter-patroon.
+[importlinter:contract:governance-no-workflow-direct]
+name = Governance mag niet rechtstreeks workflow importeren
+type = forbidden
+source_modules =
+    src.core.governance
+forbidden_modules =
+    src.core.workflow
+# allow_indirect_imports=true: transitieve paden via src.workers zijn gedeelde infraroute
+# (prana_guard -> rbac_models -> src -> workers -> workflow_worker). Niet een echte koppeling.
+allow_indirect_imports = true
+unmatched_ignore_imports_alerting = warn
+ignore_imports =
+    # known-violation: dsar_service verwijdert/markeert workflow-records bij GDPR DSAR-verzoeken
+    # (lazy imports in 3 functies). Fix: workflow-adapter in SP-DSM-005.
+    src.core.governance.dsar_service -> src.core.workflow.models
+
+# Contract 4: Gateways mogen niet andere domein-gateways importeren (ADR-033 §3b)
+# NOTE: enabled — cross-domain communication via gateway.py creates a new coupling web.
+# Cross-domain calls belong in the domain services themselves, not in the API delivery layer.
+[importlinter:contract:no-cross-gateway]
+name = Gateways mogen niet andere domein-gateways importeren
+type = forbidden
+source_modules =
+    src.core.api.v1.*.gateway
+forbidden_modules =
+    src.core.api.v1.*.gateway
+
+# Contract 5: Governance may not import copilot (SP-DSM-003 Dag 1, hardened SP-DSM-005)
+# NOTE: type=independence is incompatible with ADR-027 (copilot -> governance is by design).
+# Redesigned as unidirectional forbidden: only governance -> copilot direction is banned.
+# SP-DSM-005: OfficerVerdict + CouncilDecisionRow verplaatst naar governance.models.
+# allow_indirect_imports=false: directe violations gefixed. Transitieve koppelingen ook geborgd.
+[importlinter:contract:governance-independence]
+name = Governance mag niet copilot importeren (ADR-027: copilot->governance is by design)
+type = forbidden
+source_modules =
+    src.core.governance
+forbidden_modules =
+    src.core.copilot
+allow_indirect_imports = false
+unmatched_ignore_imports_alerting = warn
+ignore_imports =
+    # src.__init__.get_workers() has a function-local lazy import of src.workers.
+    # import-linter does static analysis and sees this as a governance->copilot
+    # transitive path via rbac_models -> src -> workers -> copilot.api.contest_service.
+    # Same static-analysis artifact as Contract 3 (layers) ignore entry.
+    src -> src.workers
+
+# Contract 6 (ADR-034): agent_runtime facade may not create a circular dep back to API layer
+# NOTE: scoped to src.core.agents.api (the facade file) only in SP-AGT-001 Dag 1.
+# Broader enforcement (all api/* must use facade) is a progressive migration: SP-AGT-002+.
+[importlinter:contract:agent_runtime_boundary]
+name = agent_runtime facade may not import from the API layer
+type = forbidden
+source_modules =
+    src.core.agents.api
+forbidden_modules =
+    src.core.api
+allow_indirect_imports = false
+unmatched_ignore_imports_alerting = warn
+
+# Contract 7 (ADR-034): agent_runtime package may not touch database directly
+# SP-AGT-004 Dag 5: uitgebreid van src.core.agents.api naar src.core.agents (volledig package).
+# Cat-A (adapters + ORM Base-modellen) en Cat-B Stap-3D gedocumenteerd als ignore_imports.
+[importlinter:contract:agent_runtime_no_db]
+name = agent_runtime package may not import from the database layer
+type = forbidden
+source_modules =
+    src.core.agents
+forbidden_modules =
+    src.core.database
+# SP-AGT-004 Dag 5: allow_indirect_imports=true -- ADR-034 enforces DIRECT coupling only.
+# Transitive access via search/learning/memory modules is those modules' own contract scope.
+# Precise direct-import enforcement is done by AST scan in tests/architecture/test_sp_agt_004_dsm_final.py.
+allow_indirect_imports = true
+unmatched_ignore_imports_alerting = warn
+ignore_imports =
+    # Cat A: adapters/ -- enige toegestane DB-doorgang (ADR-034 s5.5)
+    src.core.agents.adapters.redis_capability_cache -> src.core.database.redis
+    # Cat A, toegevoegd 2026-09-16 (ADR-036 OP-153): `seed_agent_registry.py` moet de
+    # klant aannemen voor het in `registered_agents` schrijft -- die tabel heeft een
+    # afschermingsregel (gemeten: relrowsecurity = t, een policy), en de DELETE achter
+    # `--clear-existing` zou zonder klantcontext STIL nul rijen raken.
+    src.core.agents.adapters.tenant_context -> src.core.database.bypass_session
+    # Cat A: ORM Base-inheritance -- geen ADR-034 schending
+    src.core.agents.budget_manager -> src.core.database.database
+    src.core.agents.models -> src.core.database.database
+    src.core.agents.strategy_models -> src.core.database.database
+    # Cat B Stap 3D: subdomain database-modules -- feitelijk adapters, backlog SP-AGT-005
+    src.core.agents.diagnostics_agent.database -> src.core.database.database
+    src.core.agents.knowledge_agent.database -> src.core.database.database
+    src.core.agents.sentiment_agent.database -> src.core.database.database
+    # Cat B Stap 3D: FastAPI routes met Depends(get_db) -- correct DI-patroon, backlog SP-AGT-005
+    src.core.agents.knowledge_agent.routes -> src.core.database.database
+    src.core.agents.translation_agent.routes -> src.core.database.database
+    # Cat B Stap 3D: startup-seeder en Redis-client -- backlog SP-AGT-005
+    src.core.agents.seed_agent_registry -> src.core.database.database
+    src.core.agents.seed_agent_registry -> src.core.database.session
+    src.core.agents.autonomous_agent -> src.core.database.redis
+    # Cat B SP-AGT-005: lazy import in _persist_to_db -- best-effort secondary write
+    src.core.agents.critique_store -> src.core.database.database
+    # Cat B SP-AGT-006: lazy import in _refresh_mv -- best-effort MV refresh
+    src.core.agents.critique_store -> src.core.utils.best_effort
+    # Cat B SP-AGT-007: lazy import in _create_hitl_ticket -- best-effort HITL escalation
+    src.core.agents.critique_store -> src.core.tool_broker.hitl_repository
+    # Cat B SP-AGT-008: ShadowCEO critique-signal -- lazy import in _assess_critique_risk
+    src.core.als.enterprise.shadow.shadow_ceo -> src.core.agents.critique_store
+    # Cat B SP-AGT-008: OODA observer orient-fase -- lazy imports in _orient_publish_critique_event
+    src.core.learning.observers.ooda_loop_observer -> src.core.learning.events.event_bus
+    src.core.learning.observers.ooda_loop_observer -> src.core.learning.events.twin_events
+    src.core.learning.observers.ooda_loop_observer -> src.core.utils.best_effort

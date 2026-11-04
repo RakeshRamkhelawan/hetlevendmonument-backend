@@ -1,0 +1,237 @@
+#!/usr/bin/env bash
+#
+# scripts/hooks/pre-commit -- geinstalleerd door scripts/install-hooks.sh
+#
+# Twee blokkerende checks op de GESTAGEDE bestanden:
+#   1. Any-type gate (backend + frontend)  -- weert nieuwe bare Any/any
+#   2. Alembic migratie-validatie          -- alleen als er een migratie in de commit zit
+#
+# Achtergrond (BE-CI-006, 2026-08-13). Dit bestand bestond wel in .git/hooks/ maar was
+# UNTRACKED: een handgeschreven script uit december 2025 dat alleen migraties valideerde.
+# Het stond dus op precies een machine, en de any-type gate stond nergens -- niet hier en
+# niet in CI, waar de stap door een ontbrekende fetch-depth altijd "skipping" meldde. Zo kon
+# de teller van 0 naar 40 lopen zonder dat iemand iets zag. Daarom staat de hook nu in de
+# repo.
+#
+# Bewust NIET het pre-commit framework: dat zou black, isort en ruff-format aanzetten op
+# elke gestagede file, en volgens .claude/rules/quality-gates.md is ongeveer een derde van
+# src/ nooit geformatteerd. Die formatters zouden dan regels herschrijven die de committer
+# niet heeft aangeraakt. Zie de kop van .pre-commit-config.yaml.
+
+set -euo pipefail
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+fail() {
+  printf "${RED}[pre-commit] %s${NC}\n" "$1" >&2
+}
+
+info() {
+  printf "${YELLOW}[pre-commit] %s${NC}\n" "$1"
+}
+
+ok() {
+  printf "${GREEN}[pre-commit] %s${NC}\n" "$1"
+}
+
+
+# ---------------------------------------------------------------------------
+# De Python van het PROJECT, niet de eerste die toevallig in PATH staat
+# ---------------------------------------------------------------------------
+# Gemeten 2026-10-22: een merge-commit in de noodstop-werkkopie draaide de controle onder
+# `xargs` met de systeem-Python 3.13 (`Python313\python.exe`) in plaats van `.venv` (3.11): de
+# hook riep kaal `python` aan, en wat dat is hangt af van wie de commit start. Tests onder een
+# andere interpreter dan het project meten iets anders, of falen op ontbrekende pakketten.
+# Daarom: eerst de `.venv` van deze werkkopie, dan die van de hoofdrepo (een gelinkte worktree
+# heeft er zelf geen), dan een actieve VIRTUAL_ENV; en is het geen 3.11, dan stopt de hook luid.
+# kies_python begin
+kies_python() {
+  local top common map exe
+  top=$(git rev-parse --show-toplevel 2>/dev/null) || return 1
+  common=$(cd "$(git rev-parse --git-common-dir 2>/dev/null)" 2>/dev/null && pwd) || common=""
+  for map in "$top/.venv" "${common:+$(dirname "$common")/.venv}" "${VIRTUAL_ENV:-}"; do
+    [ -n "$map" ] || continue
+    for exe in "$map/Scripts/python.exe" "$map/bin/python"; do
+      if [ -x "$exe" ]; then
+        printf '%s\n' "$exe"
+        return 0
+      fi
+    done
+  done
+  return 1
+}
+# kies_python eind
+
+PYTHON=$(kies_python || true)
+if [ -z "$PYTHON" ]; then
+  fail "GEEN projectomgeving gevonden (.venv in deze werkkopie, in de hoofdrepo, of VIRTUAL_ENV)."
+  fail "De hook draait niet met een willekeurige python uit PATH. Maak de omgeving aan en commit opnieuw."
+  exit 1
+fi
+if ! "$PYTHON" -c 'import sys; sys.exit(0 if sys.version_info[:2] == (3, 11) else 1)'; then
+  fail "De projectomgeving ($PYTHON) is geen Python 3.11; de tests zouden iets anders meten."
+  exit 1
+fi
+
+# Meer dan 50 geselecteerde testbestanden draaien parallel met -n 4, nooit meer (CLAUDE.md: met
+# meer workers loopt het geheugen vol en meldt pytest willekeurige tests als FAILED). Kleiner: serieel.
+# pytest_opties begin
+pytest_opties() {
+  if [ "$1" -gt 50 ]; then
+    printf '%s\n' "-n 4"
+  fi
+}
+# pytest_opties eind
+
+STAGED=$(git -c core.quotepath=off diff --cached --name-only --diff-filter=ACMRT)
+
+# ---------------------------------------------------------------------------
+# 0. Niet-ASCII gate (NOOIT-lijst) -- dezelfde controle als de CI
+# ---------------------------------------------------------------------------
+# Gemeten 2026-10-22: de CI faalde op twee niet-ASCII-tekens die deze hook liet passeren, want alleen de CI had een eigen grep.
+# scripts/check_non_ascii.py is nu de enige definitie; mappen en uitzondering (het archief) zijn die van de CI.
+STAGED_ASCII=$(printf '%s\n' "$STAGED" | grep -E '^(src|scripts|mcp-server)/.*\.py$' | grep -v '^src/alembic/versions/archive/' || true)
+# De hook staat in de GEDEELDE .git/hooks: een oudere tak zonder het script mag er niet door vastlopen.
+if [ -n "$STAGED_ASCII" ] && [ ! -f scripts/check_non_ascii.py ]; then
+  info "Niet-ASCII gate overgeslagen: scripts/check_non_ascii.py ontbreekt in deze werkkopie (oudere tak)."
+elif [ -n "$STAGED_ASCII" ]; then
+  info "Niet-ASCII gate op $(printf '%s\n' "$STAGED_ASCII" | wc -l) Python-bestand(en)..."
+  if ! printf '%s\n' "$STAGED_ASCII" | xargs "$PYTHON" scripts/check_non_ascii.py; then
+    fail "FAILED: niet-ASCII teken in Python-broncode (NOOIT-lijst)."
+    fail "Gebruik uitsluitend ASCII in code, comments en logs. Zie de melding hierboven."
+    exit 1
+  fi
+fi
+
+# ---------------------------------------------------------------------------
+# 1. Any-type gate -- backend
+# ---------------------------------------------------------------------------
+STAGED_PY=$(printf '%s\n' "$STAGED" | grep -E '^(src|scripts)/.*\.py$' || true)
+if [ -n "$STAGED_PY" ]; then
+  info "Any-type gate op $(printf '%s\n' "$STAGED_PY" | wc -l) Python-bestand(en)..."
+  if ! printf '%s\n' "$STAGED_PY" | xargs "$PYTHON" scripts/check_any_gate.py --fail; then
+    fail "FAILED: nieuwe Any zonder TODO(TYPE) of type: ignore."
+    fail "Fix het type, of boek de schuld expliciet. Zie de melding hierboven."
+    exit 1
+  fi
+fi
+
+# ---------------------------------------------------------------------------
+# 2. Any-type gate -- frontend
+# ---------------------------------------------------------------------------
+STAGED_TS=$(printf '%s\n' "$STAGED" | grep -E '^frontend/src/.*\.(ts|tsx)$' || true)
+if [ -n "$STAGED_TS" ]; then
+  info "Any-type gate op $(printf '%s\n' "$STAGED_TS" | wc -l) TS-bestand(en)..."
+  if ! printf '%s\n' "$STAGED_TS" | xargs node frontend/scripts/check-any-gate.mjs --fail; then
+    fail "FAILED: nieuwe expliciete any in de frontend."
+    exit 1
+  fi
+fi
+
+# ---------------------------------------------------------------------------
+# 3. Alembic migratie-validatie (verhuisd uit het oude untracked hook-script)
+# ---------------------------------------------------------------------------
+STAGED_MIGRATIONS=$(printf '%s\n' "$STAGED" | grep -E 'alembic/versions/.*\.py$' || true)
+if [ -n "$STAGED_MIGRATIONS" ]; then
+  info "Alembic-migraties valideren..."
+  if [ ! -f "scripts/validate-migration.py" ]; then
+    fail "ERROR: scripts/validate-migration.py niet gevonden"
+    exit 1
+  fi
+  if ! "$PYTHON" scripts/validate-migration.py; then
+    fail "FAILED: migratie-validatie gaf fouten"
+    echo ""
+    fail "Te controleren:"
+    echo "- Dubbele table-creatie (wrap in: if 'table' not in inspector.get_table_names())"
+    echo "- Multi-tenant tabellen hebben tenant_id met FK naar tenants.id"
+    echo "- Conditionele checks rond ALTER TABLE"
+    echo "- Elke upgrade() heeft een werkende downgrade() -- nooit pass"
+    exit 1
+  fi
+fi
+
+# ---------------------------------------------------------------------------
+# 4. Gerichte tests op wat deze commit RAAKT
+# ---------------------------------------------------------------------------
+# Toegevoegd 2026-09-25, en niet uit netheid. Op de tak iter/genuine-implementations
+# stond een test 45 commits lang rood zonder dat iemand het wist: een goede reparatie
+# (open lijst -> begrensde deque, tegen een geheugenlek) liet een assertie `== []`
+# staan, en een lege deque is niet gelijk aan een lege lijst. Zelf nagemeten: noch
+# `mypy --strict-equality` noch `pyright` in strikte modus meldt die vergelijking.
+# Alleen de test DRAAIEN vindt hem -- en deze hook draaide er tot vandaag nul.
+#
+# De selectie kiest op IMPORT, niet op een los woord: voor het bewuste bestand gaf de
+# oude woord-zoekopdracht 30 treffers waarvan er 2 de module echt importeerden. Die
+# twee draaien kostte vier seconden.
+#
+# `-x` stopt bij de eerste failure: een kapotte commit hoort snel te falen, niet
+# volledig te rapporteren.
+GERAAKT=$("$PYTHON" scripts/impact_tests.py --staged 2>/dev/null || true)
+if [ -n "$GERAAKT" ]; then
+  AANTAL=$(printf '%s
+' "$GERAAKT" | wc -l)
+  info "Gerichte tests op $AANTAL geraakt testbestand(en)..."
+  # shellcheck disable=SC2046
+  if ! printf '%s
+' "$GERAAKT" | xargs "$PYTHON" -m pytest $(pytest_opties "$AANTAL") -x -q --timeout=60; then
+    fail "FAILED: een test die deze wijziging raakt, faalt"
+    echo ""
+    fail "Dit is GEEN reden om de hook te omzeilen. Een test die rood wordt door jouw"
+    fail "wijziging is precies wat deze stap moet vinden -- de vorige keer stond zo'n"
+    fail "test 45 commits lang rood voordat iemand het merkte."
+    echo ""
+    echo "Welke tests geraakt zijn:  python scripts/impact_tests.py --staged"
+    exit 1
+  fi
+fi
+
+# ---------------------------------------------------------------------------
+# 4. Briefcontrole -- een opdracht die de keten in gaat, moet uitvoerbaar zijn
+# ---------------------------------------------------------------------------
+#
+# Toegevoegd 2026-09-28. Aanleiding, gemeten: 18 van de 20 recentste briefs voldeden niet
+# aan hun eigen checklist uit brief-vervaardigen.md stap 8 (minimaal vijf concrete
+# bestand:regel-verwijzingen; veertien hadden er nul). De checklist wordt door de schrijver
+# zelf afgevinkt en dat haalde 10 procent.
+#
+# De brief is stap 1 van de keten: een fout hier werkt door in alles wat erna komt. Er is
+# ook een Claude Code PostToolUse-hook (.claude/hooks/check-brief-on-save.sh), maar die
+# draait alleen in een sessie die de gewijzigde settings.json heeft geladen. Deze stap
+# hangt van niets af behalve git.
+STAGED_BRIEFS=$(printf '%s\n' "$STAGED" | grep -E '^docs/agent-briefs/generated/.*\.md$' || true)
+# Bij een merge: alleen de briefs die de merge ZELF toevoegt of wijzigt, niet de ongewijzigde
+# briefs van de andere tak. Die zijn verslagen van wat daar toen stond (CLAUDE.md: historische
+# briefs blijven ongemoeid) en zijn in hun eigen repo al verwerkt. Zelfde doorsnede-principe
+# als `impact_tests --staged` bij een merge (2026-10-22). Besluit Rakesh 2026-11-01 ("ja
+# gewoon overslaan, want in het project sanskritisetu is het wel verwerkt"), na een
+# sync-merge die werd geweigerd op vier ongewijzigde upstream-briefs van 6-12 oktober.
+if [ -n "$STAGED_BRIEFS" ] && git rev-parse -q --verify MERGE_HEAD >/dev/null 2>&1; then
+  VAN_DE_MERGE=$(git -c core.quotepath=off diff --cached --name-only MERGE_HEAD -- docs/agent-briefs/generated || true)
+  STAGED_BRIEFS=$(printf '%s\n' "$STAGED_BRIEFS" | grep -Fx -f <(printf '%s\n' "$VAN_DE_MERGE") || true)
+fi
+if [ -n "$STAGED_BRIEFS" ]; then
+  AANTAL_B=$(printf '%s\n' "$STAGED_BRIEFS" | wc -l)
+  info "Briefcontrole op $AANTAL_B brief(s)..."
+  BRIEF_STUK=0
+  while IFS= read -r BRIEF; do
+    [ -z "$BRIEF" ] && continue
+    if ! "$PYTHON" scripts/check_brief.py "$BRIEF"; then
+      BRIEF_STUK=1
+    fi
+  done <<< "$STAGED_BRIEFS"
+  if [ "$BRIEF_STUK" -ne 0 ]; then
+    fail "GEWEIGERD: een brief in deze commit is niet uitvoerbaar"
+    echo ""
+    fail "Een brief met een onvervangen plaatshouder, een pad dat niet bestaat of een"
+    fail "persona die niet bestaat, stuurt de volgende sessie het verkeerde pad op."
+    echo ""
+    echo "Zet na het repareren het uitslagblok in de brief:"
+    echo "  python scripts/check_brief.py --blok <brief>"
+    exit 1
+  fi
+fi
+
+ok "alle pre-commit checks geslaagd"

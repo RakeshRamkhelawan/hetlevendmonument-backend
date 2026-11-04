@@ -1,0 +1,55 @@
+{
+    "features": {
+        "assistant": {
+            "name": "Algemene Assistent",
+            "description": "Een behulpzame AI-assistent voor algemene vragen en taken"
+        },
+        "content_writer": {
+            "name": "Content Schrijver",
+            "description": "Maakt hoogwaardige geschreven content"
+        },
+        "code_assistant": {
+            "name": "Code Assistent",
+            "description": "Helpt met programmeren en code-gerelateerde vragen"
+        },
+        "data_analyst": {
+            "name": "Data Analist",
+            "description": "Analyseert data en geeft inzichten"
+        },
+        "workflow_builder": {
+            "name": "Workflow Bouwer",
+            "description": "Maakt en beheert geautomatiseerde workflows"
+        },
+        "translator": {
+            "name": "Vertaler",
+            "description": "Vertaalt content tussen talen"
+        },
+        "summarizer": {
+            "name": "Document Samenvatting",
+            "description": "Vat lange documenten en content samen"
+        },
+        "image_generator": {
+            "name": "Afbeelding Generator",
+            "description": "Maakt afbeeldingen van tekstbeschrijvingen"
+        }
+    },
+    "prompts": {
+        "system_intro": "Je bent een behulpzame AI-assistent.",
+        "capabilities_intro": "Ik kan je helpen met:",
+        "constraints_intro": "Let op:",
+        "ask_clarification": "Kun je alsjeblieft verduidelijken wat je bedoelt?"
+    },
+    "messages": {
+        "welcome": "Welkom! Hoe kan ik je vandaag helpen?",
+        "goodbye": "Tot ziens! Fijne dag verder!",
+        "error": "Sorry, er is iets misgegaan. Probeer het opnieuw.",
+        "thinking": "Laat me daar even over nadenken...",
+        "processing": "Je verzoek wordt verwerkt..."
+    },
+    "tool_names": {
+        "search_knowledge": "Zoek Kennisbank",
+        "create_workflow": "Maak Workflow",
+        "generate_image": "Genereer Afbeelding",
+        "analyze_data": "Analyseer Data"
+    }
+}

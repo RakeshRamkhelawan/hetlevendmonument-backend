@@ -1,0 +1,55 @@
+{
+    "features": {
+        "assistant": {
+            "name": "General Assistant",
+            "description": "A helpful AI assistant for general questions and tasks"
+        },
+        "content_writer": {
+            "name": "Content Writer",
+            "description": "Creates high-quality written content"
+        },
+        "code_assistant": {
+            "name": "Code Assistant",
+            "description": "Helps with programming and code-related questions"
+        },
+        "data_analyst": {
+            "name": "Data Analyst",
+            "description": "Analyzes data and provides insights"
+        },
+        "workflow_builder": {
+            "name": "Workflow Builder",
+            "description": "Creates and manages automated workflows"
+        },
+        "translator": {
+            "name": "Translator",
+            "description": "Translates content between languages"
+        },
+        "summarizer": {
+            "name": "Document Summarizer",
+            "description": "Summarizes long documents and content"
+        },
+        "image_generator": {
+            "name": "Image Generator",
+            "description": "Creates images from text descriptions"
+        }
+    },
+    "prompts": {
+        "system_intro": "You are a helpful AI assistant.",
+        "capabilities_intro": "I can help you with:",
+        "constraints_intro": "Please note:",
+        "ask_clarification": "Could you please clarify what you mean?"
+    },
+    "messages": {
+        "welcome": "Welcome! How can I help you today?",
+        "goodbye": "Goodbye! Have a great day!",
+        "error": "I'm sorry, something went wrong. Please try again.",
+        "thinking": "Let me think about that...",
+        "processing": "Processing your request..."
+    },
+    "tool_names": {
+        "search_knowledge": "Search Knowledge Base",
+        "create_workflow": "Create Workflow",
+        "generate_image": "Generate Image",
+        "analyze_data": "Analyze Data"
+    }
+}

@@ -1,0 +1,3727 @@
+{
+  "generated_at": "2026-03-16T20:38:47.076485",
+  "tenant_id": 1,
+  "total_agents": 336,
+  "agents": [
+    {
+      "agent_id": "ab_test_controller_agent",
+      "agent_type": "ABTestControllerAgent",
+      "capabilities": [
+        "experiment_design",
+        "variant_management",
+        "traffic_splitting",
+        "statistical_significance_testing",
+        "winner_promotion",
+        "rollback_control"
+      ],
+      "department": "Core Platform",
+      "category": "Core",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "accessibility_agent",
+      "agent_type": "AccessibilityAgent",
+      "capabilities": [
+        "wcag_audit",
+        "screen_reader_testing",
+        "colour_contrast_checking",
+        "keyboard_navigation_review",
+        "aria_implementation",
+        "accessibility_report_generation"
+      ],
+      "department": "Product & Design",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "accounts_receivable_payable_agent",
+      "agent_type": "AccountsReceivablePayableAgent",
+      "capabilities": [
+        "invoice_processing",
+        "payment_reconciliation",
+        "aging_reports",
+        "cash_application"
+      ],
+      "department": "Finance & Treasury",
+      "category": "Enterprise",
+      "parent_class": "MLAgent"
+    },
+    {
+      "agent_id": "agent_health_monitor_agent",
+      "agent_type": "AgentHealthMonitorAgent",
+      "capabilities": [
+        "uptime_tracking",
+        "error_rate_monitoring",
+        "latency_profiling",
+        "alert_escalation",
+        "auto_restart_coordination",
+        "health_dashboard"
+      ],
+      "department": "Core Platform",
+      "category": "Core",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "agent_router_agent",
+      "agent_type": "AgentRouterAgent",
+      "capabilities": [
+        "intent_classification",
+        "agent_selection",
+        "context_handoff",
+        "capability_matching",
+        "fallback_routing",
+        "load_aware_dispatch"
+      ],
+      "department": "Core Platform",
+      "category": "Core",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "ai_engineer_agent",
+      "agent_type": "AiEngineerAgent",
+      "capabilities": [
+        "ai_engineer_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "AI Engineering",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "ai_ethics_auditor_agent",
+      "agent_type": "AIEthicsAuditorAgent",
+      "capabilities": [
+        "AI_bias_auditing",
+        "model_card_generation",
+        "compliance_reporting",
+        "fairness_metrics"
+      ],
+      "department": "Data & AI Governance",
+      "category": "Enterprise",
+      "parent_class": "MLAgent"
+    },
+    {
+      "agent_id": "analyzer_agent",
+      "agent_type": "AnalyzerAgent",
+      "capabilities": [
+        "multi_domain_analysis",
+        "data_parsing",
+        "report_generation"
+      ],
+      "department": "Core Platform",
+      "category": "Core",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "android_developer_agent",
+      "agent_type": "AndroidDeveloperAgent",
+      "capabilities": [
+        "kotlin_development",
+        "jetpack_compose",
+        "android_architecture",
+        "play_store_optimisation",
+        "android_testing",
+        "material_design_implementation"
+      ],
+      "department": "Mobile Engineering",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "api_documenter_agent",
+      "agent_type": "ApiDocumenterAgent",
+      "capabilities": [
+        "api_documenter_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Technical Services",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "api_security_agent",
+      "agent_type": "ApiSecurityAgent",
+      "capabilities": [
+        "api_vulnerability_scanning",
+        "auth_flow_review",
+        "rate_limit_design",
+        "owasp_api_security_checks",
+        "schema_validation",
+        "token_security_review"
+      ],
+      "department": "IT & Security",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "architect_review_agent",
+      "agent_type": "ArchitectReviewAgent",
+      "capabilities": [
+        "architect_review_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Engineering",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "audio_transcription_agent",
+      "agent_type": "AudioTranscriptionAgent",
+      "capabilities": [
+        "speech_to_text",
+        "meeting_transcription",
+        "speaker_diarisation",
+        "audio_sentiment_analysis",
+        "action_item_extraction",
+        "summary_generation"
+      ],
+      "department": "Technical Services",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "audit_compliance_agent",
+      "agent_type": "AuditComplianceAgent",
+      "capabilities": [
+        "audit_trail_generation",
+        "SOX_compliance",
+        "internal_controls",
+        "risk_scoring"
+      ],
+      "department": "Finance & Treasury",
+      "category": "Enterprise",
+      "parent_class": "HybridAgent"
+    },
+    {
+      "agent_id": "auto_dev_ops_agent",
+      "agent_type": "AutoDevOpsAgent",
+      "capabilities": [
+        "CI_CD_automation",
+        "pipeline_optimisation",
+        "deployment_monitoring",
+        "rollback_management"
+      ],
+      "department": "IT & Security",
+      "category": "Enterprise",
+      "parent_class": "HybridAgent"
+    },
+    {
+      "agent_id": "autonomous_agent",
+      "agent_type": "AutonomousAgent",
+      "capabilities": [
+        "autonomous_task_planning",
+        "self_correction",
+        "goal_decomposition",
+        "tool_selection"
+      ],
+      "department": "Core Platform",
+      "category": "Core",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "backend_architect_agent",
+      "agent_type": "BackendArchitectAgent",
+      "capabilities": [
+        "backend_architect_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Engineering",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "base_specialist_agent",
+      "agent_type": "BaseSpecialistAgent",
+      "capabilities": [
+        "dynamic_specialisation",
+        "skill_brokering",
+        "agent_spawning",
+        "context_inheritance"
+      ],
+      "department": "Core Platform",
+      "category": "ALS",
+      "parent_class": "SymbioticAgent"
+    },
+    {
+      "agent_id": "business_analyst_agent",
+      "agent_type": "BusinessAnalystAgent",
+      "capabilities": [
+        "business_analyst_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Business Analysis",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "c_pro_agent",
+      "agent_type": "CProAgent",
+      "capabilities": [
+        "c_pro_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Software Engineering",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "calendar_scheduler_agent",
+      "agent_type": "CalendarSchedulerAgent",
+      "capabilities": [
+        "availability_checking",
+        "meeting_scheduling",
+        "timezone_conversion",
+        "conflict_resolution",
+        "agenda_drafting"
+      ],
+      "department": "Specialist Services",
+      "category": "Subagent",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "change_management_agent",
+      "agent_type": "ChangeManagementAgent",
+      "capabilities": [
+        "change_impact_assessment",
+        "resistance_analysis",
+        "adoption_tracking",
+        "communication_planning",
+        "training_recommendation",
+        "rollout_scheduling"
+      ],
+      "department": "PMO & Project Management",
+      "category": "Enterprise",
+      "parent_class": "LLMAgent"
+    },
+    {
+      "agent_id": "ci_cd_pipeline_agent",
+      "agent_type": "CiCdPipelineAgent",
+      "capabilities": [
+        "pipeline_design",
+        "build_failure_analysis",
+        "stage_optimisation",
+        "parallelisation_recommendations",
+        "secrets_management_advice",
+        "deployment_gating"
+      ],
+      "department": "DevOps",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "circular_economy_agent",
+      "agent_type": "CircularEconomyAgent",
+      "capabilities": [
+        "lifecycle_assessment",
+        "waste_reduction_planning",
+        "circular_design_review",
+        "take_back_scheme_modelling",
+        "material_flow_analysis"
+      ],
+      "department": "Sustainability & ESG",
+      "category": "Enterprise",
+      "parent_class": "HybridAgent"
+    },
+    {
+      "agent_id": "cloud_architect_agent",
+      "agent_type": "CloudArchitectAgent",
+      "capabilities": [
+        "cloud_architect_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Cloud Engineering",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "cloud_cost_optimizer_agent",
+      "agent_type": "CloudCostOptimizerAgent",
+      "capabilities": [
+        "spend_analysis",
+        "rightsizing_recommendations",
+        "reserved_instance_advice",
+        "idle_resource_detection",
+        "cost_allocation_tagging",
+        "budget_forecasting"
+      ],
+      "department": "Cloud Engineering",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "cloud_orchestration_agent",
+      "agent_type": "CloudOrchestrationAgent",
+      "capabilities": [
+        "multi_cloud_management",
+        "resource_provisioning",
+        "cost_optimisation",
+        "compliance_checks"
+      ],
+      "department": "IT & Security",
+      "category": "Enterprise",
+      "parent_class": "HybridAgent"
+    },
+    {
+      "agent_id": "code_agent",
+      "agent_type": "CodeAgent",
+      "capabilities": [
+        "code_generation",
+        "debugging",
+        "code_review",
+        "refactoring"
+      ],
+      "department": "Core Platform",
+      "category": "Core",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "code_execution_agent",
+      "agent_type": "CodeExecutionAgent",
+      "capabilities": [
+        "sandboxed_execution",
+        "output_capture",
+        "dependency_management",
+        "timeout_handling"
+      ],
+      "department": "Specialist Services",
+      "category": "Subagent",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "code_reviewer_agent",
+      "agent_type": "CodeReviewerAgent",
+      "capabilities": [
+        "code_reviewer_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Engineering",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "communications_pr_crisismanager",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "communications_pr_publicrelations",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "communications_pr_shareholderrelations",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "community_management_agent",
+      "agent_type": "CommunityManagementAgent",
+      "capabilities": [
+        "community_moderation",
+        "engagement_tracking",
+        "content_scheduling",
+        "sentiment_monitoring"
+      ],
+      "department": "Customer Experience",
+      "category": "Enterprise",
+      "parent_class": "LLMAgent"
+    },
+    {
+      "agent_id": "compliance_scanner_agent",
+      "agent_type": "ComplianceScannerAgent",
+      "capabilities": [
+        "soc2_gap_analysis",
+        "iso27001_assessment",
+        "pci_dss_scanning",
+        "remediation_roadmap",
+        "evidence_collection",
+        "audit_readiness_scoring"
+      ],
+      "department": "IT & Security",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "container_security_agent",
+      "agent_type": "ContainerSecurityAgent",
+      "capabilities": [
+        "image_vulnerability_scanning",
+        "runtime_security_monitoring",
+        "secrets_detection",
+        "privilege_escalation_detection",
+        "sbom_generation",
+        "compliance_benchmarking"
+      ],
+      "department": "IT & Security",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "content_marketer_agent",
+      "agent_type": "ContentMarketerAgent",
+      "capabilities": [
+        "content_marketer_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Marketing",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "content_personalization_agent",
+      "agent_type": "ContentPersonalizationAgent",
+      "capabilities": [
+        "audience_segmentation",
+        "dynamic_content_generation",
+        "personalisation_rules",
+        "A_B_testing"
+      ],
+      "department": "Sales & Marketing",
+      "category": "Enterprise",
+      "parent_class": "HybridAgent"
+    },
+    {
+      "agent_id": "context_manager_agent",
+      "agent_type": "ContextManagerAgent",
+      "capabilities": [
+        "context_manager_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Core Platform",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "contract_analysis_agent",
+      "agent_type": "ContractAnalysisAgent",
+      "capabilities": [
+        "clause_extraction",
+        "risk_flagging",
+        "obligation_tracking",
+        "summary_generation"
+      ],
+      "department": "Legal & Compliance",
+      "category": "Enterprise",
+      "parent_class": "LLMAgent"
+    },
+    {
+      "agent_id": "contract_lifecycle_agent",
+      "agent_type": "ContractLifecycleAgent",
+      "capabilities": [
+        "contract_drafting",
+        "renewal_alerts",
+        "e_signature_coordination",
+        "version_control"
+      ],
+      "department": "Legal & Compliance",
+      "category": "Enterprise",
+      "parent_class": "HybridAgent"
+    },
+    {
+      "agent_id": "corporate_development_agent",
+      "agent_type": "CorporateDevelopmentAgent",
+      "capabilities": [
+        "growth_strategy_design",
+        "joint_venture_analysis",
+        "strategic_alliance_scouting",
+        "whitespace_identification",
+        "deal_thesis_drafting"
+      ],
+      "department": "Strategy & Business Development",
+      "category": "Enterprise",
+      "parent_class": "LLMAgent"
+    },
+    {
+      "agent_id": "cpp_pro_agent",
+      "agent_type": "CppProAgent",
+      "capabilities": [
+        "cpp_pro_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Software Engineering",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "credit_risk_agent",
+      "agent_type": "CreditRiskAgent",
+      "capabilities": [
+        "credit_scoring",
+        "exposure_monitoring",
+        "limit_management",
+        "early_warning_signals",
+        "portfolio_stress_testing",
+        "provisioning_calculation"
+      ],
+      "department": "Risk Management",
+      "category": "Enterprise",
+      "parent_class": "MLAgent"
+    },
+    {
+      "agent_id": "critic_agent",
+      "agent_type": "CriticAgent",
+      "capabilities": [
+        "output_quality_scoring",
+        "accuracy_assessment",
+        "completeness_checking",
+        "safety_scanning",
+        "heuristic_red_flag_detection",
+        "llm_deep_critique",
+        "critique_persistence",
+        "feedback_loop_integration"
+      ],
+      "department": "Core Platform",
+      "category": "Core",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "csharp_pro_agent",
+      "agent_type": "CsharpProAgent",
+      "capabilities": [
+        "csharp_pro_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Software Engineering",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "customer_experience_communitymanagement",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "customer_experience_customersuccess",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "customer_experience_sentimentsupport",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "customer_experience_useronboarding",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "customer_operations_agent",
+      "agent_type": "CustomerOperationsAgent",
+      "capabilities": [
+        "crisis_triage",
+        "escalation_routing",
+        "customer_communication",
+        "SLA_monitoring"
+      ],
+      "department": "Crisis Management",
+      "category": "Subagent",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "customer_success_agent",
+      "agent_type": "CustomerSuccessAgent",
+      "capabilities": [
+        "onboarding_automation",
+        "churn_prediction",
+        "NPS_tracking",
+        "escalation_handling"
+      ],
+      "department": "Customer Experience",
+      "category": "Enterprise",
+      "parent_class": "LLMAgent"
+    },
+    {
+      "agent_id": "customer_support_agent",
+      "agent_type": "CustomerSupportAgent",
+      "capabilities": [
+        "customer_support_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Customer Experience",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "cva_agent",
+      "agent_type": "CVAAgent",
+      "capabilities": [
+        "competitive_analysis",
+        "value_assessment",
+        "market_positioning"
+      ],
+      "department": "Core Platform",
+      "category": "Core",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "cybersecurity_agent",
+      "agent_type": "CybersecurityAgent",
+      "capabilities": [
+        "incident_containment",
+        "forensic_support",
+        "breach_notification",
+        "recovery_coordination"
+      ],
+      "department": "Crisis Management",
+      "category": "Subagent",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "data_ai_governance_aiethicsauditor",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "data_ai_governance_dataengineer",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "data_ai_governance_dataintegrityethics",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "data_ai_governance_datascience",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "data_ai_governance_datavisualization",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "data_ai_governance_knowledgecurator",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "data_ai_governance_mlopsspecialist",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "data_ai_governance_nlpexpert",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "data_analysis_agent",
+      "agent_type": "DataAnalysisAgent",
+      "capabilities": [
+        "statistical_analysis",
+        "visualisation_generation",
+        "outlier_detection",
+        "summary_reporting"
+      ],
+      "department": "Specialist Services",
+      "category": "Subagent",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "data_engineer_agent",
+      "agent_type": "DataEngineerAgent",
+      "capabilities": [
+        "data_engineer_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Data Engineering",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "data_integrity_agent",
+      "agent_type": "DataIntegrityAgent",
+      "capabilities": [
+        "checksum_validation",
+        "data_replication_monitoring",
+        "corruption_detection",
+        "alerting"
+      ],
+      "department": "IT & Security",
+      "category": "Enterprise",
+      "parent_class": "MLAgent"
+    },
+    {
+      "agent_id": "data_integrity_ethics_agent",
+      "agent_type": "DataIntegrityEthicsAgent",
+      "capabilities": [
+        "data_lineage_tracking",
+        "ethics_policy_enforcement",
+        "anomaly_flagging"
+      ],
+      "department": "Data & AI Governance",
+      "category": "Enterprise",
+      "parent_class": "MLAgent"
+    },
+    {
+      "agent_id": "data_quality_sentinel_agent",
+      "agent_type": "DataQualitySentinelAgent",
+      "capabilities": [
+        "schema_validation",
+        "data_completeness_checks",
+        "duplicate_detection",
+        "alerting"
+      ],
+      "department": "Data & AI Governance",
+      "category": "Enterprise",
+      "parent_class": "MLAgent"
+    },
+    {
+      "agent_id": "data_science_agent",
+      "agent_type": "DataScienceAgent",
+      "capabilities": [
+        "EDA",
+        "model_training",
+        "feature_engineering",
+        "experiment_tracking"
+      ],
+      "department": "Data & AI Governance",
+      "category": "Enterprise",
+      "parent_class": "HybridAgent"
+    },
+    {
+      "agent_id": "data_scientist_agent",
+      "agent_type": "DataScientistAgent",
+      "capabilities": [
+        "data_scientist_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Data Engineering",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "database_admin_agent",
+      "agent_type": "DatabaseAdminAgent",
+      "capabilities": [
+        "database_admin_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Data Engineering",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "database_optimizer_agent",
+      "agent_type": "DatabaseOptimizerAgent",
+      "capabilities": [
+        "database_optimizer_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Data Engineering",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "dependency_manager_agent",
+      "agent_type": "DependencyManagerAgent",
+      "capabilities": [
+        "dependency_mapping",
+        "blocker_detection",
+        "escalation_routing",
+        "critical_path_analysis",
+        "inter_team_coordination"
+      ],
+      "department": "PMO & Project Management",
+      "category": "Enterprise",
+      "parent_class": "HybridAgent"
+    },
+    {
+      "agent_id": "django_pro_agent",
+      "agent_type": "DjangoProAgent",
+      "capabilities": [
+        "django_pro_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Software Engineering",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "docker_specialist_agent",
+      "agent_type": "DockerSpecialistAgent",
+      "capabilities": [
+        "dockerfile_creation",
+        "multi_stage_build_optimisation",
+        "image_scanning",
+        "registry_management",
+        "compose_file_design",
+        "layer_caching_strategy"
+      ],
+      "department": "DevOps",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "docs_architect_agent",
+      "agent_type": "DocsArchitectAgent",
+      "capabilities": [
+        "docs_architect_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Technical Services",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "document_intelligence_agent",
+      "agent_type": "DocumentIntelligenceAgent",
+      "capabilities": [
+        "pdf_extraction",
+        "docx_parsing",
+        "form_processing",
+        "ocr_recognition",
+        "table_extraction",
+        "structure_classification"
+      ],
+      "department": "Technical Services",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "dx_optimizer_agent",
+      "agent_type": "DxOptimizerAgent",
+      "capabilities": [
+        "dx_optimizer_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Engineering",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "dynamic_pricing_agent",
+      "agent_type": "DynamicPricingAgent",
+      "capabilities": [
+        "price_elasticity_modelling",
+        "competitor_pricing",
+        "real_time_adjustments",
+        "margin_protection"
+      ],
+      "department": "Sales & Marketing",
+      "category": "Enterprise",
+      "parent_class": "MLAgent"
+    },
+    {
+      "agent_id": "elixir_pro_agent",
+      "agent_type": "ElixirProAgent",
+      "capabilities": [
+        "elixir_pro_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Software Engineering",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "embedding_engineer_agent",
+      "agent_type": "EmbeddingEngineerAgent",
+      "capabilities": [
+        "embedding_strategy",
+        "vector_store_design",
+        "rag_pipeline_construction",
+        "similarity_search_optimisation",
+        "chunking_strategy",
+        "retrieval_evaluation"
+      ],
+      "department": "AI Engineering",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "employee_experience_agent",
+      "agent_type": "EmployeeExperienceAgent",
+      "capabilities": [
+        "onboarding_journey_design",
+        "engagement_programme_management",
+        "wellbeing_monitoring",
+        "exit_interview_analysis",
+        "recognition_programme_support"
+      ],
+      "department": "HR & Culture",
+      "category": "Enterprise",
+      "parent_class": "HybridAgent"
+    },
+    {
+      "agent_id": "employee_sentiment_agent",
+      "agent_type": "EmployeeSentimentAgent",
+      "capabilities": [
+        "pulse_survey_analysis",
+        "eNPS_tracking",
+        "sentiment_heatmaps",
+        "trend_detection"
+      ],
+      "department": "HR & Culture",
+      "category": "Enterprise",
+      "parent_class": "HybridAgent"
+    },
+    {
+      "agent_id": "error_detective_agent",
+      "agent_type": "ErrorDetectiveAgent",
+      "capabilities": [
+        "error_detective_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Engineering",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "esg_reporting_agent",
+      "agent_type": "ESGReportingAgent",
+      "capabilities": [
+        "co2_footprint_calculation",
+        "esg_score_generation",
+        "investor_reporting",
+        "regulatory_esg_compliance",
+        "benchmark_comparison",
+        "disclosure_drafting"
+      ],
+      "department": "Sustainability & ESG",
+      "category": "Enterprise",
+      "parent_class": "HybridAgent"
+    },
+    {
+      "agent_id": "executive_briefing_agent",
+      "agent_type": "ExecutiveBriefingAgent",
+      "capabilities": [
+        "executive_summary_drafting",
+        "board_deck_preparation",
+        "kpi_distillation",
+        "decision_brief_writing",
+        "narrative_structuring",
+        "talking_point_generation"
+      ],
+      "department": "Internal Communications",
+      "category": "Enterprise",
+      "parent_class": "LLMAgent"
+    },
+    {
+      "agent_id": "executor_agent",
+      "agent_type": "ExecutorAgent",
+      "capabilities": [
+        "task_execution",
+        "workflow_orchestration",
+        "error_handling",
+        "retry_logic"
+      ],
+      "department": "Core Platform",
+      "category": "Core",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "fastapi_pro_agent",
+      "agent_type": "FastapiProAgent",
+      "capabilities": [
+        "fastapi_pro_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Software Engineering",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "feedback_loop_agent",
+      "agent_type": "FeedbackLoopAgent",
+      "capabilities": [
+        "feedback_collection",
+        "sentiment_analysis",
+        "learning_signal_extraction",
+        "improvement_distribution",
+        "ab_test_evaluation",
+        "quality_trend_tracking"
+      ],
+      "department": "Core Platform",
+      "category": "Core",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "finance_tax_compliance",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "finance_treasury_accountsreceivablepayable",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "finance_treasury_auditcompliance",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "finance_treasury_forecasting",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "finance_treasury_investmentallocation",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "financial_agent",
+      "agent_type": "FinancialAgent",
+      "capabilities": [
+        "financial_planning",
+        "budget_analysis",
+        "cash_flow_modelling",
+        "investment_advice"
+      ],
+      "department": "Core Platform",
+      "category": "Core",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "financial_reporting_agent",
+      "agent_type": "FinancialReportingAgent",
+      "capabilities": [
+        "financial_reporting",
+        "P&L_analysis",
+        "balance_sheet_review",
+        "regulatory_reporting"
+      ],
+      "department": "Core Platform",
+      "category": "Core",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "financial_risk_agent",
+      "agent_type": "FinancialRiskAgent",
+      "capabilities": [
+        "risk_quantification",
+        "exposure_mapping",
+        "hedging_recommendations",
+        "executive_briefing"
+      ],
+      "department": "Crisis Management",
+      "category": "Subagent",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "fine_tuning_agent",
+      "agent_type": "FineTuningAgent",
+      "capabilities": [
+        "dataset_preparation",
+        "fine_tuning_workflow_design",
+        "peft_lora_configuration",
+        "evaluation_benchmark_design",
+        "training_monitoring",
+        "model_card_generation"
+      ],
+      "department": "AI Engineering",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "flutter_expert_agent",
+      "agent_type": "FlutterExpertAgent",
+      "capabilities": [
+        "flutter_expert_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Mobile Engineering",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "forecasting_agent",
+      "agent_type": "ForecastingAgent",
+      "capabilities": [
+        "revenue_forecasting",
+        "scenario_modelling",
+        "variance_analysis",
+        "dashboard_generation"
+      ],
+      "department": "Finance & Treasury",
+      "category": "Enterprise",
+      "parent_class": "MLAgent"
+    },
+    {
+      "agent_id": "fraud_detection_agent",
+      "agent_type": "FraudDetectionAgent",
+      "capabilities": [
+        "transaction_anomaly_detection",
+        "fraud_pattern_recognition",
+        "real_time_scoring",
+        "case_management",
+        "false_positive_reduction",
+        "regulatory_reporting"
+      ],
+      "department": "Risk Management",
+      "category": "Enterprise",
+      "parent_class": "MLAgent"
+    },
+    {
+      "agent_id": "gdpr_privacy_guard_agent",
+      "agent_type": "GDPRPrivacyGuardAgent",
+      "capabilities": [
+        "PII_detection",
+        "consent_management",
+        "DSAR_handling",
+        "breach_notification"
+      ],
+      "department": "Legal & Compliance",
+      "category": "Enterprise",
+      "parent_class": "HybridAgent"
+    },
+    {
+      "agent_id": "git_ops_agent",
+      "agent_type": "GitOpsAgent",
+      "capabilities": [
+        "argocd_configuration",
+        "flux_setup",
+        "gitops_workflow_design",
+        "drift_detection",
+        "rollback_automation",
+        "environment_promotion"
+      ],
+      "department": "DevOps",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "godmode_customer_experience_churnpredictor",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "godmode_customer_experience_emotionalmirror",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "godmode_data_ai_governance_hallucinationhunter",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "godmode_data_ai_governance_workflowrefactoring",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "godmode_it_security_chaosengineering",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "godmode_it_security_redteaming",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "godmode_it_security_zerodaypredictor",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "godmode_strategy_business_competitorshadow",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "godmode_strategy_business_dharmaalignment",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "godmode_strategy_business_geopoliticalrisk",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "godmode_strategy_business_karmaauditor",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "godmode_strategy_business_mergeracquisitionscout",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "golang_pro_agent",
+      "agent_type": "GolangProAgent",
+      "capabilities": [
+        "golang_pro_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Software Engineering",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "graph_database_agent",
+      "agent_type": "GraphDatabaseAgent",
+      "capabilities": [
+        "cypher_query_design",
+        "graph_schema_modelling",
+        "knowledge_graph_construction",
+        "relationship_analysis",
+        "graph_algorithm_selection",
+        "neo4j_optimisation"
+      ],
+      "department": "Data Engineering",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "graphql_architect_agent",
+      "agent_type": "GraphqlArchitectAgent",
+      "capabilities": [
+        "graphql_architect_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Engineering",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "hr_culture_employeesentiment",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "hr_culture_internalmobility",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "hr_culture_skillsgaptraining",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "hr_culture_talentacquisition",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "hr_pro_agent",
+      "agent_type": "HrProAgent",
+      "capabilities": [
+        "hr_pro_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "HR & Culture",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "hybrid_cloud_architect_agent",
+      "agent_type": "HybridCloudArchitectAgent",
+      "capabilities": [
+        "hybrid_cloud_architect_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Cloud Engineering",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "incident_responder_agent",
+      "agent_type": "IncidentResponderAgent",
+      "capabilities": [
+        "incident_responder_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Operations",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "internal_comms_agent",
+      "agent_type": "InternalCommsAgent",
+      "capabilities": [
+        "newsletter_drafting",
+        "all_hands_preparation",
+        "message_consistency_checking",
+        "tone_alignment",
+        "audience_segmentation",
+        "multi_channel_distribution"
+      ],
+      "department": "Internal Communications",
+      "category": "Enterprise",
+      "parent_class": "LLMAgent"
+    },
+    {
+      "agent_id": "internal_mobility_agent",
+      "agent_type": "InternalMobilityAgent",
+      "capabilities": [
+        "skills_matching",
+        "role_recommendation",
+        "career_path_modelling",
+        "vacancy_matching"
+      ],
+      "department": "HR & Culture",
+      "category": "Enterprise",
+      "parent_class": "LLMAgent"
+    },
+    {
+      "agent_id": "inventory_forecaster_agent",
+      "agent_type": "InventoryForecasterAgent",
+      "capabilities": [
+        "demand_forecasting",
+        "reorder_point_calculation",
+        "safety_stock_optimisation",
+        "supplier_alerts"
+      ],
+      "department": "Operations & Supply Chain",
+      "category": "Enterprise",
+      "parent_class": "MLAgent"
+    },
+    {
+      "agent_id": "investment_allocation_agent",
+      "agent_type": "InvestmentAllocationAgent",
+      "capabilities": [
+        "portfolio_optimisation",
+        "risk_return_analysis",
+        "asset_allocation",
+        "rebalancing"
+      ],
+      "department": "Finance & Treasury",
+      "category": "Enterprise",
+      "parent_class": "MLAgent"
+    },
+    {
+      "agent_id": "ios_developer_agent",
+      "agent_type": "IosDeveloperAgent",
+      "capabilities": [
+        "ios_developer_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Mobile Engineering",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "it_security_autodevops",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "it_security_cloudarchitect",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "it_security_cloudorchestration",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "it_security_databaseadmin",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "it_security_dataintegrity",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "it_security_incidentresponder",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "it_security_kubernetesarchitect",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "it_security_securityauditor",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "it_security_terraformspecialist",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "it_security_threathunter",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "java_pro_agent",
+      "agent_type": "JavaProAgent",
+      "capabilities": [
+        "java_pro_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Software Engineering",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "javascript_pro_agent",
+      "agent_type": "JavascriptProAgent",
+      "capabilities": [
+        "javascript_pro_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Software Engineering",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "kafka_specialist_agent",
+      "agent_type": "KafkaSpecialistAgent",
+      "capabilities": [
+        "topic_design",
+        "consumer_group_configuration",
+        "partition_strategy",
+        "schema_registry_management",
+        "lag_monitoring",
+        "stream_processing_design"
+      ],
+      "department": "Data Engineering",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "knowledge_agent",
+      "agent_type": "KnowledgeAgent",
+      "capabilities": [
+        "knowledge_base_retrieval",
+        "FAQ_generation",
+        "semantic_search",
+        "document_indexing"
+      ],
+      "department": "Specialist Services",
+      "category": "Subagent",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "kubernetes_architect_agent",
+      "agent_type": "KubernetesArchitectAgent",
+      "capabilities": [
+        "kubernetes_architect_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "DevOps",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "lead_gen_agent",
+      "agent_type": "LeadGenAgent",
+      "capabilities": [
+        "ICP_definition",
+        "prospect_sourcing",
+        "enrichment",
+        "outreach_sequencing"
+      ],
+      "department": "Sales & Marketing",
+      "category": "Enterprise",
+      "parent_class": "LLMAgent"
+    },
+    {
+      "agent_id": "legacy_modernizer_agent",
+      "agent_type": "LegacyModernizerAgent",
+      "capabilities": [
+        "legacy_modernizer_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Engineering",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "legal_advisor_agent",
+      "agent_type": "LegalAdvisorAgent",
+      "capabilities": [
+        "legal_advisor_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Legal & Compliance",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "legal_compliance_agent",
+      "agent_type": "LegalComplianceAgent",
+      "capabilities": [
+        "regulatory_breach_assessment",
+        "legal_hold_management",
+        "counsel_coordination",
+        "documentation"
+      ],
+      "department": "Crisis Management",
+      "category": "Subagent",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "legal_compliance_contractanalysis",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "legal_compliance_contractlifecycle",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "legal_compliance_gdprprivacyguard",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "legal_compliance_regulatorytracking",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "load_testing_agent",
+      "agent_type": "LoadTestingAgent",
+      "capabilities": [
+        "load_test_design",
+        "stress_test_execution",
+        "scalability_analysis",
+        "bottleneck_identification",
+        "sla_validation",
+        "performance_regression_detection"
+      ],
+      "department": "Engineering",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "localization_agent",
+      "agent_type": "LocalizationAgent",
+      "capabilities": [
+        "i18n_implementation",
+        "translation_management",
+        "locale_configuration",
+        "rtl_layout_support",
+        "cultural_adaptation",
+        "pluralisation_rules"
+      ],
+      "department": "Technical Services",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "logistics_optimization_agent",
+      "agent_type": "LogisticsOptimizationAgent",
+      "capabilities": [
+        "route_optimisation",
+        "carrier_selection",
+        "last_mile_analytics",
+        "cost_reduction"
+      ],
+      "department": "Operations & Supply Chain",
+      "category": "Enterprise",
+      "parent_class": "MLAgent"
+    },
+    {
+      "agent_id": "logistics_trade_customscompliance",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "logistics_trade_routeoptimizer",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "ma_analyst_agent",
+      "agent_type": "MaAnalystAgent",
+      "capabilities": [
+        "deal_screening",
+        "valuation_modelling",
+        "due_diligence_support",
+        "integration_planning"
+      ],
+      "department": "Strategy & Business Development",
+      "category": "Enterprise",
+      "parent_class": "HybridAgent"
+    },
+    {
+      "agent_id": "market_gap_analysis_agent",
+      "agent_type": "MarketGapAnalysisAgent",
+      "capabilities": [
+        "competitive_landscape",
+        "whitespace_identification",
+        "TAM_sizing",
+        "opportunity_scoring"
+      ],
+      "department": "Product & Innovation",
+      "category": "Enterprise",
+      "parent_class": "HybridAgent"
+    },
+    {
+      "agent_id": "market_intelligence_agent",
+      "agent_type": "MarketIntelligenceAgent",
+      "capabilities": [
+        "competitive_monitoring",
+        "trend_analysis",
+        "win_loss_reporting",
+        "market_sizing"
+      ],
+      "department": "Strategy & Business Development",
+      "category": "Enterprise",
+      "parent_class": "HybridAgent"
+    },
+    {
+      "agent_id": "marketing_agent",
+      "agent_type": "MarketingAgent",
+      "capabilities": [
+        "campaign_planning",
+        "audience_segmentation",
+        "content_strategy",
+        "performance_tracking"
+      ],
+      "department": "Core Platform",
+      "category": "Core",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "master_orchestrator_agent",
+      "agent_type": "MasterOrchestratorAgent",
+      "capabilities": [
+        "multi_agent_coordination",
+        "task_decomposition",
+        "resource_allocation",
+        "priority_scheduling",
+        "agent_dispatch",
+        "workflow_synthesis",
+        "failure_recovery",
+        "load_balancing"
+      ],
+      "department": "Core Platform",
+      "category": "Core",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "memory_manager_agent",
+      "agent_type": "MemoryManagerAgent",
+      "capabilities": [
+        "memory_storage",
+        "context_compression",
+        "relevance_scoring",
+        "memory_retrieval",
+        "ttl_management",
+        "cross_session_continuity"
+      ],
+      "department": "Core Platform",
+      "category": "Core",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "mermaid_expert_agent",
+      "agent_type": "MermaidExpertAgent",
+      "capabilities": [
+        "mermaid_expert_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Technical Services",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "minecraft_bukkit_pro_agent",
+      "agent_type": "MinecraftBukkitProAgent",
+      "capabilities": [
+        "minecraft_bukkit_pro_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Product",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "mkb_admin_lite_dunningagent",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "mkb_admin_lite_receiptscanner",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "mkb_admin_lite_vatcompliance",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "mkb_ecommerce_retail_orderfulfillment",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "mkb_ecommerce_retail_retailpriceoptimizer",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "mkb_ecommerce_retail_shopifysync",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "mkb_facility_mgmt_contractnegotiatorlite",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "mkb_facility_mgmt_maintenancescheduler",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "mkb_facility_mgmt_officesupplybot",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "mkb_hr_lite_leavemanager",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "mkb_hr_lite_safetycompliance",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "mkb_hr_lite_shiftplanner",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "mkb_local_marketing_discountcampaign",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "mkb_local_marketing_localseospecialist",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "mkb_local_marketing_reviewresponder",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "ml_engineer_agent",
+      "agent_type": "MlEngineerAgent",
+      "capabilities": [
+        "ml_engineer_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "AI Engineering",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "ml_ethics_agent",
+      "agent_type": "MLEthicsAgent",
+      "capabilities": [
+        "bias_detection",
+        "fairness_assessment",
+        "model_governance",
+        "ethics_reporting"
+      ],
+      "department": "Core Platform",
+      "category": "Core",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "mlops_engineer_agent",
+      "agent_type": "MlopsEngineerAgent",
+      "capabilities": [
+        "mlops_engineer_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "AI Engineering",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "mobile_developer_agent",
+      "agent_type": "MobileDeveloperAgent",
+      "capabilities": [
+        "mobile_developer_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Mobile Engineering",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "multichannel_content_agent",
+      "agent_type": "MultichannelContentAgent",
+      "capabilities": [
+        "cross_channel_publishing",
+        "content_calendar",
+        "tone_adaptation",
+        "performance_tracking"
+      ],
+      "department": "Sales & Marketing",
+      "category": "Enterprise",
+      "parent_class": "LLMAgent"
+    },
+    {
+      "agent_id": "network_engineer_agent",
+      "agent_type": "NetworkEngineerAgent",
+      "capabilities": [
+        "network_engineer_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Infrastructure",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "observability_agent",
+      "agent_type": "ObservabilityAgent",
+      "capabilities": [
+        "distributed_tracing",
+        "metrics_design",
+        "logging_strategy",
+        "opentelemetry_implementation",
+        "dashboard_creation",
+        "slo_definition"
+      ],
+      "department": "DevOps",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "okr_tracker_agent",
+      "agent_type": "OKRTrackerAgent",
+      "capabilities": [
+        "okr_monitoring",
+        "progress_reporting",
+        "deviation_alerting",
+        "quarterly_review_prep",
+        "cascading_okr_alignment",
+        "dashboard_generation"
+      ],
+      "department": "Strategy & Business Development",
+      "category": "Enterprise",
+      "parent_class": "LLMAgent"
+    },
+    {
+      "agent_id": "operational_risk_agent",
+      "agent_type": "OperationalRiskAgent",
+      "capabilities": [
+        "risk_identification",
+        "impact_assessment",
+        "business_continuity_planning",
+        "control_testing",
+        "risk_register_maintenance",
+        "loss_event_tracking"
+      ],
+      "department": "Risk Management",
+      "category": "Enterprise",
+      "parent_class": "HybridAgent"
+    },
+    {
+      "agent_id": "operations_supply_chain_inventoryforecasting",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "operations_supply_chain_logisticsoptimization",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "operations_supply_chain_processmining",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "operations_supply_chain_vendornegotiation",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "output_validator_agent",
+      "agent_type": "OutputValidatorAgent",
+      "capabilities": [
+        "schema_validation",
+        "consistency_checking",
+        "cross_reference_validation",
+        "format_enforcement",
+        "quality_scoring",
+        "rejection_feedback"
+      ],
+      "department": "Core Platform",
+      "category": "Core",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "partnerships_agent",
+      "agent_type": "PartnershipsAgent",
+      "capabilities": [
+        "partner_identification",
+        "deal_structuring",
+        "co_marketing_planning",
+        "relationship_tracking"
+      ],
+      "department": "Strategy & Business Development",
+      "category": "Enterprise",
+      "parent_class": "LLMAgent"
+    },
+    {
+      "agent_id": "payment_integration_agent",
+      "agent_type": "PaymentIntegrationAgent",
+      "capabilities": [
+        "payment_integration_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Engineering",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "penetration_tester_agent",
+      "agent_type": "PenetrationTesterAgent",
+      "capabilities": [
+        "owasp_top10_scanning",
+        "pentest_scenario_generation",
+        "vulnerability_reporting",
+        "remediation_prioritisation",
+        "attack_path_modelling",
+        "compliance_gap_analysis"
+      ],
+      "department": "IT & Security",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "perfect_cva_agent",
+      "agent_type": "PerfectCVAAgent",
+      "capabilities": [
+        "refined_competitive_analysis",
+        "value_mapping",
+        "strategic_positioning"
+      ],
+      "department": "Core Platform",
+      "category": "Core",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "performance_agent",
+      "agent_type": "PerformanceAgent",
+      "capabilities": [
+        "latency_profiling",
+        "memory_analysis",
+        "bottleneck_detection",
+        "optimisation_suggestions"
+      ],
+      "department": "Specialist Services",
+      "category": "Subagent",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "performance_engineer_agent",
+      "agent_type": "PerformanceEngineerAgent",
+      "capabilities": [
+        "performance_engineer_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Engineering",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "personalization_agent",
+      "agent_type": "PersonalizationAgent",
+      "capabilities": [
+        "user_profiling",
+        "preference_learning",
+        "behaviour_adaptation",
+        "recommendation_personalisation",
+        "tone_adjustment",
+        "context_enrichment"
+      ],
+      "department": "Core Platform",
+      "category": "Core",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "php_pro_agent",
+      "agent_type": "PhpProAgent",
+      "capabilities": [
+        "php_pro_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Software Engineering",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "pr_communications_agent",
+      "agent_type": "PRCommunicationsAgent",
+      "capabilities": [
+        "crisis_messaging",
+        "media_monitoring",
+        "spokesperson_briefing",
+        "stakeholder_updates"
+      ],
+      "department": "Crisis Management",
+      "category": "Subagent",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "process_mining_agent",
+      "agent_type": "ProcessMiningAgent",
+      "capabilities": [
+        "event_log_analysis",
+        "bottleneck_detection",
+        "process_simulation",
+        "KPI_tracking"
+      ],
+      "department": "Operations & Supply Chain",
+      "category": "Enterprise",
+      "parent_class": "MLAgent"
+    },
+    {
+      "agent_id": "procurement_agent",
+      "agent_type": "ProcurementAgent",
+      "capabilities": [
+        "spend_analysis",
+        "preferred_supplier_management",
+        "rfp_creation",
+        "contract_compliance_checking",
+        "savings_tracking",
+        "procurement_policy_enforcement"
+      ],
+      "department": "Operations & Supply Chain",
+      "category": "Enterprise",
+      "parent_class": "HybridAgent"
+    },
+    {
+      "agent_id": "product_agent",
+      "agent_type": "ProductAgent",
+      "capabilities": [
+        "roadmap_planning",
+        "feature_prioritisation",
+        "stakeholder_communication",
+        "OKR_tracking"
+      ],
+      "department": "Core Platform",
+      "category": "Core",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "product_innovation_codereviewer",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "product_innovation_djangopro",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "product_innovation_fastapipro",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "product_innovation_javascriptpro",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "product_innovation_marketgapanalysis",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "product_innovation_pythonpro",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "product_innovation_qabugdetection",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "product_innovation_technicalarchitect",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "product_innovation_technicalwriter",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "product_innovation_testautomator",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "product_innovation_typescriptpro",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "product_innovation_uxuidesigner",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "project_manager_agent",
+      "agent_type": "ProjectManagerAgent",
+      "capabilities": [
+        "project_planning",
+        "milestone_tracking",
+        "resource_allocation",
+        "stakeholder_communication",
+        "risk_register_maintenance",
+        "status_reporting"
+      ],
+      "department": "PMO & Project Management",
+      "category": "Enterprise",
+      "parent_class": "LLMAgent"
+    },
+    {
+      "agent_id": "prompt_engineer_agent",
+      "agent_type": "PromptEngineerAgent",
+      "capabilities": [
+        "prompt_engineer_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "AI Engineering",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "python_pro_agent",
+      "agent_type": "PythonProAgent",
+      "capabilities": [
+        "python_pro_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Software Engineering",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "qa_bug_detection_agent",
+      "agent_type": "QABugDetectionAgent",
+      "capabilities": [
+        "automated_testing",
+        "regression_detection",
+        "bug_triage",
+        "quality_metrics"
+      ],
+      "department": "Product & Innovation",
+      "category": "Enterprise",
+      "parent_class": "MLAgent"
+    },
+    {
+      "agent_id": "quant_analyst_agent",
+      "agent_type": "QuantAnalystAgent",
+      "capabilities": [
+        "quant_analyst_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Finance & Treasury",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "react_native_agent",
+      "agent_type": "ReactNativeAgent",
+      "capabilities": [
+        "react_native_architecture",
+        "cross_platform_optimisation",
+        "native_module_bridging",
+        "expo_configuration",
+        "performance_profiling",
+        "app_store_deployment"
+      ],
+      "department": "Mobile Engineering",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "reference_builder_agent",
+      "agent_type": "ReferenceBuilderAgent",
+      "capabilities": [
+        "reference_builder_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Technical Services",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "regulatory_crisis_agent",
+      "agent_type": "RegulatoryCrisisAgent",
+      "capabilities": [
+        "regulatory_breach_triage",
+        "regulator_notification_drafting",
+        "remediation_planning",
+        "penalty_mitigation",
+        "legal_hold_coordination"
+      ],
+      "department": "Crisis Management",
+      "category": "Subagent",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "regulatory_tracking_agent",
+      "agent_type": "RegulatoryTrackingAgent",
+      "capabilities": [
+        "regulation_monitoring",
+        "change_impact_analysis",
+        "compliance_calendar",
+        "alerts"
+      ],
+      "department": "Legal & Compliance",
+      "category": "Enterprise",
+      "parent_class": "LLMAgent"
+    },
+    {
+      "agent_id": "reporting_agent",
+      "agent_type": "ReportingAgent",
+      "capabilities": [
+        "scheduled_reporting",
+        "template_rendering",
+        "multi_format_export",
+        "distribution"
+      ],
+      "department": "Specialist Services",
+      "category": "Subagent",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "reputation_crisis_agent",
+      "agent_type": "ReputationCrisisAgent",
+      "capabilities": [
+        "social_media_monitoring",
+        "sentiment_tracking",
+        "narrative_management",
+        "response_drafting",
+        "brand_damage_assessment"
+      ],
+      "department": "Crisis Management",
+      "category": "Subagent",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "research_agent",
+      "agent_type": "ResearchAgent",
+      "capabilities": [
+        "literature_review",
+        "data_collection",
+        "synthesis_reporting",
+        "hypothesis_generation"
+      ],
+      "department": "Core Platform",
+      "category": "Core",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "research_development_patentscout",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "research_development_prototypeoptimizer",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "research_development_researchsynthesizer",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "risk_manager_agent",
+      "agent_type": "RiskManagerAgent",
+      "capabilities": [
+        "risk_manager_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Risk Management",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "ruby_pro_agent",
+      "agent_type": "RubyProAgent",
+      "capabilities": [
+        "ruby_pro_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Software Engineering",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "rust_pro_agent",
+      "agent_type": "RustProAgent",
+      "capabilities": [
+        "rust_pro_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Software Engineering",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "sales_automator_agent",
+      "agent_type": "SalesAutomatorAgent",
+      "capabilities": [
+        "sales_automator_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Sales & Marketing",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "sales_marketing_brandguardian",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "sales_marketing_contentpersonalization",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "sales_marketing_crmmanager",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "sales_marketing_dynamicpricing",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "sales_marketing_emailmarketer",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "sales_marketing_growthlead",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "sales_marketing_leadgen",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "sales_marketing_multichannelcontent",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "sales_marketing_pricingstrategist",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "sales_marketing_sdr",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "sales_marketing_seospecialist",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "sales_marketing_socialmediastrategist",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "scala_pro_agent",
+      "agent_type": "ScalaProAgent",
+      "capabilities": [
+        "scala_pro_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Software Engineering",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "scenario_planner_agent",
+      "agent_type": "ScenarioPlannerAgent",
+      "capabilities": [
+        "scenario_construction",
+        "war_gaming",
+        "uncertainty_quantification",
+        "stress_testing",
+        "narrative_generation",
+        "decision_tree_modelling"
+      ],
+      "department": "Strategy & Business Development",
+      "category": "Enterprise",
+      "parent_class": "HybridAgent"
+    },
+    {
+      "agent_id": "sdr_agent",
+      "agent_type": "SDRAgent",
+      "capabilities": [
+        "cold_outreach",
+        "follow_up_sequences",
+        "meeting_booking",
+        "CRM_updates"
+      ],
+      "department": "Sales & Marketing",
+      "category": "Enterprise",
+      "parent_class": "LLMAgent"
+    },
+    {
+      "agent_id": "search_specialist_agent",
+      "agent_type": "SearchSpecialistAgent",
+      "capabilities": [
+        "search_specialist_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Technical Services",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "security_agent",
+      "agent_type": "SecurityAgent",
+      "capabilities": [
+        "threat_detection",
+        "vulnerability_scanning",
+        "incident_triage",
+        "security_reporting"
+      ],
+      "department": "Core Platform",
+      "category": "Core",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "security_auditor_agent",
+      "agent_type": "SecurityAuditorAgent",
+      "capabilities": [
+        "security_auditor_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "IT & Security",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "sentiment_support_agent",
+      "agent_type": "SentimentSupportAgent",
+      "capabilities": [
+        "real_time_sentiment",
+        "ticket_routing",
+        "emotion_detection",
+        "support_analytics"
+      ],
+      "department": "Customer Experience",
+      "category": "Enterprise",
+      "parent_class": "HybridAgent"
+    },
+    {
+      "agent_id": "seo_authority_builder_agent",
+      "agent_type": "SeoAuthorityBuilderAgent",
+      "capabilities": [
+        "seo_authority_builder_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Marketing",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "seo_cannibalization_detector_agent",
+      "agent_type": "SeoCannibalizationDetectorAgent",
+      "capabilities": [
+        "seo_cannibalization_detector_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Marketing",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "seo_content_auditor_agent",
+      "agent_type": "SeoContentAuditorAgent",
+      "capabilities": [
+        "seo_content_auditor_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Marketing",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "seo_content_planner_agent",
+      "agent_type": "SeoContentPlannerAgent",
+      "capabilities": [
+        "seo_content_planner_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Marketing",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "seo_content_refresher_agent",
+      "agent_type": "SeoContentRefresherAgent",
+      "capabilities": [
+        "seo_content_refresher_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Marketing",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "seo_content_writer_agent",
+      "agent_type": "SeoContentWriterAgent",
+      "capabilities": [
+        "seo_content_writer_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Marketing",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "seo_keyword_strategist_agent",
+      "agent_type": "SeoKeywordStrategistAgent",
+      "capabilities": [
+        "seo_keyword_strategist_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Marketing",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "seo_meta_optimizer_agent",
+      "agent_type": "SeoMetaOptimizerAgent",
+      "capabilities": [
+        "seo_meta_optimizer_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Marketing",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "seo_orchestrator_agent",
+      "agent_type": "SeoOrchestratorAgent",
+      "capabilities": [
+        "seo_orchestrator_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Marketing",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "seo_snippet_hunter_agent",
+      "agent_type": "SeoSnippetHunterAgent",
+      "capabilities": [
+        "seo_snippet_hunter_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Marketing",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "seo_structure_architect_agent",
+      "agent_type": "SeoStructureArchitectAgent",
+      "capabilities": [
+        "seo_structure_architect_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Marketing",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "skills_gap_training_agent",
+      "agent_type": "SkillsGapTrainingAgent",
+      "capabilities": [
+        "skills_assessment",
+        "learning_path_generation",
+        "training_ROI_analysis",
+        "gap_reporting"
+      ],
+      "department": "HR & Culture",
+      "category": "Enterprise",
+      "parent_class": "MLAgent"
+    },
+    {
+      "agent_id": "sql_pro_agent",
+      "agent_type": "SqlProAgent",
+      "capabilities": [
+        "sql_pro_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Data Engineering",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "strategy_business_competitiveintelligence",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "strategy_business_maanalyst",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "strategy_business_marketintelligence",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "strategy_business_partnerships",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "summarization_agent",
+      "agent_type": "SummarizationAgent",
+      "capabilities": [
+        "extractive_summarisation",
+        "abstractive_summarisation",
+        "meeting_notes_generation",
+        "executive_brief_creation",
+        "multi_document_synthesis"
+      ],
+      "department": "Specialist Services",
+      "category": "Subagent",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "supplier_sustainability_agent",
+      "agent_type": "SupplierSustainabilityAgent",
+      "capabilities": [
+        "supplier_carbon_mapping",
+        "sustainability_scoring",
+        "risk_flagging",
+        "alternative_supplier_recommendation",
+        "audit_trail_generation"
+      ],
+      "department": "Sustainability & ESG",
+      "category": "Enterprise",
+      "parent_class": "MLAgent"
+    },
+    {
+      "agent_id": "supply_chain_crisis_agent",
+      "agent_type": "SupplyChainCrisisAgent",
+      "capabilities": [
+        "disruption_triage",
+        "alternative_route_activation",
+        "supplier_escalation",
+        "customer_communication",
+        "inventory_reallocation"
+      ],
+      "department": "Crisis Management",
+      "category": "Subagent",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "sustainability_esg_carbontracker",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "sustainability_esg_esgauditor",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "sustainability_esg_sustainablesourcing",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "symbiotic_analyzer_agent",
+      "agent_type": "SymbioticAnalyzerAgent",
+      "capabilities": [
+        "cross_agent_analysis",
+        "pattern_recognition",
+        "insight_sharing",
+        "adaptive_reasoning"
+      ],
+      "department": "Core Platform",
+      "category": "ALS",
+      "parent_class": "SymbioticAgent"
+    },
+    {
+      "agent_id": "symbiotic_code_agent",
+      "agent_type": "SymbioticCodeAgent",
+      "capabilities": [
+        "code_generation",
+        "refactoring",
+        "cross_agent_code_review",
+        "context_aware_coding"
+      ],
+      "department": "Core Platform",
+      "category": "ALS",
+      "parent_class": "SymbioticAgent"
+    },
+    {
+      "agent_id": "symbiotic_data_agent",
+      "agent_type": "SymbioticDataAgent",
+      "capabilities": [
+        "cross_agent_data_sharing",
+        "adaptive_analysis",
+        "pattern_propagation",
+        "insight_federation",
+        "anomaly_correlation",
+        "collective_learning"
+      ],
+      "department": "Core Platform",
+      "category": "ALS",
+      "parent_class": "SymbioticAgent"
+    },
+    {
+      "agent_id": "symbiotic_research_agent",
+      "agent_type": "SymbioticResearchAgent",
+      "capabilities": [
+        "web_research",
+        "knowledge_synthesis",
+        "citation_management",
+        "cross_agent_sharing"
+      ],
+      "department": "Core Platform",
+      "category": "ALS",
+      "parent_class": "SymbioticAgent"
+    },
+    {
+      "agent_id": "symbiotic_sales_agent",
+      "agent_type": "SymbioticSalesAgent",
+      "capabilities": [
+        "deal_pattern_learning",
+        "customer_interaction_synthesis",
+        "market_signal_integration",
+        "adaptive_pitch_generation",
+        "win_loss_correlation"
+      ],
+      "department": "Core Platform",
+      "category": "ALS",
+      "parent_class": "SymbioticAgent"
+    },
+    {
+      "agent_id": "symbiotic_security_agent",
+      "agent_type": "SymbioticSecurityAgent",
+      "capabilities": [
+        "cross_agent_threat_sharing",
+        "incident_pattern_learning",
+        "adaptive_threat_detection",
+        "collective_security_intelligence",
+        "zero_day_correlation"
+      ],
+      "department": "Core Platform",
+      "category": "ALS",
+      "parent_class": "SymbioticAgent"
+    },
+    {
+      "agent_id": "symbiotic_strategy_agent",
+      "agent_type": "SymbioticStrategyAgent",
+      "capabilities": [
+        "cross_domain_synthesis",
+        "strategic_pattern_recognition",
+        "adaptive_strategy_generation",
+        "enterprise_context_aggregation",
+        "opportunity_surfacing"
+      ],
+      "department": "Core Platform",
+      "category": "ALS",
+      "parent_class": "SymbioticAgent"
+    },
+    {
+      "agent_id": "system_monitor_agent",
+      "agent_type": "SystemMonitorAgent",
+      "capabilities": [
+        "uptime_monitoring",
+        "resource_tracking",
+        "alerting",
+        "trend_analysis"
+      ],
+      "department": "Specialist Services",
+      "category": "Subagent",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "talent_acquisition_agent",
+      "agent_type": "TalentAcquisitionAgent",
+      "capabilities": [
+        "JD_generation",
+        "candidate_screening",
+        "interview_scheduling",
+        "pipeline_management"
+      ],
+      "department": "HR & Culture",
+      "category": "Enterprise",
+      "parent_class": "LLMAgent"
+    },
+    {
+      "agent_id": "tax_compliance_agent",
+      "agent_type": "TaxComplianceAgent",
+      "capabilities": [
+        "tax_filing_prep",
+        "VAT_compliance",
+        "cross_border_taxation",
+        "deadline_tracking"
+      ],
+      "department": "Finance & Treasury",
+      "category": "Enterprise",
+      "parent_class": "HybridAgent"
+    },
+    {
+      "agent_id": "technical_architect_agent",
+      "agent_type": "TechnicalArchitectAgent",
+      "capabilities": [
+        "architecture_design",
+        "ADR_generation",
+        "tech_stack_evaluation",
+        "scalability_planning"
+      ],
+      "department": "Product & Innovation",
+      "category": "Enterprise",
+      "parent_class": "LLMAgent"
+    },
+    {
+      "agent_id": "terraform_specialist_agent",
+      "agent_type": "TerraformSpecialistAgent",
+      "capabilities": [
+        "terraform_specialist_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "DevOps",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "test_automator_agent",
+      "agent_type": "TestAutomatorAgent",
+      "capabilities": [
+        "test_automator_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Engineering",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "threat_hunter_agent",
+      "agent_type": "ThreatHunterAgent",
+      "capabilities": [
+        "threat_intelligence",
+        "IOC_detection",
+        "SIEM_integration",
+        "incident_escalation"
+      ],
+      "department": "IT & Security",
+      "category": "Enterprise",
+      "parent_class": "MLAgent"
+    },
+    {
+      "agent_id": "translation_agent",
+      "agent_type": "TranslationAgent",
+      "capabilities": [
+        "real_time_translation",
+        "language_detection",
+        "domain_terminology_handling",
+        "quality_scoring",
+        "glossary_management"
+      ],
+      "department": "Specialist Services",
+      "category": "Subagent",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "tutorial_engineer_agent",
+      "agent_type": "TutorialEngineerAgent",
+      "capabilities": [
+        "tutorial_engineer_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Technical Services",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "typescript_pro_agent",
+      "agent_type": "TypescriptProAgent",
+      "capabilities": [
+        "typescript_pro_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Software Engineering",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "ui_ux_designer_agent",
+      "agent_type": "UiUxDesignerAgent",
+      "capabilities": [
+        "ui_ux_designer_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Product & Design",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "ui_visual_validator_agent",
+      "agent_type": "UiVisualValidatorAgent",
+      "capabilities": [
+        "ui_visual_validator_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Product & Design",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "ultimate_cva_agent",
+      "agent_type": "UltimateCVAAgent",
+      "capabilities": [
+        "advanced_cva",
+        "multi_dimensional_analysis",
+        "executive_reporting"
+      ],
+      "department": "Core Platform",
+      "category": "Core",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "unity_developer_agent",
+      "agent_type": "UnityDeveloperAgent",
+      "capabilities": [
+        "unity_developer_agent_core",
+        "task_execution",
+        "reporting"
+      ],
+      "department": "Product",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "uxui_design_synthesizer_agent",
+      "agent_type": "UXUIDesignSynthesizerAgent",
+      "capabilities": [
+        "user_research_synthesis",
+        "wireframe_recommendations",
+        "accessibility_review",
+        "design_system_alignment"
+      ],
+      "department": "Product & Innovation",
+      "category": "Enterprise",
+      "parent_class": "LLMAgent"
+    },
+    {
+      "agent_id": "vendor_negotiation_agent",
+      "agent_type": "VendorNegotiationAgent",
+      "capabilities": [
+        "RFP_generation",
+        "bid_comparison",
+        "negotiation_strategy",
+        "contract_recommendations"
+      ],
+      "department": "Operations & Supply Chain",
+      "category": "Enterprise",
+      "parent_class": "LLMAgent"
+    },
+    {
+      "agent_id": "vision_analysis_agent",
+      "agent_type": "VisionAnalysisAgent",
+      "capabilities": [
+        "image_recognition",
+        "object_detection",
+        "visual_qa",
+        "screenshot_analysis",
+        "ui_regression_detection",
+        "ocr_extraction"
+      ],
+      "department": "Technical Services",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "web3_developer_agent",
+      "agent_type": "Web3DeveloperAgent",
+      "capabilities": [
+        "smart_contract_development",
+        "solidity_auditing",
+        "defi_protocol_design",
+        "wallet_integration",
+        "gas_optimisation",
+        "token_standard_implementation"
+      ],
+      "department": "Technical Services",
+      "category": "Technical",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "workflow_builder_agent",
+      "agent_type": "WorkflowBuilderAgent",
+      "capabilities": [
+        "workflow_design",
+        "dag_construction",
+        "dependency_resolution",
+        "parallel_execution_planning",
+        "conditional_branching",
+        "rollback_design"
+      ],
+      "department": "Core Platform",
+      "category": "Core",
+      "parent_class": "EnhancedBaseAgent"
+    },
+    {
+      "agent_id": "zzp_zzp_branding_bioarchitect",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "zzp_zzp_branding_ghostwriter",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "zzp_zzp_branding_linkedinoptimizer",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "zzp_zzp_branding_portfoliogen",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "zzp_zzp_branding_socialscheduler",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "zzp_zzp_finance_expenseclassifier",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "zzp_zzp_finance_invoicegen",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "zzp_zzp_finance_latepaymentchaser",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "zzp_zzp_finance_profitoptimizer",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "zzp_zzp_finance_taxpredictor",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "zzp_zzp_growth_breakreminder",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "zzp_zzp_growth_burnoutcoach",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "zzp_zzp_growth_digitaldetox",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "zzp_zzp_growth_routinebuilder",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "zzp_zzp_growth_skillpathfinder",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "zzp_zzp_legal_copyrightcheck",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "zzp_zzp_legal_gdprprivacy",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "zzp_zzp_legal_liabilityaudit",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "zzp_zzp_legal_solocontract",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "zzp_zzp_legal_tosgenerator",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "zzp_zzp_ops_calendarshield",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "zzp_zzp_ops_focusguardian",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "zzp_zzp_ops_inboxzero",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "zzp_zzp_ops_meetingnotes",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "zzp_zzp_ops_taskmanager",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "zzp_zzp_sales_coldemailer",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "zzp_zzp_sales_leadfinder",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "zzp_zzp_sales_negotiationcoach",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "zzp_zzp_sales_pitchdeckgen",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    },
+    {
+      "agent_id": "zzp_zzp_sales_proposalwriter",
+      "agent_type": "UnknownAgent",
+      "capabilities": [],
+      "department": "General",
+      "category": "Unknown",
+      "parent_class": "BaseAgent"
+    }
+  ]
+}

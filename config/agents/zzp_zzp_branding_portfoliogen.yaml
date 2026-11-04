@@ -1,0 +1,20 @@
+agent_id: "zzp.zzp_branding.portfoliogen.001"
+name: "PortfolioGenAgent"
+department: "zzp_branding"
+technology: "Vision"
+module_path: "src.core.als.agents.zzp.zzp_branding"
+class_name: "PortfolioGenAgent"
+description: "Autonomously builds and updates a visual project portfolio."
+is_active: true
+priority: "MEDIUM"
+version: "1.0.0"
+allowed_tools: ["web_builder_api", "image_optimizer"]
+ooda_profile:
+  observe:
+    data_sources: ["solo_business_data", "social_apis"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.85
+  act:
+    tools: ["web_builder_api", "image_optimizer"]

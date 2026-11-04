@@ -1,0 +1,82 @@
+[
+  {
+    "name": "gmail",
+    "displayName": "Gmail",
+    "description": "Send and receive emails from your Google account.",
+    "category": "Communication",
+    "triggers": [
+      "new_email",
+      "new_thread"
+    ],
+    "actions": [
+      "send_email",
+      "create_draft"
+    ]
+  },
+  {
+    "name": "slack",
+    "displayName": "Slack",
+    "description": "Send messages to channels or users in your Slack workspace.",
+    "category": "Communication",
+    "triggers": [
+      "new_message"
+    ],
+    "actions": [
+      "send_channel_message",
+      "send_direct_message"
+    ]
+  },
+  {
+    "name": "google_sheets",
+    "displayName": "Google Sheets",
+    "description": "Read and write data to your Google Sheets.",
+    "category": "Data",
+    "triggers": [
+      "new_row"
+    ],
+    "actions": [
+      "insert_row",
+      "update_row",
+      "get_cell"
+    ]
+  },
+  {
+    "name": "stripe",
+    "displayName": "Stripe",
+    "description": "Listen to payment events and manage customers.",
+    "category": "Finance",
+    "triggers": [
+      "payment_succeeded",
+      "subscription_created"
+    ],
+    "actions": [
+      "create_customer",
+      "refund_charge"
+    ]
+  },
+  {
+    "name": "github",
+    "displayName": "GitHub",
+    "description": "Manage repositories, issues and pull requests.",
+    "category": "Development",
+    "triggers": [
+      "new_issue",
+      "new_pr"
+    ],
+    "actions": [
+      "create_issue",
+      "add_comment"
+    ]
+  },
+  {
+    "name": "openai",
+    "displayName": "OpenAI",
+    "description": "Powerful AI models for text and image generation.",
+    "category": "AI",
+    "triggers": [],
+    "actions": [
+      "ask_gpt",
+      "generate_image"
+    ]
+  }
+]

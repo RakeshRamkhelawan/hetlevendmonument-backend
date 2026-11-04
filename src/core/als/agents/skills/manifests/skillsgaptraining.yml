@@ -1,0 +1,136 @@
+skill_id: skillsgaptraining
+# ADR-036 OP-02: de versie van de instructietekst hieronder. Hoog dit op zodra
+# system_prompt wijzigt, en rol die wijziging uit via een canary-blok in plaats van
+# hem in een keer aan alle tenants te geven.
+#
+# 1 -> 2 op 2026-09-21, ZONDER canary-blok, en dat is een besluit met een reden:
+# versie 1 vertelde het model dat sommige gedeclareerde tools niet zijn aangesloten,
+# en dat was onwaar geworden. Een onware instructie gefaseerd uitrollen betekent dat
+# een deel van de tenants hem houdt; dat is geen risicospreiding maar de fout laten
+# staan. Gemeten: er zijn vandaag nul productietenants (`docs/infra/AZURE_OMGEVINGEN.md`
+# -- productie is sinds 2026-05-11 NIET ingericht), dus er is ook niemand om over te
+# verdelen. Het mechanisme werkt wel (`src/core/als/agents/skill_rollout.py`) en hoort
+# gebruikt te worden zodra een wijziging het GEDRAG verandert in plaats van een onwaarheid
+# te herstellen.
+# 2 -> 3 op 2026-10-24 (agentkaart dag 1), ZONDER canary-blok, om dezelfde reden: de prompt kreeg de alinea dat deze agent adviseert
+# en voorstelt en dat een mens altijd beslist (besluit Rakesh); er zijn geen productietenants om over te verdelen.
+manifest_version: 3
+class_name: SkillsGapTrainingSkill
+department: hr_culture
+annex_iii_classification: annex_iii
+human_in_the_loop: hitl
+technology: llm
+role: Skills Gap Training Specialist
+goal: Execute skills gap training tasks using allowed tools, tenant-scoped data and
+  the OODA loop.
+system_prompt: 'You are the Skills Gap Training Specialist for your tenant.
+
+  Department context: Recruiting, employee development, well-being, scheduling and
+  workforce planning.
+
+  Follow the OODA loop: observe the task, orient using available data, and decide
+  on the best course of action.
+
+  You may use only the tools listed under allowed_tools in your manifest. When a tool
+  is needed, emit exactly one directive per line in the format TOOL_CALL: tool_name
+  {"param": "value"} -- anything outside that list is denied by the ToolBroker (ADR-015).
+  Every tool in that list is connected and will really run. A tool that writes may need
+  human approval first and can therefore come back refused; that is not a broken tool.
+  Report any failure plainly and never invent a tool result. Otherwise provide your
+  analysis and recommendation as a concise final answer, in text.
+
+  You advise and propose; a human always decides. schedule_training only creates a proposal for
+  a training: it is carried out only after a human approves it. Present every recommendation as
+  advice and never as a decision.
+
+  Never invent data; if information is missing, say so explicitly.'
+# Gewijzigd 2026-09-21. Hier stonden zes namen waarvan er drie niet bestonden; de instructietekst
+# hierboven vertelde het model dat sommige tools "not connected yet" zijn. Dat is precies wat je
+# niet doet: een gedeclareerde tool die weigert, maakt voor het model onmogelijk te bepalen of
+# een opdracht uitvoerbaar is, en dat is de gemeten hoofdoorzaak van verzonnen toolresultaten.
+# Per naam, gemeten op 2026-09-21:
+#   search_documents   WEG   -- er is geen documentmodel in deze codebase; geen tool, geen data.
+#   send_notification  WEG   -- er is wel notificatie-infrastructuur, maar die is geen
+#                               broker-tool. `local__send_email` is echte SMTP en dus iets anders.
+#                               Deze skill adviseert; melden is vandaag niet zijn taak.
+#   generate_text      WEG   -- de capaciteit bestaat als `local__llm_generate`, maar hij is op
+#                               DIT pad niet aangesloten: `BaseSpecialistAgent` bouwt zijn eigen
+#                               ToolBrokerService zonder `local_registry` (gemeten 2026-09-21:
+#                               `local_registry = None`, de `local__`-tak gooit "Local tool
+#                               registry not initialized"). Hem hier zetten zou de belofte
+#                               hieronder onwaar maken. En hij is niet nodig: deze skill heeft
+#                               zijn eigen LLM (`_get_llm_service`) en schrijft zijn advies in
+#                               het tekstantwoord. Een vrije prompt via de broker mogen sturen
+#                               is een EIGEN beslissing met een eigen afweging (een skill die
+#                               personeelsdata leest en daarna vrije tekst naar een extern model
+#                               mag sturen, is een uitgaand kanaal dat de redactielaag niet
+#                               dekt), en die beslissing hoort niet mee te liften op deze knip.
+allowed_tools:
+- query_hr_database
+- analyze_skill_gap
+- schedule_training
+memory:
+  read:
+  - hr_culture
+  - shared
+  write:
+  - skillsgaptraining
+input_schema:
+  type: object
+  properties:
+    task:
+      type: string
+    context:
+      type: object
+  required:
+  - task
+output_schema:
+  type: object
+  properties:
+    summary:
+      type: string
+    details:
+      type: object
+    confidence:
+      type: number
+  required:
+  - summary
+budget:
+  max_steps: 8
+  max_llm_calls: 5
+  timeout_seconds: 60
+  prana_cost_limit: 100
+
+# De agentkaart (agentkaart dag 1): alles wat een agent nodig heeft om echt te werken, naast rol, doel en gereedschap hierboven.
+# Bewaakt door tests/architecture/test_werkende_agent_heeft_volledige_agentkaart.py. De instructietekst hierboven blijft deze dag
+# zoals hij is; de kaart beschrijft wat de uitvoering werkelijk doet.
+agentkaart:
+  klantregels:
+  - naam: geen instellingen
+    standaard: niet van toepassing
+    betekenis: Deze agent kent vandaag geen instellingen per bedrijf; wat de medewerker wil weten staat in de opdracht van de stap.
+    status: bestaat
+  gegevens:
+    leest:
+    - de HR-gegevens van het eigen bedrijf over rollen en vaardigheden (query_hr_database)
+    - de uitkomst van de vaardigheidsanalyse (analyze_skill_gap)
+    schrijft:
+    - een trainingsvoorstel via schedule_training; het wordt pas uitgevoerd na goedkeuring van een mens
+  koppelingen: []
+  start:
+    soort: handmatig
+    naam: Pakket hr.reskilling_engine (vanuit het scherm Pakketten of als stap in een eigen workflow)
+  onthoudt:
+  - wat: niets tussen runs
+    bron: elke run leest de HR-gegevens opnieuw
+  waarom: Bij elk voorstel ziet de goedkeurder welke training voor welke medewerker wordt voorgesteld, op basis van de uitkomst van
+    de vaardigheidsanalyse.
+  proefset:
+    pad: todo
+    drempel: todo
+  eigenaar: HR-beheerder. Goedkeuren is het eigen recht van de goedkeurder personeel (ADR-039).
+  vakregels:
+  - 'Altijd: adviseren en voorstellen; een mens beslist altijd, een aanbeveling is nooit een besluit (personeelsbeheer, Annex III; besluit Rakesh 2026-10-24). schedule_training maakt alleen een voorstel dat na goedkeuring van een mens wordt uitgevoerd; dat de agent niets zelf uitvoert is afgedwongen door de goedkeuringspoort, niet door de prompt.'
+  - 'Nooit: iets over een medewerker uitvoeren of vastleggen zonder goedkeuring van een mens.'
+  - 'Nooit: personeelsgegevens in vrije tekst naar buiten sturen of buiten het eigen bedrijf gebruiken.'
+  - 'Stopt: bij ontbrekende gegevens; de agent zegt wat ontbreekt en vult niets aan.'

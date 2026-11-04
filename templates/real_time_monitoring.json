@@ -1,0 +1,94 @@
+{
+  "template_id": "real_time_monitoring",
+  "name": "Real-Time System Monitoring",
+  "category": "analytics",
+  "description": "Monitor system metrics and trigger alerts on threshold breaches",
+  "spec": {
+    "nodes": [
+      {
+        "id": "monitor_metrics",
+        "type": "metrics_collector",
+        "config": {
+          "sources": "{{monitoring_sources}}",
+          "frequency_seconds": "{{poll_frequency}}"
+        }
+      },
+      {
+        "id": "check_thresholds",
+        "type": "threshold_checker",
+        "config": {
+          "rules": "{{threshold_rules}}",
+          "evaluation_window": "5m"
+        }
+      },
+      {
+        "id": "breach_detected",
+        "type": "conditional",
+        "config": {
+          "condition": "check_thresholds.breached == true",
+          "true_next": "trigger_alert",
+          "false_next": "continue_monitoring"
+        }
+      },
+      {
+        "id": "trigger_alert",
+        "type": "notification",
+        "config": {
+          "channels": "{{alert_channels}}",
+          "message": "🚨 ALERT: {{check_thresholds.metric}} breached threshold!\nCurrent: {{check_thresholds.current_value}}\nThreshold: {{check_thresholds.threshold}}\nTime: {{now()}}"
+        }
+      },
+      {
+        "id": "escalate_alert",
+        "type": "delay",
+        "config": {
+          "duration": "{{escalation_delay}}"
+        }
+      },
+      {
+        "id": "check_resolved",
+        "type": "threshold_checker",
+        "config": {
+          "rules": "{{threshold_rules}}",
+          "evaluation_window": "1m"
+        }
+      },
+      {
+        "id": "send_resolution",
+        "type": "notification",
+        "config": {
+          "channels": "{{alert_channels}}",
+          "message": "✅ RESOLVED: {{check_thresholds.metric}} back to normal\nCurrent: {{check_thresholds.current_value}}\nTime: {{now()}}"
+        }
+      }
+    ]
+  },
+  "required_integrations": ["metrics_collector", "notification", "delay"],
+  "estimated_setup_time_minutes": 20,
+  "parameters": {
+    "monitoring_sources": ["cpu_usage", "memory_usage", "disk_space", "response_time"],
+    "poll_frequency": 30,
+    "threshold_rules": [
+      {
+        "metric": "cpu_usage",
+        "operator": ">",
+        "threshold": 85,
+        "severity": "high"
+      },
+      {
+        "metric": "memory_usage",
+        "operator": ">",
+        "threshold": 90,
+        "severity": "critical"
+      },
+      {
+        "metric": "disk_space",
+        "operator": "<",
+        "threshold": 10,
+        "severity": "warning"
+      }
+    ],
+    "alert_channels": ["slack#alerts", "pagerduty", "email:oncall"],
+    "escalation_delay": "5m"
+  }
+}

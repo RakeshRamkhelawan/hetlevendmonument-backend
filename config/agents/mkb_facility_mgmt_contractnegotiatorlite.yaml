@@ -1,0 +1,20 @@
+agent_id: "mkb.facility_mgmt.contractnegotiatorlite.001"
+name: "ContractNegotiatorLiteAgent"
+department: "facility_mgmt"
+technology: "LLM"
+module_path: "src.core.als.agents.mkb.facility_mgmt"
+class_name: "ContractNegotiatorLiteAgent"
+description: "Compares and negotiates local utility and insurance contracts."
+is_active: true
+priority: "MEDIUM"
+version: "1.0.0"
+allowed_tools: ["comparison_engine", "web_scraper"]
+ooda_profile:
+  observe:
+    data_sources: ["mkb_specific_api", "manual_uploads"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.85
+  act:
+    tools: ["comparison_engine", "web_scraper"]

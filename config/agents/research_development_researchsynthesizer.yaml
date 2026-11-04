@@ -1,0 +1,20 @@
+agent_id: "ext.research_development.researchsynthesizer.001"
+name: "ResearchSynthesizerAgent"
+department: "research_development"
+technology: "LLM"
+module_path: "src.core.als.agents.specialists.research_development"
+class_name: "ResearchSynthesizerAgent"
+description: "Condenses massive amounts of scientific papers into insights."
+is_active: true
+priority: "HIGH"
+version: "1.0.0"
+allowed_tools: ["arxiv_client", "semantic_scholar_api"]
+ooda_profile:
+  observe:
+    data_sources: ["external_api", "internal_lake"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.90
+  act:
+    tools: ["arxiv_client", "semantic_scholar_api"]

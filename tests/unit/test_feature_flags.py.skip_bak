@@ -1,0 +1,402 @@
+"""
+Unit Tests for Feature Flag System
+Task 1.3.5: Feature Flag Unit Tests
+
+Tests cover:
+- Feature enum definitions
+- Tier feature mappings
+- FeatureFlagManager.is_enabled()
+- Tier upgrades and feature enablement
+- Redis cache hit/miss scenarios
+- Cache invalidation
+- @requires_feature decorator
+
+Target: >95% code coverage
+"""
+
+import pytest
+import asyncio
+from unittest.mock import Mock, AsyncMock, MagicMock
+
+from core.feature_flags import (
+    Feature,
+    Tier,
+    TIER_FEATURES,
+    FeatureFlagManager,
+    get_tier_features,
+    feature_included_in_tier,
+    get_missing_features,
+    get_tier_for_feature,
+)
+
+
+# ============================================================================
+# TEST FIXTURES
+# ============================================================================
+
+@pytest.fixture
+def mock_redis():
+    """Mock Redis client"""
+    redis = AsyncMock()
+    redis.get = AsyncMock(return_value=None)
+    redis.setex = AsyncMock()
+    redis.delete = AsyncMock()
+    return redis
+
+
+@pytest.fixture
+def mock_db():
+    """Mock database session"""
+    db = AsyncMock()
+    db.query = Mock()
+    db.add = Mock()
+    db.commit = AsyncMock()
+    db.rollback = AsyncMock()
+    return db
+
+
+@pytest.fixture
+def ff_manager(mock_redis, mock_db):
+    """Feature flag manager with mocked dependencies"""
+    return FeatureFlagManager(redis_client=mock_redis, db_session=mock_db)
+
+
+# ============================================================================
+# FEATURE ENUM TESTS
+# ============================================================================
+
+def test_feature_enum_values(client):
+    """Test that all features are defined correctly"""
+    assert Feature.CORE_AGENTS == "core_agents"
+    assert Feature.MEMORY_MCP == "memory_mcp"
+    assert Feature.OLLAMA_MCP == "ollama_mcp"
+    assert Feature.CUSTOM_AGENTS == "custom_agents"
+    assert Feature.SSO == "sso"
+    assert Feature.AUDIT_LOGS == "audit_logs"
+
+
+def test_tier_enum_values(client):
+    """Test that all tiers are defined correctly"""
+    assert Tier.STARTER == "starter"
+    assert Tier.PRO == "pro"
+    assert Tier.ENTERPRISE == "enterprise"
+
+
+def test_tier_features_mapping(client):
+    """Test that TIER_FEATURES maps correctly"""
+    # STARTER tier
+    starter_features = TIER_FEATURES[Tier.STARTER]
+    assert Feature.CORE_AGENTS in starter_features
+    assert Feature.BASIC_ANALYTICS in starter_features
+    assert Feature.MEMORY_MCP not in starter_features
+
+    # PRO tier (includes STARTER + Pro features)
+    pro_features = TIER_FEATURES[Tier.PRO]
+    assert Feature.CORE_AGENTS in pro_features
+    assert Feature.MEMORY_MCP in pro_features
+    assert Feature.CUSTOM_AGENTS not in pro_features
+
+    # ENTERPRISE tier (includes all features)
+    ent_features = TIER_FEATURES[Tier.ENTERPRISE]
+    assert Feature.CORE_AGENTS in ent_features
+    assert Feature.MEMORY_MCP in ent_features
+    assert Feature.CUSTOM_AGENTS in ent_features
+    assert Feature.SSO in ent_features
+
+
+def test_tier_feature_count(client):
+    """Test that tier feature counts are correct"""
+    assert len(TIER_FEATURES[Tier.STARTER]) == 3  # core, basic_analytics, api_access
+    assert len(TIER_FEATURES[Tier.PRO]) == 8  # STARTER + 5 PRO features
+    assert len(TIER_FEATURES[Tier.ENTERPRISE]) >= len(TIER_FEATURES[Tier.PRO])  # All features
+
+
+# ============================================================================
+# HELPER FUNCTION TESTS
+# ============================================================================
+
+def test_get_tier_features(client):
+    """Test get_tier_features helper"""
+    pro_features = get_tier_features(Tier.PRO)
+    assert isinstance(pro_features, set)
+    assert Feature.MEMORY_MCP in pro_features
+
+
+def test_feature_included_in_tier(client):
+    """Test feature_included_in_tier helper"""
+    assert feature_included_in_tier(Feature.CORE_AGENTS, Tier.STARTER)
+    assert feature_included_in_tier(Feature.MEMORY_MCP, Tier.PRO)
+    assert not feature_included_in_tier(Feature.SSO, Tier.STARTER)
+    assert feature_included_in_tier(Feature.SSO, Tier.ENTERPRISE)
+
+
+def test_get_missing_features(client):
+    """Test get_missing_features upgrade helper"""
+    missing = get_missing_features(Tier.STARTER, Tier.PRO)
+    assert Feature.MEMORY_MCP in missing
+    assert Feature.ADVANCED_ANALYTICS in missing
+    assert Feature.CORE_AGENTS not in missing  # Already in STARTER
+
+
+def test_get_tier_for_feature(client):
+    """Test get_tier_for_feature minimum tier lookup"""
+    assert get_tier_for_feature(Feature.CORE_AGENTS) == Tier.STARTER
+    assert get_tier_for_feature(Feature.MEMORY_MCP) == Tier.PRO
+    assert get_tier_for_feature(Feature.SSO) == Tier.ENTERPRISE
+
+
+# ============================================================================
+# FEATURE FLAG MANAGER TESTS
+# ============================================================================
+
+@pytest.mark.asyncio
+async def test_is_enabled_cache_hit(ff_manager, mock_redis):
+    """Test feature check with Redis cache hit"""
+    # Setup: Feature enabled in cache
+    mock_redis.get.return_value = b"1"
+
+    result = await ff_manager.is_enabled("tenant_123", Feature.MEMORY_MCP)
+
+    assert result is True
+    mock_redis.get.assert_called_once()
+    # Should not query database on cache hit
+    ff_manager.db.query.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_is_enabled_cache_miss_enabled(ff_manager, mock_redis, mock_db):
+    """Test feature check with cache miss, feature enabled in DB"""
+    # Setup: Cache miss
+    mock_redis.get.return_value = None
+
+    # Mock database query result
+    mock_flag = MagicMock()
+    mock_flag.is_enabled = True
+
+    mock_query = MagicMock()
+    mock_query.filter = MagicMock(return_value=mock_query)
+    mock_query.first = AsyncMock(return_value=mock_flag)
+    mock_db.query.return_value = mock_query
+
+    result = await ff_manager.is_enabled("tenant_123", Feature.MEMORY_MCP)
+
+    assert result is True
+    mock_redis.get.assert_called_once()
+    mock_redis.setex.assert_called_once()  # Should cache result
+
+
+@pytest.mark.asyncio
+async def test_is_enabled_cache_miss_disabled(ff_manager, mock_redis, mock_db):
+    """Test feature check with cache miss, feature disabled in DB"""
+    # Setup: Cache miss, feature not found in DB
+    mock_redis.get.return_value = None
+
+    mock_query = MagicMock()
+    mock_query.filter = MagicMock(return_value=mock_query)
+    mock_query.first = AsyncMock(return_value=None)  # Feature not found
+    mock_db.query.return_value = mock_query
+
+    result = await ff_manager.is_enabled("tenant_123", Feature.MEMORY_MCP)
+
+    assert result is False
+    mock_redis.setex.assert_called_once_with(
+        "ff:tenant_123:memory_mcp",
+        3600,
+        b"0"
+    )
+
+
+@pytest.mark.asyncio
+async def test_is_enabled_redis_error_fallback(ff_manager, mock_redis, mock_db):
+    """Test feature check falls back to DB when Redis fails"""
+    # Setup: Redis throws error
+    mock_redis.get.side_effect = Exception("Redis connection failed")
+
+    mock_flag = MagicMock()
+    mock_flag.is_enabled = True
+
+    mock_query = MagicMock()
+    mock_query.filter = MagicMock(return_value=mock_query)
+    mock_query.first = AsyncMock(return_value=mock_flag)
+    mock_db.query.return_value = mock_query
+
+    result = await ff_manager.is_enabled("tenant_123", Feature.MEMORY_MCP)
+
+    assert result is True  # Should still work via database
+
+
+@pytest.mark.asyncio
+async def test_enable_features_for_tier_starter(ff_manager, mock_db):
+    """Test enabling features for STARTER tier"""
+    mock_query = MagicMock()
+    mock_query.filter = MagicMock(return_value=mock_query)
+    mock_query.delete = AsyncMock()
+    mock_db.query.return_value = mock_query
+
+    await ff_manager.enable_features_for_tier("tenant_123", Tier.STARTER)
+
+    # Should delete existing flags
+    mock_query.delete.assert_called_once()
+
+    # Should add new flags (3 for STARTER: core_agents, basic_analytics, api_access)
+    assert mock_db.add.call_count == 3
+
+    mock_db.commit.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_enable_features_for_tier_pro(ff_manager, mock_db):
+    """Test enabling features for PRO tier"""
+    mock_query = MagicMock()
+    mock_query.filter = MagicMock(return_value=mock_query)
+    mock_query.delete = AsyncMock()
+    mock_db.query.return_value = mock_query
+
+    await ff_manager.enable_features_for_tier("tenant_123", Tier.PRO)
+
+    # Should add 8 features for PRO tier
+    assert mock_db.add.call_count == 8
+    mock_db.commit.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_enable_features_for_tier_enterprise(ff_manager, mock_db):
+    """Test enabling features for ENTERPRISE tier"""
+    mock_query = MagicMock()
+    mock_query.filter = MagicMock(return_value=mock_query)
+    mock_query.delete = AsyncMock()
+    mock_db.query.return_value = mock_query
+
+    await ff_manager.enable_features_for_tier("tenant_123", Tier.ENTERPRISE)
+
+    # Should add all features for ENTERPRISE tier (16 features)
+    assert mock_db.add.call_count >= 8  # At least all PRO features
+    mock_db.commit.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_enable_features_cache_invalidation(ff_manager, mock_redis, mock_db):
+    """Test that cache is invalidated when features are enabled"""
+    mock_query = MagicMock()
+    mock_query.filter = MagicMock(return_value=mock_query)
+    mock_query.delete = AsyncMock()
+    mock_db.query.return_value = mock_query
+
+    await ff_manager.enable_features_for_tier("tenant_123", Tier.PRO)
+
+    # Should invalidate cache for all PRO features (8 features)
+    assert mock_redis.delete.call_count == 8
+
+
+@pytest.mark.asyncio
+async def test_enable_features_rollback_on_error(ff_manager, mock_db):
+    """Test database rollback when feature enablement fails"""
+    mock_query = MagicMock()
+    mock_query.filter = MagicMock(return_value=mock_query)
+    mock_query.delete = AsyncMock()
+    mock_db.query.return_value = mock_query
+
+    # Make commit fail
+    mock_db.commit.side_effect = Exception("Database error")
+
+    with pytest.raises(Exception):
+        await ff_manager.enable_features_for_tier("tenant_123", Tier.PRO)
+
+    # Should rollback on error
+    mock_db.rollback.assert_called_once()
+
+
+# ============================================================================
+# PERFORMANCE TESTS
+# ============================================================================
+
+@pytest.mark.asyncio
+async def test_cache_performance(ff_manager, mock_redis):
+    """Test that cache significantly improves performance"""
+    import time
+
+    # Cache hit scenario
+    mock_redis.get.return_value = b"1"
+
+    start = time.time()
+    for _ in range(100):
+        await ff_manager.is_enabled("tenant_123", Feature.MEMORY_MCP)
+    cache_time = time.time() - start
+
+    # Should be very fast (<100ms for 100 checks)
+    assert cache_time < 0.1
+    assert mock_redis.get.call_count == 100
+
+
+# ============================================================================
+# INTEGRATION TESTS
+# ============================================================================
+
+@pytest.mark.asyncio
+async def test_tier_upgrade_workflow(ff_manager, mock_db):
+    """Test complete tier upgrade workflow"""
+    mock_query = MagicMock()
+    mock_query.filter = MagicMock(return_value=mock_query)
+    mock_query.delete = AsyncMock()
+    mock_db.query.return_value = mock_query
+
+    # Upgrade from STARTER to PRO
+    await ff_manager.enable_features_for_tier("tenant_123", Tier.STARTER)
+    starter_calls = mock_db.add.call_count
+
+    mock_db.add.reset_mock()
+
+    await ff_manager.enable_features_for_tier("tenant_123", Tier.PRO)
+    pro_calls = mock_db.add.call_count
+
+    # PRO should have more features than STARTER
+    assert pro_calls > starter_calls
+
+
+# ============================================================================
+# EDGE CASE TESTS
+# ============================================================================
+
+@pytest.mark.asyncio
+async def test_no_redis_no_db_allows_all(mock_redis):
+    """Test that missing Redis/DB allows all features (fail-open)"""
+    ff_manager = FeatureFlagManager(redis_client=None, db_session=None)
+
+    result = await ff_manager.is_enabled("tenant_123", Feature.MEMORY_MCP)
+
+    assert result is True  # Fail-open for safety
+
+
+def test_invalid_tier(client):
+    """Test handling of invalid tier"""
+    with pytest.raises(ValueError):
+        # Should raise ValueError for invalid tier
+        Tier("invalid")
+
+
+@pytest.mark.asyncio
+async def test_concurrent_feature_checks(ff_manager, mock_redis):
+    """Test thread-safety of concurrent feature checks"""
+    mock_redis.get.return_value = b"1"
+
+    # Run 10 concurrent checks
+    tasks = [
+        ff_manager.is_enabled("tenant_123", Feature.MEMORY_MCP)
+        for _ in range(10)
+    ]
+
+    results = await asyncio.gather(*tasks)
+
+    # All should succeed
+    assert all(results)
+    assert len(results) == 10
+
+
+# ============================================================================
+# NOTE: Decorator and toggle tests moved to integration tests
+# The @requires_feature decorator needs FastAPI Request context
+# ============================================================================
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v", "--cov=core.feature_flags", "--cov-report=term-missing"])

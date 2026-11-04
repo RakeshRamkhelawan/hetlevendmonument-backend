@@ -1,0 +1,20 @@
+agent_id: "ext.communications_pr.publicrelations.001"
+name: "PublicRelationsAgent"
+department: "communications_pr"
+technology: "LLM"
+module_path: "src.core.als.agents.specialists.communications_pr"
+class_name: "PublicRelationsAgent"
+description: "Manages brand reputation and press releases."
+is_active: true
+priority: "HIGH"
+version: "1.0.0"
+allowed_tools: ["newswire_api", "influencer_db"]
+ooda_profile:
+  observe:
+    data_sources: ["external_api", "internal_lake"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.90
+  act:
+    tools: ["newswire_api", "influencer_db"]

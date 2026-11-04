@@ -1,0 +1,28 @@
+# LET OP (BE-AGT-068, 2026-09-25): sinds de class_name-reparatie laadt deze rij de
+# ECHTE skill (src/core/als/agents/skills/dunning.py). Die bouwt zijn configuratie uit
+# src/core/als/agents/skills/manifests/dunning.yml en NEGEERT wat hieronder staat.
+# Effectief gelden dus: department finance_treasury (niet admin_lite), skill_id
+# dunning (niet het agent_id hieronder) en de allowed_tools uit dat manifest.
+# De velden department, allowed_tools en ooda_profile hieronder zijn daarmee DOOD.
+# Ze staan er nog omdat de loader ze voor de catalogusweergave leest; ze opruimen
+# raakt ook de ooda_profile-vraag uit BE-LLM-006 en hoort in die knip.
+agent_id: "mkb.admin_lite.dunningagent.001"
+name: "DunningAgent"
+department: "admin_lite"
+technology: "LLM"
+module_path: "src.core.als.agents.mkb.admin_lite"
+class_name: "DunningAgent"
+description: "Manages automated friendly payment reminders."
+is_active: true
+priority: "MEDIUM"
+version: "1.0.0"
+allowed_tools: ["debt_tracker", "email_sender"]
+ooda_profile:
+  observe:
+    data_sources: ["mkb_specific_api", "manual_uploads"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.85
+  act:
+    tools: ["debt_tracker", "email_sender"]

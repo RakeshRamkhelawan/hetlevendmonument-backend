@@ -1,0 +1,18 @@
+Kantoorhuis Papierwerk BV
+Handelsstraat 88, 5611 ZG Testhoven
+KvK 00685369   BTW-nummer NL770430942B01
+
+FACTUUR
+Factuurnummer F92212
+Factuurdatum 27-09-2026
+
+Omschrijving                Aantal   Prijs     BTW   Bedrag
+Advieswerk dagdeel  2 x 325,00  21%  650,00
+Drukwerk 500 stuks  4 x 185,00  21%  740,00
+Materiaalkosten  1 x 125,00  21%  125,00
+
+Subtotaal excl. btw: EUR 1.515,00
+Omzetbelasting 21% (1.515,00)  318,15
+Totaalbedrag: EUR 1.833,15
+
+Betaling binnen 14 dagen op NL00 TEST 0123 4567 89 t.n.v. Kantoorhuis Papierwerk BV

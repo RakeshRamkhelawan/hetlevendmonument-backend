@@ -1,0 +1,61 @@
+id: SOP-MKT-SEO
+description: "SEO Optimization Workflow - Improve search engine visibility"
+version: "1.0"
+variables:
+  - target_page
+  - focus_keywords
+  - competitors
+  - seo_team_email
+  - seo_api_base_url
+  - seo_api_token
+
+steps:
+  - tool: local__openapi_call_endpoint
+    description: "Fetch Current Rankings"
+    params:
+      base_url: "{seo_api_base_url}"
+      method: "POST"
+      path: "/seo/rankings"
+      headers:
+        Authorization: "Bearer {seo_api_token}"
+      body:
+        keywords: "{focus_keywords}"
+
+  - tool: local__llm_generate
+    description: "Keyword Research"
+    params:
+      prompt: |
+        Perform keyword research for: {focus_keywords}
+        Analyze: search volume, difficulty, related terms.
+        Suggest: primary and secondary keywords to target.
+
+  - tool: local__llm_generate
+    description: "Competitor SEO Analysis"
+    params:
+      prompt: |
+        Analyze SEO strategies of: {competitors}
+        Focus on: top-ranking content, backlink strategies, content gaps.
+        Identify opportunities we can leverage.
+
+  - tool: local__llm_generate
+    description: "On-Page Optimization Recommendations"
+    params:
+      prompt: |
+        Provide on-page SEO recommendations for: {target_page}
+        Include: title tag, meta description, header structure, content optimization.
+        Focus keywords: {focus_keywords}
+
+  - tool: local__llm_generate
+    description: "Content Gap Analysis"
+    params:
+      prompt: |
+        Identify content gaps based on competitor analysis.
+        Suggest new content pieces that could drive organic traffic.
+        Prioritize by: search volume and business relevance.
+
+  - tool: local__gmail_send_email
+    description: "Send SEO Report"
+    params:
+      to: "{seo_team_email}"
+      subject: "SEO Optimization Report: {target_page}"
+      body: "The SEO analysis and recommendations are ready for implementation."

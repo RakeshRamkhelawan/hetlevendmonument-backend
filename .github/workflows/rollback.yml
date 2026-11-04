@@ -1,0 +1,154 @@
+name: Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to rollback (staging or production)'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      target_tag:
+        description: 'Image tag to rollback to (e.g., v1.2.3 or develop-abc1234)'
+        required: true
+        type: string
+      components:
+        description: 'Components to rollback (comma-separated: backend,frontend,worker)'
+        required: true
+        default: 'backend,frontend,worker'
+        type: string
+
+env:
+  ACR: sanskritisetuacr.azurecr.io
+
+concurrency:
+  group: cd-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  rollback:
+    name: Rollback ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: ${{ inputs.environment }}
+    steps:
+      - name: Azure login
+        uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5  # v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Check required secrets
+        run: |
+          # Bij een ROLLBACK is "leek te werken" het gevaarlijkste antwoord: een lege
+          # resourcegroep laat elke az-aanroep slagen tegen niets, en de rollback meldt succes
+          # terwijl productie de kapotte versie houdt (ADR-036 OP-111).
+          if [ -z "${GH_PROD_RESOURCE_GROUP}" ]; then
+            echo "::error::Secret PROD_RESOURCE_GROUP ontbreekt -- rollback afgebroken."
+            exit 1
+          fi
+
+        env:
+          GH_PROD_RESOURCE_GROUP: ${{ secrets.PROD_RESOURCE_GROUP }}
+      - name: Determine resource group
+        id: rg
+        run: |
+          if [ "${{ inputs.environment }}" = "production" ]; then
+            echo "RG=${GH_PROD_RESOURCE_GROUP}" >> $GITHUB_OUTPUT
+          else
+            echo "RG=${GH_STAGING_RESOURCE_GROUP}" >> $GITHUB_OUTPUT
+          fi
+
+        env:
+          GH_PROD_RESOURCE_GROUP: ${{ secrets.PROD_RESOURCE_GROUP }}
+          GH_STAGING_RESOURCE_GROUP: ${{ secrets.STAGING_RESOURCE_GROUP }}
+      - name: Determine app names
+        id: apps
+        run: |
+          if [ "${{ inputs.environment }}" = "production" ]; then
+            echo "BACKEND=${GH_PROD_BACKEND_APP}" >> $GITHUB_OUTPUT
+            echo "FRONTEND=${GH_PROD_FRONTEND_APP}" >> $GITHUB_OUTPUT
+            echo "WORKER=${GH_PROD_WORKER_APP}" >> $GITHUB_OUTPUT
+          else
+            echo "BACKEND=${GH_STAGING_BACKEND_APP}" >> $GITHUB_OUTPUT
+            echo "FRONTEND=${GH_STAGING_FRONTEND_APP}" >> $GITHUB_OUTPUT
+            echo "WORKER=worker-staging" >> $GITHUB_OUTPUT
+          fi
+
+        env:
+          GH_PROD_BACKEND_APP: ${{ secrets.PROD_BACKEND_APP }}
+          GH_PROD_FRONTEND_APP: ${{ secrets.PROD_FRONTEND_APP }}
+          GH_PROD_WORKER_APP: ${{ secrets.PROD_WORKER_APP }}
+          GH_STAGING_BACKEND_APP: ${{ secrets.STAGING_BACKEND_APP }}
+          GH_STAGING_FRONTEND_APP: ${{ secrets.STAGING_FRONTEND_APP }}
+      - name: Verify images exist in ACR
+        run: |
+          TAG="${{ inputs.target_tag }}"
+          IFS=',' read -ra COMPONENTS <<< "${{ inputs.components }}"
+          for COMP in "${COMPONENTS[@]}"; do
+            COMP=$(echo "$COMP" | xargs)  # trim whitespace
+            echo "Checking ${COMP}:${TAG}..."
+            if ! az acr repository show-tags --name sanskritisetuacr --repository "$COMP" --query "[?@=='${TAG}']" -o tsv | grep -q .; then
+              echo "ERROR: Image ${COMP}:${TAG} not found in ACR"
+              exit 1
+            fi
+            echo "  Found: ${COMP}:${TAG}"
+          done
+
+      - name: Rollback components
+        run: |
+          TAG="${{ inputs.target_tag }}"
+          RG="${{ steps.rg.outputs.RG }}"
+          IFS=',' read -ra COMPONENTS <<< "${{ inputs.components }}"
+          for COMP in "${COMPONENTS[@]}"; do
+            COMP=$(echo "$COMP" | xargs)
+            case "$COMP" in
+              backend)
+                APP="${{ steps.apps.outputs.BACKEND }}"
+                ;;
+              frontend)
+                APP="${{ steps.apps.outputs.FRONTEND }}"
+                ;;
+              worker)
+                APP="${{ steps.apps.outputs.WORKER }}"
+                ;;
+              *)
+                echo "WARNING: Unknown component '$COMP', skipping"
+                continue
+                ;;
+            esac
+            echo "Rolling back $COMP to ${TAG}..."
+            az containerapp update \
+              --name "$APP" \
+              --resource-group "$RG" \
+              --image "${{ env.ACR }}/${COMP}:${TAG}"
+            echo "  $COMP rolled back to ${TAG}"
+          done
+
+      - name: Health check
+        run: |
+          if [ "${{ inputs.environment }}" = "production" ]; then
+            URL="https://api.sanskritisetu.org/health"
+          else
+            FQDN=$(az containerapp show \
+              --name ${{ steps.apps.outputs.BACKEND }} \
+              --resource-group ${{ steps.rg.outputs.RG }} \
+              --query properties.configuration.ingress.fqdn -o tsv 2>/dev/null || echo "")
+            URL="https://${FQDN}/health"
+          fi
+
+          echo "Health check: $URL"
+          sleep 30
+          for i in 1 2 3 4 5; do
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$URL" || echo "000")
+            echo "Poging $i — HTTP $HTTP_CODE"
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "Rollback gezond."
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "WARNING: Health check niet geslaagd na rollback"
+          exit 1

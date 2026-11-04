@@ -1,0 +1,382 @@
+# ============================================================================
+# Docker Build Context Exclusions
+# PRODUCTION-OPTIMIZED: Excludes all development artifacts
+# ============================================================================
+
+# ==================== GIT & VERSION CONTROL ====================
+.git/
+.gitignore
+.github/
+.gitattributes
+
+# ==================== DEVELOPMENT REPORTS & DOCUMENTATION ====================
+# Session completion reports
+*_COMPLETION_REPORT.md
+*_COMPLETION_CERTIFICATE.md
+*_COMPLETION_SUMMARY.md
+*_DELIVERABLES*.md
+*_DELIVERY_*.md
+*_VERIFICATION*.md
+*_VALIDATION*.md
+*_HANDOFF*.md
+*_INDEX.md
+*_SUMMARY.md
+*_CHECKLIST*.md
+*_ANALYSIS*.md
+*_GUIDE*.md
+*_IMPLEMENTATION*.md
+*_TESTING*.md
+*_AUDIT*.md
+
+# Phase reports
+P0_*.md
+P4_*.md
+P5_*.md
+PHASE*.md
+SPRINT*.md
+SESSION*.md
+
+# Task reports
+TAAK_*.md
+TASK_*.md
+I.*.md
+
+# Kanban & Planning
+*KANBAN*.md
+*Kanban*.md
+
+# Testing reports
+TEST_*.md
+WORKFLOW_*.md
+INTEGRATION_*.md
+
+# API documentation (generated, not needed in runtime)
+API_*.md
+EXTERNAL_APIS_*.md
+OAUTH2_*.md
+
+# Frontend reports
+FRONTEND_*.md
+Frontend*.md
+
+# Misc reports
+MOCK_*.md
+VISUAL_*.md
+FINAL_STATUS*.txt
+DEPLOYMENT_*.md  # Keep DEPLOYMENT_QUICK_START.md exception below
+!DEPLOYMENT_QUICK_START.md
+
+# ==================== TEST FILES & DATA ====================
+# Test directories
+tests/
+tests_*/
+test_batches/
+test-results/
+temp_validation/
+htmlcov/
+.pytest_cache/
+.pytest_logs/
+*.pytest_cache
+tests_prod_mirror/
+tests_realworld/
+tests_reboot/
+analysis/
+
+# Test output files
+*_test_*.txt
+*_test_*.log
+*_test_*.xml
+*_test_*.json
+test_*.py  # Test scripts
+test_*.sh
+test_*.xml
+test_*.txt
+test_*.log
+testrun_*.xml
+
+# Coverage files
+coverage/
+.coverage
+coverage*.xml
+coverage*.txt
+coverage*.log
+*.coverage
+
+# ==================== LOGS & OUTPUT FILES ====================
+logs/
+*.log
+*.txt  # Most .txt files are logs/output
+!requirements*.txt  # Keep requirements files
+# De lockfile hoort OOK in de build-context: de Dockerfile installeert hem sinds
+# 2026-08-05. Zonder deze regel faalt de build op "requirements-prod.lock: not found".
+!requirements*.lock
+!README.txt  # Keep any README
+nul
+
+# Specific log patterns
+*_output.txt
+*_results.txt
+*_report.txt
+*_error*.txt
+*_debug*.txt
+*_logs.txt
+backend_*.log
+frontend_*.log
+*_crash.txt
+
+# ==================== DATABASE & CACHE ====================
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+chroma_db/
+mlruns/
+.test_postgres_data/
+eval_demo.db
+rollback_test.db
+test.db
+sanskriti_setu.db
+*.db.backup*
+
+# ==================== PYTHON DEVELOPMENT ====================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+
+# Aggressive Docker ignore - only include what's needed for build
+
+# Exclude everything by default
+*
+!.dockerignore
+
+# Whitelist only essentials
+!Dockerfile
+!requirements*.txt
+!requirements*.lock
+!src/
+!scripts/
+!services/
+!frontend/
+!alembic/
+!alembic.ini
+!gunicorn_config.py
+!assets/
+!config/
+orchestrator_*.py
+reset_*.py
+run_*.py
+scan_*.py
+shell_*.py
+simple_*.py
+setup_*.py
+upload_*.py
+fast_*.py
+generate_*.py
+verify_*.py
+copilot_*.py
+
+# ==================== FRONTEND DEVELOPMENT ====================
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.next/
+frontend/.cache/
+frontend/coverage/
+frontend/*.log
+frontend/tests/
+frontend/*.txt  # Test outputs
+
+# Frontend dev-only config (NOT needed for production build)
+frontend/.eslintrc*
+frontend/vitest*.ts
+frontend/playwright*.ts
+frontend/jest*.js
+# NOTE: tsconfig*.json and vite.config.ts ARE needed for frontend build - DO NOT EXCLUDE
+
+# Build outputs
+*.tsbuildinfo
+
+# ==================== DOCKER & INFRASTRUCTURE ====================
+# Docker configs not needed in image
+docker-compose*.yml
+!docker-compose.prod.yml  # Keep production compose
+docker-compose.*.yml
+Dockerfile  # Not needed inside image
+.dockerignore  # Not needed inside image
+
+# Infrastructure configs
+nginx/
+grafana/
+prometheus/
+alertmanager/
+kibana/
+logstash/
+letsencrypt/
+monitoring/
+
+# ==================== DEVELOPMENT TOOLS ====================
+.ai/
+.claude/
+.serena/
+.mcp/
+.mcp-debug-tools/
+mcp-debugger/
+.memory-bank/
+.gemini/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Code quality tools
+.gitleaks.toml
+.banditrc
+.pre-commit-config.yaml
+.eslintrc*
+.prettierrc*
+pylintrc
+ruff.toml
+.playwright-mcp/
+.structural-analysis/
+.benchmarks/
+.utcp_config.json
+
+# ==================== BACKUPS & ARCHIVES ====================
+backups/
+snapshots/
+_BACKUP*/
+*.backup
+*.bak
+*.tar.gz
+*.zip
+c7.bak/
+docker_archive/
+docker_exports/
+env_archive/
+archive/
+greenfield/
+legacy/
+production-ready-agents/
+
+# ==================== GENERATED & TEMPORARY FILES ====================
+generated/
+temp/
+tmp/
+*.tmp
+_generated*/
+downloads/
+externe\ downloads/
+debug-scripts/
+debug_scripts/
+sessions/
+test_outputs/
+test-outputs/
+temp_validation/
+test_keys/
+
+# Deployment packages
+deployment-*.tar.gz
+production-*.tar.gz
+
+# ==================== BENCHMARKS & PERFORMANCE ====================
+benchmarks/
+.benchmarks/
+benchmark_*.json
+k6_*.json
+
+# ==================== CERTIFICATES & KEYS ====================
+certs/
+*.pem
+*.key
+*.crt
+test_keys/
+
+# ==================== ENVIRONMENT FILES ====================
+.env*
+!.env.example
+!.env.prod.example
+!.env.production.template
+env_archive/
+
+# ==================== BUILD ARTIFACTS ====================
+*.o
+*.a
+*.lib
+*.exe
+*.dll
+*.dylib
+
+# ==================== DOCUMENTATION (External) ====================
+docs/  # Typically Sphinx/MkDocs, not needed in runtime
+README.md  # Not needed in Docker image
+CONTRIBUTING.md
+LICENSE
+CHANGELOG.md
+*.md  # Most .md files are docs
+!src/**/*.md  # Keep any inline docs in source
+
+# ==================== SPECIFIC FILES ====================
+# Development utilities
+Makefile
+makefile
+tasks.ps1
+upload-scripts.bat
+staging-deploy.bat
+run-*.sh
+run-*.ps1
+fix-*.sh
+
+# Data files
+*.csv
+*.json  # Most JSON are config/test data
+!package.json  # Keep package.json
+!package-lock.json
+!tsconfig.json
+!pyproject.toml  # Keep Python config
+
+# Reports
+*report.json
+*report.md
+*results.json
+
+# Misc
+.DS_Store
+Thumbs.db
+*.swp
+
+# ==================== CRITICAL: KEEP THESE ====================
+!src/
+!alembic/versions/
+!scripts/deploy*.sh
+!scripts/backup*.sh
+!scripts/restore*.sh
+!docker-compose.prod.yml
+!requirements*.txt
+!requirements*.lock
+!pyproject.toml
+!alembic.ini
+!.env.production.template
+!DEPLOYMENT_QUICK_START.md
+
+# ============================================================================
+# RESULT: Docker image only contains:
+# - src/ (application code)
+# - alembic/ (migrations)
+# - scripts/ (deployment scripts only)
+# - requirements files
+# - Essential configs (pyproject.toml, alembic.ini)
+# ============================================================================

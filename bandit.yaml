@@ -1,0 +1,17 @@
+# bandit.yaml - Council-scope security scanning config
+# Run: bandit -r src/core/copilot/ -c bandit.yaml
+
+exclude_dirs:
+  - tests/
+  - tests/chaos/
+  - tests/security/
+  - .venv/
+  - __pycache__/
+
+skips:
+  # B101: assert_used - assert_never voor mypy exhaustiveness check is OK
+  - B101
+
+tests:
+  # Run alle tests inclusief mid-severity
+  # (excl. expliciet skipped above)

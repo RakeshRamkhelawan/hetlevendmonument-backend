@@ -1,0 +1,423 @@
+=== [0] ASSISTANT ===
+Hier is het volledige overzicht van de huidige status van **ADR-029: Foundation Portal Architecture** in de SanskritiSetu-codebase.
+
+---
+
+## 1. Wat is al klaar ✅
+
+### Backend — Fase 1 (Data & Security Foundation)
+
+| Onderdeel | Status | Locatie |
+|---|---|---|
+| **7 modellen** | ✅ Compleet | `src/core/models/foundation_content.py` |
+| **5 Alembic-migraties** | ✅ Compleet | `src/alembic/versions/20260524a-e_*.py` |
+| **Model registry** | ✅ Geregistreerd | `src/core/database/model_registry.py` (regel 82-93) |
+| **Tenant resolver** | ✅ Compleet | `src/core/services/foundation_tenant_resolver.py` |
+| **12 Foundation-exceptions** | ✅ Compleet | `src/core/exceptions/foundation.py` |
+| **Slug-validatie consolidatie** | ✅ Compleet | `src/core/schemas/validators.py` (`validate_slug` + `FOUNDATION_RESERVED_SLUGS`) |
+| **6 Rate-limiter wrappers** | ✅ Compleet | `src/core/governance/rate_limiter.py` (regel 313-383) |
+| **Public endpoint prefix** | ✅ Geregistreerd | `src/core/middleware/public_registry.py` (`/api/v1/public/`) |
+| **Feature flags / Tiers** | ✅ Bestond al | `src/core/feature_flags/features.py` (`FREE`, `STARTER`, `PRO`, `ENTERPRISE`) |
+
+### Modellen detail (alle 7)
+
+| Model | `tenant_id` | RLS | Opmerking |
+|---|---|---|---|
+| `FoundationContent` | NOT NULL | ✅ | 6 content types, status, moderation_score |
+| `ContentTag` | **geen** | ❌ (bewust) | JOIN-isolatie via `foundation_content` |
+| `FoundationPortalSettings` | NOT NULL | ✅ | 1:1 met tenant, white-labeling |
+| `PortalUser` | NOT NULL | ✅ | Magic-link uploader (apart van RBAC User) |
+| `MagicLinkToken` | NOT NULL | ✅ | SHA-256 hash, 15 min TTL |
+| `TakedownRequest` | NOT NULL | ✅ | NTD-procedure |
+| `NewsletterSubscription` | NOT NULL | ✅ | Double opt-in |
+
+### Tests
+
+| Testbestand | Type | Dekking |
+|---|---|---|
+| `test_foundation_models.py` | Unit | Enums, schema, defaults, indices, DB-roundtrip |
+| `test_foundation_tenant_resolver.py` | Unit | Slug-validatie, resolve, inactive tenant, ContextVar-cleanup |
+| `test_foundation_rate_limiters.py` | Unit | `_ip_key`, `_email_key`, 6 decorators callable |
+| `test_foundation_exceptions.py` | Unit | Hiërarchie, error codes, status codes, geen collision |
+| `test_public_endpoint_registry.py` | Unit | `/api/v1/public/` aanwezig, `/admin/` afwezig |
+| `test_migrations.py` | Integratie | Tabellen, kolommen, enums, indexes, FK's |
+| `test_foundation_rls.py` | Security | Cross-tenant blocking voor alle 6 RLS-tabellen |
+
+---
+
+## 2. Wat moet nog gedaan worden ❌
+
+### Backend — Fase 2 (Services & Async Workers)
+
+| Onderdeel | Status | Impact |
+|---|---|---|
+| **Magic-link auth service** | ❌ Niet gebouwd | JWT uitgeven met `scope=portal_uploader`, verify endpoint |
+| **Brevo e-mail client** | ❌ Niet gebouwd | Transactional magic-link + newsletter verzending |
+| **hCaptcha integratie** | ❌ Niet gebouwd | Vóór magic-link aanvraag |
+| **Azure Blob storage** | ❌ Niet gebouwd | Upload, magic-bytes MIME-check, SAS-URL's |
+| **AI-tagging Dramatiq worker** | ❌ Niet gebouwd | Ollama `mistral:7b-instruct`, `ContentTag` insert |
+| **DSAR export endpoint** | ❌ Niet gebouwd | `GET /public/{slug}/me/export` voor portal users |
+| **ISR revalidatie endpoint** | ❌ Niet gebouwd | `POST /api/revalidate` HMAC-signed |
+
+### Backend — Fase 3 (Public API Endpoints)
+
+| Endpoint | Status |
+|---|---|
+| `GET /public/{slug}/content` | ❌ |
+| `GET /public/{slug}/content/{id}` | ❌ |
+| `POST /public/{slug}/magic-link` | ❌ |
+| `GET /public/{slug}/verify?token={raw}` | ❌ |
+| `POST /public/{slug}/content` (upload) | ❌ |
+| `POST /public/{slug}/takedown` | ❌ |
+| `POST /public/{slug}/newsletter/subscribe` | ❌ |
+| `GET /public/{slug}/settings` | ❌ |
+| `GET /public/{slug}/me/export` (DSAR) | ❌ |
+
+### Backend — Cat 3 & Cat 4 Uitbreidingen (Subsidie-eisen)
+
+| Onderdeel | Status |
+|---|---|
+| **Educatieve leeromgeving** | ❌ `EducationalAccess` model ontbreekt, access-code flow, sessie-cookie |
+| **Kaartweergave + geo-koppeling** | ❌ `latitude`/`longitude` velden ontbreken in model, `GET /map/bbox` endpoint |
+| **Polymorfe content-types** | ❌ Model heeft 6 types; ADR eist 11 (`video`, `educational_workbook`, etc.) |
+| **OAI-PMH endpoint** | ❌ `GET /public/{slug}/oai-pmh?verb=ListRecords` |
+| **School-/docententoegang** | ❌ `PortalUser.role` uitbreiden met `teacher` |
+| **Archivering (BagIt-export)** | ❌ Wekelijkse Dramatiq-job |
+
+### Frontend — Fase 4 (Next.js Portal)
+
+| Onderdeel | Status |
+|---|---|
+| **Apart Next.js 14 repo** | ❌ Bestaat niet — huidige `frontend/` is SanskritiSetu dashboard |
+| **14 portal-pagina's** | ❌ Homepage, browse, detail, upload, magic-link login, etc. |
+| **WCAG 2.1 AA** | ❌ axe-core/Lighthouse CI |
+| **Hostname-based slug routing** | ❌ |
+| **ISR (60s TTL)** | ❌ |
+| **MapLibre GL JS kaart** | ❌ |
+
+### Overig
+
+| Onderdeel | Status |
+|---|---|
+| **Stripe tier-upgrade flow** | ❌ Checkout + webhook (post-MVP) |
+| **Nieuwe OTel metrics** | ❌ `foundation_content_uploaded_total`, etc. |
+| **Runbooks** | ❌ `docs/runbooks/foundation-portal/` ontbreekt |
+| **Pentest + WCAG audit** | ❌ Pre-launch |
+
+---
+
+## 3. Wat wordt er allemaal geraakt van de bestaande codebase 🔧
+
+### Bestaande bestanden die zijn aangepast
+
+| Bestand | Wijziging | Reden |
+|---|---|---|
+| `src/core/schemas/validators.py` | `validate_slug()` uitgebreid met `reserved` + `strict` params; `FOUNDATION_RESERVED_SLUGS` toegevoegd | 3 bestaande implementaties → 1 canonical |
+| `src/core/governance/rate_limiter.py` | 6 nieuwe decorators + `_ip_key` / `_email_key` helpers | ADR-029 rate-limit policy |
+| `src/core/middleware/public_registry.py` | `/api/v1/public/` toegevoegd aan `PUBLIC_PREFIXES` | Public endpoints omzeilen `TenantMiddleware` |
+| `src/core/database/model_registry.py` | `core.foundation` groep toegevoegd (7 modellen) | Alembic/test registratie |
+| `src/core/exceptions/exceptions.py` | `FoundationError` erft van `SanskritiError` | Bestaande error-hiërarchie hergebruikt |
+
+### Bestaande infrastructuur die wordt hergebruikt
+
+| ADR / Systeem | Hoe hergebruikt |
+|---|---|
+| **ADR-002** (Multi-tenant DB) | Alle 7 nieuwe tabellen volgen `tenant_id NOT NULL` patroon |
+| **ADR-003** (JWT) | Uitbreiding met `scope=portal_uploader` claim |
+| **ADR-004** (ORM hook) | `public_tenant_scope()` roept `set_tenant_id()` aan; `ContentTag` bewust uitgezonderd |
+| **ADR-005** (RLS) | Alle migraties creëren `tenant_isolation` policies |
+| **ADR-006** (Dramatiq) | AI-tagging + e-mail + BagIt-export als async jobs |
+| **ADR-009** (Traefik TLS) | `maxRequestBodySize` middleware; per-subdomain `httpChallenge` |
+| **ADR-014** (Observability) | Nieuwe metrics/traces toe te voegen |
+| **ADR-019** (Audit log) | Content APPROVE/REJECT/REMOVE + takedown in hash chain |
+
+### Bestaande bestanden die **niet** zijn aangepast (maar wel geraakt zullen worden)
+
+- `src/core/middleware/tenant_context.py` — wordt aangeroepen door `public_tenant_scope()`
+- `src/core/feature_flags/manager.py` — moet portal-features gaan checken
+- `src/core/services/email.py` — moet Brevo-backend + magic-link templates krijgen
+- `src/core/governance/dsar_notifications.py` — moet uitbreiden naar portal users
+- `src/core/llm/ollama_provider.py` — moet AI-tagging prompt krijgen
+- `src/core/middleware/audit_logger.py` — moet portal-acties loggen
+
+---
+
+## Samenvattend
+
+| Fase | Status |
+|---|---|
+| **Fase 1: Backend Foundations** | ~**85% klaar** — modellen, migraties, resolver, exceptions, rate limiters, tests zijn af. Ontbreekt: cross-tenant isolation test voor `ContentTag` JOIN (vermeld in ADR maar niet expliciet als apart testbestand gevonden). |
+| **Fase 2: Backend Services** | **0% klaar** — Blob, AI-tagging, magic-link, DSAR nog niet gebouwd |
+| **Fase 3: Backend API** | **0% klaar** — Geen public routers of endpoints |
+| **Fase 4: Next.js Portal** | **0% klaar** — Huidige frontend is het interne dashboard, geen publiek portal |
+| **Fase 5: Security & Launch** | **0% klaar** — Pentest, WCAG, content upload |
+
+De **kern van Fase 1 (data-laag + security foundation)** is solide af. De volgende logische stap is **Fase 2**: de services bouwen (magic-link auth, Brevo, Azure Blob, AI-tagging worker) en daarna **Fase 3**: de FastAPI public routers.
+
+=== [1] ASSISTANT ===
+Hier is de inhoud van **CLAUDE.md** — het centrale instructiebestand voor alle AI-assistenten op dit project:
+
+---
+
+## Kernpunten uit CLAUDE.md
+
+### Project Identiteit
+- **SanskritiSetu** — Enterprise AI Agent Operating System, multi-tenant SaaS
+- Solo developer project (Rakesh), gebouwd via vibecoding met LLMs
+- Masterplan v4.2: `docs/masterplan-v4.2.md`
+- Sprint tracking: `SPRINT_PLANNING.md` + `docs/SPRINT_TRACKER.md`
+
+### Architectuur Kernbeslissingen (DEFINITIEF)
+| Beslissing | Keuze | ADR |
+|---|---|---|
+| Message broker | Dramatiq + Redis | ADR-006 |
+| Tenant identity | JWT claim (ContextVar) | ADR-003 |
+| Edge gateway | Traefik + TLS 1.3 | ADR-009 |
+| ORM tenant filtering | `do_orm_execute` hook (auto WHERE) | ADR-004 |
+| DB hardening | `tenant_id NOT NULL` + RLS | ADR-005 |
+| Audit logging | SHA-256 hash chain | ADR-019 |
+| AI Act governance | Mandatory governance contract | ADR-031 |
+
+### Codebase Omvang (mei 2026)
+- 1.700 Python bronbestanden
+- 1.043 Frontend TS/TSX
+- 1.104 Testbestanden
+- 31 Alembic migraties
+
+### Branches
+- `main` — productie
+- `develop` — staging (alleen deze 2 branches, geen feature-branches)
+- Werk op `develop`, merge naar `main` alleen met expliciete GO van Rakesh
+
+### Absolute Regels (samenvatting)
+1. **3 Quality Gates** — EnterPlanMode altijd; code-reviewer + quality-reviewer; mypy + pyright + ruff groen
+2. **Karpathy's 4 regels** — Think Before Coding, Simplicity First, Surgical Changes, Goal-Driven
+3. **NOOIT-lijst**:
+   - NOOIT mergen naar main zonder Rakesh GO
+   - NOOIT `tenant_id` uit request body
+   - NOOIT `datetime.now()` of `datetime.utcnow()`
+   - NOOIT emoji of non-ASCII in code/comments/logs
+4. **Test suite**: `python -m pytest tests/unit/ -n 8 --timeout=60 -q --tb=short` (NOOIT `-n auto` op Windows)
+
+### Kwaliteitscommando's
+```bash
+# Tests
+python -m pytest tests/unit/ -n 8 --timeout=60 -q --tb=short
+pytest tests/integration/ -v                    # vereist PostgreSQL poort 5455
+pytest tests/ --cov=src --cov-fail-under=95
+
+# Kwaliteit
+ruff check src/
+black src/ --line-length 100
+mypy src/
+bandit -r src/
+```
+
+---
+
+**Relevantie voor ADR-029:** De bestaande Fase 1-implementatie voldoet aan de CLAUDE.md-regels:
+- ✅ `tenant_id NOT NULL` + RLS (ADR-005)
+- ✅ `do_orm_execute` hook via `public_tenant_scope()` (ADR-004)
+- ✅ SHA-256 hash chain ready voor audit logging (ADR-019)
+- ✅ Dramatiq + Redis voor async workers (ADR-006)
+- ✅ Geen `datetime.now()` in migraties (gebruik `func.now()` / `server_default`)
+- ✅ Geen emoji/non-ASCII in de foundation-code
+
+Wil je dat ik nu verder ga met een specifiek onderdeel van ADR-029, bijvoorbeeld het bouwen van de ontbrekende Fase 2-services?
+
+=== [2] ASSISTANT ===
+Ik heb geen tool of toegang tot iets dat expliciet "context 7" heet in mijn huidige omgeving. 
+
+Kun je uitleggen wat je bedoelt met "context 7"? Is dat:
+- Een specifiek **vault memory** bestand (bijv. `memory/vault/context-7.md`)?
+- Een **sessie-context** of conversatie-thread?
+- Een **extern systeem** of database?
+- Een **skill** of instructiebestand?
+
+Als je het pad of de naam geeft, kan ik het direct voor je lezen.
+
+=== [3] ASSISTANT ===
+Je hebt al een **MCP (Model Context Protocol)** setup! Hier is wat er al is en hoe we samen nieuwe servers kunnen bouwen.
+
+---
+
+## Wat er al is ✅
+
+In `.mcp/` staat al een werkende configuratie:
+
+| Bestand | Doel |
+|---|---|
+| `.mcp/config.json` | Registreert 1 MCP server: `sanskritisetu-auth-test` |
+| `.mcp/auth_test_server.py` | Een Python MCP server met 3 tools: `generate_test_token`, `setup_test_database`, `verify_token` |
+
+Deze server draait via **stdio** (stdin/stdout) — het klassieke MCP transport.
+
+---
+
+## Hoe MCP werkt in jouw omgeving
+
+**MCP** is een protocol waarmee externe programma's ("servers") tools en resources aanbieden aan AI agents. In jouw geval:
+
+```
+┌─────────────────┐      stdio/JSON-RPC      ┌─────────────────────┐
+│   Kimi Work     │  ◄────────────────────►  │  .mcp/auth_test_    │
+│   (deze agent)  │                        │  server.py          │
+└─────────────────┘                        └─────────────────────┘
+```
+
+De agent kan de tools van de MCP server aanroepen alsof het eigen tools zijn.
+
+---
+
+## Hoe we samen nieuwe MCP servers opzetten
+
+### Stap 1: Bepaal wat de server moet doen
+Wat voor tools wil je beschikbaar maken? Bijvoorbeeld:
+- **Database queries** — direct SQL draaien op de SanskritiSetu DB
+- **Git operaties** — commits, branches, status
+- **Test runner** — pytest uitvoeren en resultaten teruggeven
+- **ADR-029 helper** — foundation portal specifieke operaties
+
+### Stap 2: Ik bouw de Python MCP server
+Ik schrijf een nieuw `.mcp/naam_server.py` bestand met:
+- `@app.list_tools()` — definieert welke tools beschikbaar zijn
+- `@app.call_tool()` — voert de tool uit en geeft resultaat terug
+
+### Stap 3: Jij (of ik) registreert het in `config.json`
+```json
+{
+  "mcpServers": {
+    "sanskritisetu-auth-test": { ... },
+    "sanskritisetu-db-query": {
+      "name": "DB Query Server",
+      "command": "python",
+      "args": [".mcp/db_query_server.py"],
+      "cwd": "${workspaceFolder}",
+      "env": { "DATABASE_URL": "..." }
+    }
+  }
+}
+```
+
+### Stap 4: Testen
+De MCP server moet gestart worden door de client (bijv. Claude Desktop, of een andere AI client). Als je Kimi Desktop gebruikt, hangt het af van of Kimi MCP ondersteunt.
+
+---
+
+## Wat wil je als eerste bouwen?
+
+Geef aan welke richting je op wilt, dan ga ik direct aan de slag:
+
+| Optie | Nut voor SanskritiSetu |
+|---|---|
+| **A. Database query server** | Direct SQL draaien, migraties checken, data inspecteren |
+| **B. Test runner server** | pytest uitvoeren, coverage rapporteren, flaky tests vinden |
+| **C. Git operatie server** | Status checken, diff bekijken, branches beheren |
+| **D. ADR-029 foundation server** | Specifieke tools voor het Foundation Portal (tenant resolutie, content status, etc.) |
+| **E. Bestaande auth server verbeteren** | Uitbreiden met meer auth/test tools |
+
+**Welke optie spreekt je aan?** Of heb je een heel andere use-case in gedachten?
+
+=== [4] ASSISTANT ===
+Ik kan dat **niet met zekerheid verifiëren** — MCP (Model Context Protocol) is oorspronkelijk door Anthropic ontwikkeld en wordt voornamelijk door **Claude Desktop** ondersteund. Of de Kimi Desktop client het ook ondersteunt, weet ik niet.
+
+## Hoe je het zelf checkt
+
+### Optie 1: In Kimi Desktop zoeken
+Open Kimi Desktop en kijk of er ergens een instelling is voor:
+- **"MCP Servers"**
+- **"Tools"** of **"Plugins"**
+- **"Extensions"**
+- Een configuratiebestand zoals `~/.kimi/mcp.json` of vergelijkbaar
+
+### Optie 2: Check de Kimi documentatie
+- Ga naar de Kimi website of help center
+- Zoek op "MCP" of "Model Context Protocol"
+
+### Optie 3: Probeer het `.mcp/config.json`
+Als Kimi Desktop een workspace-based configuratie heeft (vergelijkbaar met Claude Desktop's `claude_desktop_config.json`), zou het dit bestand moeten herkennen:
+```
+C:\Users\rsram\OneDrive\Documenten\GitHub\SanskritiSetu.org\.mcp\config.json
+```
+
+---
+
+## Als Kimi MCP **niet** ondersteunt: alternatieven
+
+We kunnen dezelfde functionaliteit op andere manieren bereiken:
+
+| Alternatief | Hoe het werkt |
+|---|---|
+| **PythonRun tool** | Ik voer Python scripts direct uit in mijn runtime — geen aparte server nodig |
+| **Bash tool** | Ik draai shell commands (git, pytest, alembic, etc.) |
+| **Agent tool** | Ik start sub-agents die specifieke taken doen (vergelijkbaar met MCP tools) |
+| **Skills** | We slaan herbruikbare procedures op als `SKILL.md` bestanden |
+
+### Praktisch voorbeeld: test runner
+In plaats van een MCP test-runner server, kan ik gewoon:
+```bash
+python -m pytest tests/unit/test_foundation_models.py -v
+```
+direct uitvoeren via mijn **Bash** tool en de resultaten analyseren.
+
+### Praktisch voorbeeld: database query
+In plaats van een MCP DB server, kan ik via **PythonRun** direct SQLAlchemy queries draaien op de database.
+
+---
+
+## Mijn advies
+
+**Laat me weten** of je in Kimi Desktop een MCP-instelling hebt gevonden. Zo niet, dan werken we gewoon met de tools die ik al heb (Bash, PythonRun, Agent) — die dekken 95% van hetzelfde gebruik.
+
+Wil je dat ik in de tussentijd een **skill** maak voor een specifieke workflow (bijv. "Foundation Portal test runner" of "Database inspectie")? Die kun je dan altijd oproepen zonder MCP.
+
+=== [5] ASSISTANT ===
+De hernieuwde audit is klaar. Het volledige rapport staat hier:
+
+**[ADR-029-hernieuwde-audit-2026-06-13.md](C:\Users\rsram\Documents\kimi\workspace\ADR-029-hernieuwde-audit-2026-06-13.md)**
+
+---
+
+## Kernbevindingen
+
+### ✅ Wat is WEL klaar (Fase 1 — ~20%)
+
+| Onderdeel | Status | Opmerking |
+|---|---|---|
+| 7 modellen + 5 migraties | ✅ Intact | `foundation_content.py` onveranderd |
+| 12 exceptions + resolver | ✅ Intact | `TenantFilterBypass` fix toegevoegd |
+| 6 rate-limiters + slug-validatie | ✅ Intact | `FOUNDATION_RESERVED_SLUGS` |
+| `public_registry.py` | ✅ **Verplaatst** | `middleware/` → `shared/` (ADR-033 circulaire dep fix) |
+| ~96 tests | ✅ Groen | Unit + integratie + security |
+| 8 runbooks | ✅ Aanwezig | Procedureel, geen code |
+
+### ❌ Wat mist volledig (Fase 2–5 — 0%)
+
+| Onderdeel | Status |
+|---|---|
+| **`src/core/api/v1/foundation/`** | ❌ **Bestaat niet** — de grootste lacune |
+| Magic-link auth service | ❌ Niet gebouwd |
+| Brevo client, Azure Blob, AI-tagging worker | ❌ Niet gebouwd |
+| Alle 11+ public API endpoints | ❌ Niet gebouwd |
+| Next.js 14 portal (aparte MIT-repo) | ❌ Niet gebouwd |
+| **Cat 3 & Cat 4 uitbreidingen** | ❌ Volledig afwezig |
+
+### 🔧 Wat is GEREFACTORED sinds vorige audit
+
+De ADR-033 (API Layer Service Boundary, 2026-06-02–12) en ADR-032 (Frontend Page Architecture, 2026-05-28) hebben de codebase zwaar gewijzigd:
+
+1. **`public_registry.py`** verplaatst van `middleware/` → `shared/` (circulaire dep opgelost)
+2. **`TenantFilterBypass()`** toegevoegd in `foundation_tenant_resolver.py` (anders blokkeert de ORM-hook de eigen tenant-lookup)
+3. **Nieuwe `v1/<domein>/` structuur** is nu de enige geldige manier om routers toe te voegen — foundation mist hier volledig
+4. **22 frontend pagina's** gedefinieerd in ADR-032, **allemaal intern dashboard** — geen enkele portal-pagina
+
+### 🎯 Aanbeveling
+
+ADR-029 is ~**20% compleet**. De data-laag is solide, maar de API-laag en frontend ontbreken volledig. Bij nieuwe implementatie:
+
+- **Gebruik `src/core/api/v1/foundation/`** (het ADR-033 patroon)
+- **Bouw gateway.py + dependencies.py** eerst (import-linter Contract 1 verplicht dit)
+- **Start een apart Next.js project** — mix niet met de huidige `frontend/` dashboard
+
+Wil je dat ik een concreet implementatieplan schrijf voor de ontbrekende Fase 2–3, rekening houdend met de ADR-033 architectuur?
+

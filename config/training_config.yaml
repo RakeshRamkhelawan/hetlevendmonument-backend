@@ -1,0 +1,243 @@
+# M-MDP Training Configuration - Phase 2 Day 13-14
+# ASCII-only configuration for training pipeline and experiment tracking
+
+# Training Pipeline Configuration
+training:
+  # General Training Settings
+  experiment_name: "mmdp_learning_v2"
+  run_name_template: "run_{timestamp}_{agent_type}"
+  max_concurrent_experiments: 3
+  training_timeout_hours: 24
+  checkpoint_interval_minutes: 30
+
+  # PPO Training Parameters
+  ppo:
+    learning_rate: 0.0003
+    n_steps: 2048
+    batch_size: 64
+    n_epochs: 10
+    gamma: 0.99
+    gae_lambda: 0.95
+    clip_range: 0.2
+    ent_coef: 0.01
+    vf_coef: 0.5
+    max_grad_norm: 0.5
+    total_timesteps: 100000
+
+  # Memory Integration Settings
+  memory:
+    enable_memory_guidance: true
+    memory_retrieval_frequency: 100
+    memory_importance_threshold: 0.6
+    memory_cache_size: 1000
+    cleanup_interval_hours: 6
+
+  # Experience Replay Configuration
+  experience_replay:
+    buffer_capacity: 50000
+    prioritized_replay: true
+    alpha: 0.6
+    beta: 0.4
+    beta_increment: 0.001
+
+  # Reward System Configuration
+  rewards:
+    task_completion_weight: 0.25
+    communication_efficiency_weight: 0.15
+    memory_utilization_weight: 0.15
+    strategic_alignment_weight: 0.20
+    learning_progress_weight: 0.10
+    collaboration_quality_weight: 0.10
+    resource_efficiency_weight: 0.05
+
+# Experiment Tracking Configuration
+experiment_tracking:
+  # MLflow Configuration
+  mlflow:
+    enabled: true
+    tracking_uri: "file:./mlruns"
+    experiment_name: "M-MDP_Learning_Experiments"
+    artifact_location: "./mlartifacts"
+    auto_log_models: true
+    log_system_metrics: true
+
+  # Wandb Configuration
+  wandb:
+    enabled: false  # Set to true when API key is available
+    project: "mmdp-learning"
+    entity: "sanskriti-setu"
+    tags: ["mmdp", "ppo", "memory-augmented"]
+    notes: "Memory-Augmented MDP training with PPO"
+
+  # Metrics to Track
+  metrics:
+    # Training Metrics
+    - "episode_reward"
+    - "episode_length"
+    - "policy_loss"
+    - "value_loss"
+    - "entropy_loss"
+    - "learning_rate"
+
+    # Memory Metrics
+    - "memory_retrieval_accuracy"
+    - "memory_cache_hit_rate"
+    - "memory_importance_score"
+    - "context_relevance_score"
+
+    # System Metrics
+    - "training_time"
+    - "memory_usage_mb"
+    - "cpu_utilization"
+    - "communication_latency"
+
+  # Artifacts to Save
+  artifacts:
+    - "model_checkpoints"
+    - "training_logs"
+    - "memory_snapshots"
+    - "configuration_files"
+    - "performance_plots"
+
+# Agent Configuration
+agents:
+  # CVA Agent Training
+  cva:
+    enable_training: true
+    training_episodes: 1000
+    evaluation_frequency: 100
+    success_threshold: 0.85
+
+    # CVA-specific parameters
+    strategic_planning_weight: 0.4
+    delegation_efficiency_weight: 0.3
+    memory_utilization_weight: 0.3
+
+  # Orchestrator Agent Training
+  orchestrator:
+    enable_training: true
+    training_episodes: 800
+    evaluation_frequency: 80
+    success_threshold: 0.80
+
+    # Orchestrator-specific parameters
+    task_routing_weight: 0.35
+    resource_management_weight: 0.35
+    communication_weight: 0.30
+
+  # Specialist Agents Training
+  specialist:
+    enable_training: true
+    training_episodes: 500
+    evaluation_frequency: 50
+    success_threshold: 0.75
+
+    # Specialist-specific parameters
+    task_execution_weight: 0.50
+    quality_score_weight: 0.30
+    collaboration_weight: 0.20
+
+# Environment Configuration
+environment:
+  # Training Environment Settings
+  max_episode_steps: 1000
+  reward_scale: 1.0
+  observation_space_size: 256
+  action_space_size: 64
+
+  # Memory Environment
+  memory_context_size: 512
+  max_memory_retrievals: 10
+  memory_embedding_dim: 384
+
+  # Communication Environment
+  max_agents_per_episode: 5
+  communication_timeout_seconds: 30
+  message_queue_size: 100
+
+# Evaluation Configuration
+evaluation:
+  # Evaluation Settings
+  enable_evaluation: true
+  evaluation_frequency: 50
+  evaluation_episodes: 10
+  evaluation_timeout_minutes: 60
+
+  # Performance Thresholds
+  minimum_success_rate: 0.70
+  minimum_efficiency_score: 0.65
+  minimum_communication_score: 0.60
+
+  # Evaluation Metrics
+  metrics:
+    - "success_rate"
+    - "average_reward"
+    - "episode_completion_time"
+    - "resource_utilization"
+    - "memory_efficiency"
+    - "communication_effectiveness"
+
+# Logging Configuration
+logging:
+  # Log Levels
+  console_level: "INFO"
+  file_level: "DEBUG"
+
+  # Log Files
+  training_log: "logs/training.log"
+  evaluation_log: "logs/evaluation.log"
+  system_log: "logs/system.log"
+
+  # Log Rotation
+  max_log_size_mb: 100
+  backup_count: 5
+
+  # ASCII Compliance
+  ascii_only: true
+  encoding: "ascii"
+
+# Hardware Configuration
+hardware:
+  # Resource Limits
+  max_cpu_cores: 4
+  max_memory_gb: 8
+  gpu_enabled: false
+
+  # Training Optimization
+  parallel_environments: 2
+  multiprocessing_enabled: true
+  thread_pool_size: 4
+
+# Data Configuration
+data:
+  # Training Data
+  save_training_data: true
+  data_compression: true
+  max_data_size_gb: 5
+
+  # Data Retention
+  keep_last_n_experiments: 10
+  auto_cleanup_old_data: true
+  cleanup_threshold_days: 30
+
+  # Data Formats
+  checkpoint_format: "pytorch"
+  log_format: "json"
+  artifact_format: "pickle"
+
+# Safety Configuration
+safety:
+  # Training Safety
+  max_training_time_hours: 48
+  memory_usage_limit_gb: 6
+  cpu_usage_limit_percent: 80
+
+  # Checkpoint Safety
+  auto_save_frequency: 1000
+  backup_checkpoints: true
+  validate_checkpoints: true
+
+  # Recovery Settings
+  auto_resume_on_failure: true
+  max_resume_attempts: 3
+  recovery_timeout_minutes: 30

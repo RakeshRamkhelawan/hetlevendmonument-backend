@@ -1,0 +1,19 @@
+agent_id: "finance.tax_compliance.001"
+name: "TaxComplianceAgent"
+department: "finance_treasury"
+technology: "LLM"
+module_path: "src.core.als.agents.departments.finance_treasury.tax_compliance_agent"
+class_name: "TaxComplianceAgent"
+description: "Ensures tax compliance through regulation analysis and filing preparation."
+is_active: true
+priority: "CRITICAL"
+version: "2.0.0"
+ooda_profile:
+  observe:
+    data_sources: ["tax_regulation_databases", "financial_transaction_logs"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.85
+  act:
+    tools: ["filing_preparation_tool", "alert_system"]

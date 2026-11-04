@@ -1,0 +1,90 @@
+# Fase 10: Docker Compose for E2E Testing
+#
+# GEFIXTE VERSIE met:
+# - pgvector/pgvector:pg15 voor PostgreSQL (heeft vector extensie)
+# - Correcte environment settings
+# - Geen poort conflicten
+#
+# Usage:
+#   docker-compose -f docker-compose.e2e.yml up -d postgres redis mailhog
+#   ./scripts/run_e2e_local.ps1
+#   ./scripts/run_e2e_tests.ps1
+
+services:
+  # PostgreSQL met pgvector extensie
+  postgres:
+    image: pgvector/pgvector:pg15
+    container_name: sanskritisetu-e2e-postgres
+    environment:
+      POSTGRES_DB: sanskritisetu_e2e
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_e2e_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - e2e-network
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    container_name: sanskritisetu-e2e-redis
+    ports:
+      - "6381:6379"
+    networks:
+      - e2e-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Mailhog voor email testing
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: sanskritisetu-e2e-mailhog
+    ports:
+      - "1026:1025"
+      - "8026:8025"
+    networks:
+      - e2e-network
+
+  # Playwright Test Runner (optioneel - kan ook lokaal)
+  playwright:
+    image: mcr.microsoft.com/playwright:v1.40.0-jammy
+    container_name: sanskritisetu-e2e-playwright
+    environment:
+      - BASE_URL=http://host.docker.internal:5174
+      - API_URL=http://host.docker.internal:8110
+      - CI=true
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+      - playwright_cache:/root/.cache/ms-playwright
+    networks:
+      - e2e-network
+    command: >
+      sh -c "
+        npm install &&
+        npx playwright install chromium &&
+        echo 'Playwright ready. Run tests with:' &&
+        echo '  docker-compose -f docker-compose.e2e.yml exec playwright npx playwright test'
+      "
+    stdin_open: true
+    tty: true
+    profiles:
+      - playwright
+
+volumes:
+  postgres_e2e_data:
+  playwright_cache:
+
+networks:
+  e2e-network:
+    driver: bridge

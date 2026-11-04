@@ -1,0 +1,19 @@
+Hovenier Groenpoot
+Tuinlaan 2, 7411 EC Proefstad
+KvK 10147319   BTW-nummer NL814420287B03
+
+FACTUUR
+Factuurnummer: 2026-327
+Factuurdatum: 17-01-2026
+
+Omschrijving                Aantal   Prijs     BTW   Bedrag
+Onderhoud contract  1 x 250,00  21%  250,00
+Voorrijkosten  1 x 35,00  21%  35,00
+Boeken en tijdschriften  1 x 29,00  9%  29,00
+
+Subtotaal excl. btw: EUR 314,00
+BTW 21% over EUR 285,00: EUR 59,85
+BTW 9% over EUR 29,00: EUR 2,61
+Totaal incl. btw: EUR 376,46
+
+Betaling binnen 14 dagen op NL00 TEST 0123 4567 89 t.n.v. Hovenier Groenpoot

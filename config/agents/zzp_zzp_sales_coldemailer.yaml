@@ -1,0 +1,20 @@
+agent_id: "zzp.zzp_sales.coldemailer.001"
+name: "ColdEmailerAgent"
+department: "zzp_sales"
+technology: "LLM"
+module_path: "src.core.als.agents.zzp.zzp_sales"
+class_name: "ColdEmailerAgent"
+description: "Manages personalized outreach to potential leads."
+is_active: true
+priority: "MEDIUM"
+version: "1.0.0"
+allowed_tools: ["outreach_tool", "ab_tester"]
+ooda_profile:
+  observe:
+    data_sources: ["solo_business_data", "social_apis"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.85
+  act:
+    tools: ["outreach_tool", "ab_tester"]

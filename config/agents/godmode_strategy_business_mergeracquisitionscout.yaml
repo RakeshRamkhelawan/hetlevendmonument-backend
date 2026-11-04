@@ -1,0 +1,20 @@
+agent_id: "godmode.strategy_business.mergeracquisitionscout.001"
+name: "MergerAcquisitionScoutAgent"
+department: "strategy_business"
+technology: "ML"
+module_path: "src.core.als.agents.godmode.strategy_business"
+class_name: "MergerAcquisitionScoutAgent"
+description: "Identifies strategic startup acquisitions."
+is_active: true
+priority: "CRITICAL"
+version: "1.0.0"
+allowed_tools: ["crunchbase_api", "financial_modeler"]
+ooda_profile:
+  observe:
+    data_sources: ["global_signals", "deep_context"]
+  orient:
+    model: "gpt-4o"
+  decide:
+    confidence_threshold: 0.95
+  act:
+    tools: ["crunchbase_api", "financial_modeler"]

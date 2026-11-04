@@ -1,0 +1,20 @@
+agent_id: "zzp.zzp_legal.copyrightcheck.001"
+name: "CopyrightCheckAgent"
+department: "zzp_legal"
+technology: "LLM"
+module_path: "src.core.als.agents.zzp.zzp_legal"
+class_name: "CopyrightCheckAgent"
+description: "Checks created content for copyright issues."
+is_active: true
+priority: "MEDIUM"
+version: "1.0.0"
+allowed_tools: ["plagiarism_scanner", "copyright_api"]
+ooda_profile:
+  observe:
+    data_sources: ["solo_business_data", "social_apis"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.85
+  act:
+    tools: ["plagiarism_scanner", "copyright_api"]

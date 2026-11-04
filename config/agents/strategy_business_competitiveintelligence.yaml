@@ -1,0 +1,20 @@
+agent_id: "ext.strategy_business.competitiveintelligence.001"
+name: "CompetitiveIntelligenceAgent"
+department: "strategy_business"
+technology: "ML"
+module_path: "src.core.als.agents.specialists.strategy_business"
+class_name: "CompetitiveIntelligenceAgent"
+description: "Deep-dives into competitor financial health."
+is_active: true
+priority: "HIGH"
+version: "1.0.0"
+allowed_tools: ["financial_data_api", "web_scraper"]
+ooda_profile:
+  observe:
+    data_sources: ["external_api", "internal_lake"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.90
+  act:
+    tools: ["financial_data_api", "web_scraper"]

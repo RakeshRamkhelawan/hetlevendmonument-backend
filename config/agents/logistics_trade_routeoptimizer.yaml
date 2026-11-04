@@ -1,0 +1,20 @@
+agent_id: "ext.logistics_trade.routeoptimizer.001"
+name: "RouteOptimizerAgent"
+department: "logistics_trade"
+technology: "ML"
+module_path: "src.core.als.agents.specialists.logistics_trade"
+class_name: "RouteOptimizerAgent"
+description: "Optimizes global shipping routes for cost and speed."
+is_active: true
+priority: "HIGH"
+version: "1.0.0"
+allowed_tools: ["gps_feeds", "fuel_price_index"]
+ooda_profile:
+  observe:
+    data_sources: ["external_api", "internal_lake"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.90
+  act:
+    tools: ["gps_feeds", "fuel_price_index"]

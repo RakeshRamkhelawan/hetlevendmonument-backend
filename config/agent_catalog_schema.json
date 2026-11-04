@@ -1,0 +1,394 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://sanskritisetu.org/schemas/agent_catalog_v3.json",
+  "title": "SanskritiSetu Agent Catalog Schema",
+  "description": "Machine-readable configuration for the multi-agent ecosystem",
+  "version": "3.0.0",
+  "last_updated": "2026-02-28",
+
+  "definitions": {
+    "OODAProfile": {
+      "type": "object",
+      "description": "OODA loop configuration for an agent",
+      "required": ["observe", "orient", "decide", "act"],
+      "properties": {
+        "observe": {
+          "type": "object",
+          "properties": {
+            "data_sources": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "List of data sources the agent can observe"
+            },
+            "access_level": {
+              "type": "string",
+              "enum": ["read_only", "read_write", "admin"]
+            },
+            "update_frequency": {
+              "type": "string",
+              "enum": ["real_time", "near_real_time", "hourly", "daily", "on_demand"]
+            }
+          }
+        },
+        "orient": {
+          "type": "object",
+          "properties": {
+            "model": {
+              "type": "string",
+              "description": "LLM/ML model used for orientation"
+            },
+            "context_engineering": {
+              "type": "string",
+              "description": "Context retrieval method (RAG, etc.)"
+            },
+            "tools": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "embeddings": {
+              "type": "string",
+              "description": "Embedding model used"
+            }
+          }
+        },
+        "decide": {
+          "type": "object",
+          "properties": {
+            "decision_type": {
+              "type": "string",
+              "enum": ["recommendation", "action_low_risk", "action_high_risk", "multi_step_plan"]
+            },
+            "output_formats": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "confidence_threshold": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        },
+        "act": {
+          "type": "object",
+          "properties": {
+            "tools": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "authorized_actions": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "requires_approval": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+
+    "Capability": {
+      "type": "object",
+      "required": ["name", "description"],
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "input_schema": { "type": "object" },
+        "output_schema": { "type": "object" },
+        "requires_human_approval": { "type": "boolean", "default": false }
+      }
+    },
+
+    "SLA": {
+      "type": "object",
+      "properties": {
+        "response_time_ms": { "type": "integer" },
+        "accuracy_threshold": { "type": "number", "minimum": 0, "maximum": 1 },
+        "availability": {
+          "type": "string",
+          "pattern": "^\\d{2,3}(\\.\\d)?%$"
+        },
+        "max_concurrent_requests": { "type": "integer" }
+      }
+    },
+
+    "MonitoringConfig": {
+      "type": "object",
+      "properties": {
+        "metrics": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "alerts": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "dashboard_enabled": { "type": "boolean", "default": true }
+      }
+    },
+
+    "DecisionBoundary": {
+      "type": "object",
+      "properties": {
+        "can": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Actions the agent CAN perform"
+        },
+        "cannot": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Actions the agent CANNOT perform"
+        },
+        "must_escalate": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Conditions that require escalation"
+        }
+      }
+    }
+  },
+
+  "type": "object",
+  "required": ["schema_version", "supervisors", "agents", "routing_rules"],
+
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "last_updated": {
+      "type": "string",
+      "format": "date"
+    },
+
+    "supervisors": {
+      "type": "array",
+      "description": "List of all supervisor agents",
+      "items": {
+        "type": "object",
+        "required": ["supervisor_id", "name", "type", "managed_agents"],
+        "properties": {
+          "supervisor_id": {
+            "type": "string",
+            "pattern": "^[a-z]+\\.[a-z_]+\\.supervisor$"
+          },
+          "name": { "type": "string" },
+          "type": {
+            "type": "string",
+            "enum": ["domain", "specialist", "meta"]
+          },
+          "domain": { "type": "string" },
+          "description": { "type": "string" },
+          "managed_agents": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "responsibilities": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "escalation_target": {
+            "type": "string",
+            "description": "Supervisor to escalate to if needed"
+          }
+        }
+      }
+    },
+
+    "agents": {
+      "type": "array",
+      "description": "List of all agents in the ecosystem",
+      "items": {
+        "type": "object",
+        "required": ["agent_id", "name", "supervisor", "domain", "role"],
+        "properties": {
+          "agent_id": {
+            "type": "string",
+            "pattern": "^[a-z]+\\.[a-z_]+\\.\\d{3}$"
+          },
+          "name": { "type": "string" },
+          "display_name": { "type": "string" },
+          "supervisor": {
+            "type": "string",
+            "description": "ID of the parent supervisor"
+          },
+          "domain": {
+            "type": "string",
+            "enum": [
+              "Finance & Treasury",
+              "HR & Culture",
+              "IT & Security",
+              "Legal & Compliance",
+              "Operations & Supply Chain",
+              "Product & Innovation",
+              "Sales & Marketing",
+              "Data & AI Governance",
+              "Customer Experience",
+              "Strategy & Business",
+              "Development",
+              "Infrastructure",
+              "AI/ML"
+            ]
+          },
+          "role": { "type": "string" },
+          "responsibility": { "type": "string" },
+          "decision_boundary": { "$ref": "#/definitions/DecisionBoundary" },
+          "ooda_profile": { "$ref": "#/definitions/OODAProfile" },
+          "capabilities": {
+            "type": "array",
+            "items": { "$ref": "#/definitions/Capability" }
+          },
+          "technology": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["LLM", "ML", "Hybrid", "Vision", "Rule-based"]
+              },
+              "model": { "type": "string" },
+              "embeddings": { "type": "string" },
+              "vector_store": { "type": "string" }
+            }
+          },
+          "priority": {
+            "type": "string",
+            "enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW"]
+          },
+          "sla": { "$ref": "#/definitions/SLA" },
+          "integration_points": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "monitoring": { "$ref": "#/definitions/MonitoringConfig" },
+          "enabled": { "type": "boolean", "default": true },
+          "version": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d+\\.\\d+$"
+          }
+        }
+      }
+    },
+
+    "routing_rules": {
+      "type": "object",
+      "description": "Routing configuration for the multi-agent system",
+      "properties": {
+        "layer_1_keyword": {
+          "type": "object",
+          "description": "Keyword/regex based routing",
+          "additionalProperties": { "type": "string" }
+        },
+        "layer_2_pattern": {
+          "type": "object",
+          "description": "Pattern matching based routing",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "keywords": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "entities": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "confidence_boost": { "type": "number" }
+            }
+          }
+        },
+        "layer_3_semantic": {
+          "type": "object",
+          "properties": {
+            "embedding_model": { "type": "string" },
+            "similarity_threshold": { "type": "number" },
+            "top_k": { "type": "integer" }
+          }
+        },
+        "layer_4_meta": {
+          "type": "object",
+          "properties": {
+            "cva_agent_id": { "type": "string" },
+            "exception_handling": { "type": "string" },
+            "learning_enabled": { "type": "boolean" }
+          }
+        }
+      }
+    },
+
+    "monitoring_config": {
+      "type": "object",
+      "properties": {
+        "global_metrics": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "dashboards": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "widgets": {
+                "type": "array",
+                "items": { "type": "string" }
+              }
+            }
+          }
+        },
+        "alerting": {
+          "type": "object",
+          "properties": {
+            "channels": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "severity_levels": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+
+    "domain_packs": {
+      "type": "array",
+      "description": "Pre-configured domain packs for quick deployment",
+      "items": {
+        "type": "object",
+        "required": ["pack_id", "name", "agents"],
+        "properties": {
+          "pack_id": { "type": "string" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "target_vertical": { "type": "string" },
+          "agents": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "workflows": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string" },
+                "description": { "type": "string" },
+                "agent_sequence": {
+                  "type": "array",
+                  "items": { "type": "string" }
+                }
+              }
+            }
+          },
+          "pricing_tier": {
+            "type": "string",
+            "enum": ["starter", "professional", "enterprise"]
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,20 @@
+agent_id: "godmode.it_security.zerodaypredictor.001"
+name: "ZeroDayPredictorAgent"
+department: "it_security"
+technology: "ML"
+module_path: "src.core.als.agents.godmode.it_security"
+class_name: "ZeroDayPredictorAgent"
+description: "Predicts vulnerabilities before CVEs."
+is_active: true
+priority: "CRITICAL"
+version: "1.0.0"
+allowed_tools: ["threat_intel_api", "code_analyzer"]
+ooda_profile:
+  observe:
+    data_sources: ["global_signals", "deep_context"]
+  orient:
+    model: "gpt-4o"
+  decide:
+    confidence_threshold: 0.95
+  act:
+    tools: ["threat_intel_api", "code_analyzer"]

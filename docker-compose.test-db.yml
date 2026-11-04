@@ -1,0 +1,19 @@
+version: '3.8'
+services:
+  postgres-test:
+    image: pgvector/pgvector:pg15
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: sanskritisetu_test
+    ports:
+      - "5455:5432"
+    volumes:
+      - test_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d sanskritisetu_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+volumes:
+  test_postgres_data:

@@ -1,0 +1,20 @@
+agent_id: "ext.sustainability_esg.sustainablesourcing.001"
+name: "SustainableSourcingAgent"
+department: "sustainability_esg"
+technology: "LLM"
+module_path: "src.core.als.agents.specialists.sustainability_esg"
+class_name: "SustainableSourcingAgent"
+description: "Identifies and validates eco-friendly suppliers."
+is_active: true
+priority: "HIGH"
+version: "1.0.0"
+allowed_tools: ["vendor_database", "ethics_verifier"]
+ooda_profile:
+  observe:
+    data_sources: ["external_api", "internal_lake"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.90
+  act:
+    tools: ["vendor_database", "ethics_verifier"]

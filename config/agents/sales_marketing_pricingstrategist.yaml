@@ -1,0 +1,20 @@
+agent_id: "ext.sales_marketing.pricingstrategist.001"
+name: "PricingStrategistAgent"
+department: "sales_marketing"
+technology: "ML"
+module_path: "src.core.als.agents.specialists.sales_marketing"
+class_name: "PricingStrategistAgent"
+description: "Models dynamic pricing based on global demand."
+is_active: true
+priority: "HIGH"
+version: "1.0.0"
+allowed_tools: ["pricing_engine", "market_sim"]
+ooda_profile:
+  observe:
+    data_sources: ["external_api", "internal_lake"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.90
+  act:
+    tools: ["pricing_engine", "market_sim"]

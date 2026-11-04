@@ -1,0 +1,20 @@
+agent_id: "zzp.zzp_ops.calendarshield.001"
+name: "CalendarShieldAgent"
+department: "zzp_ops"
+technology: "ML"
+module_path: "src.core.als.agents.zzp.zzp_ops"
+class_name: "CalendarShieldAgent"
+description: "Protects time blocks and optimizes meeting schedules."
+is_active: true
+priority: "MEDIUM"
+version: "1.0.0"
+allowed_tools: ["google_calendar_api", "scheduling_logic"]
+ooda_profile:
+  observe:
+    data_sources: ["solo_business_data", "social_apis"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.85
+  act:
+    tools: ["google_calendar_api", "scheduling_logic"]

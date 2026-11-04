@@ -1,0 +1,38 @@
+# .banditrc - Bandit Security Scanner Configuration
+# Purpose: Exclude archived/legacy code from security scans
+# Created: November 11, 2025
+# Reference: Task 3.6 Verification Report
+
+[bandit]
+# Exclude archive and backup directories from scans
+# These directories contain legacy code that is NOT deployed to production
+exclude_dirs = /archive/,/stichting-backend-ai/,/stichting-backup-20251027-070701/,/backups/,/htmlcov/,/__pycache__/,/venv/,/.venv/,/frontend/node_modules/
+
+# Target directories for security scanning (production code only)
+# Focus on code that is actually deployed
+targets = sanskriti-backend/core/,scripts/
+
+# Severity levels to report
+# medium: Potential issues requiring review
+# high: Serious issues requiring immediate attention
+# critical: Critical security vulnerabilities
+severity = medium,high,critical
+
+# Confidence levels to report
+# Only report findings with high confidence to reduce false positives
+confidence = high
+
+# Output format
+# Options: txt, json, csv, xml, html
+# Default: txt for human-readable output
+# Use json for CI/CD integration
+# format = txt
+
+# Skip specific test IDs (if needed)
+# Example: B303 (MD5), B101 (assert_used)
+# Uncomment and add IDs to skip specific checks
+# skips = B303
+
+# Include specific test IDs only (if needed)
+# Uncomment to run only specific security checks
+# tests = B201,B301,B302,B303,B304,B305,B306

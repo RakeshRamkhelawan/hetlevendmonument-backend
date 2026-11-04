@@ -1,0 +1,20 @@
+agent_id: "ext.data_ai_governance.knowledgecurator.001"
+name: "KnowledgeCuratorAgent"
+department: "data_ai_governance"
+technology: "LLM"
+module_path: "src.core.als.agents.specialists.data_ai_governance"
+class_name: "KnowledgeCuratorAgent"
+description: "Maintains and organizes the collective knowledge base."
+is_active: true
+priority: "HIGH"
+version: "1.0.0"
+allowed_tools: ["knowledge_graph_editor", "wiki_manager"]
+ooda_profile:
+  observe:
+    data_sources: ["external_api", "internal_lake"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.90
+  act:
+    tools: ["knowledge_graph_editor", "wiki_manager"]

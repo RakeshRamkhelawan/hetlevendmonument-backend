@@ -1,0 +1,85 @@
+{
+  "template_id": "email_campaign_sender",
+  "name": "Email Campaign Sender",
+  "category": "content_processing",
+  "description": "Send personalized email campaigns with scheduling and tracking",
+  "spec": {
+    "nodes": [
+      {
+        "id": "campaign_input",
+        "type": "data_source",
+        "config": {
+          "source": "{{recipient_source}}",
+          "format": "csv"
+        }
+      },
+      {
+        "id": "personalize_emails",
+        "type": "template_engine",
+        "config": {
+          "template": "{{email_template}}",
+          "variables": "{{template_variables}}"
+        }
+      },
+      {
+        "id": "schedule_send",
+        "type": "schedule",
+        "config": {
+          "cron": "{{send_schedule}}",
+          "timezone": "{{timezone}}"
+        }
+      },
+      {
+        "id": "send_emails",
+        "type": "email",
+        "config": {
+          "provider": "{{email_provider}}",
+          "sender": "{{sender_email}}",
+          "subject": "{{email_subject}}",
+          "batch_size": 50
+        }
+      },
+      {
+        "id": "track_deliveries",
+        "type": "email_tracking",
+        "config": {
+          "track_opens": true,
+          "track_clicks": true,
+          "webhook_url": "{{tracking_webhook_url}}"
+        }
+      },
+      {
+        "id": "generate_report",
+        "type": "reporting",
+        "config": {
+          "metrics": ["sent", "delivered", "opened", "clicked"],
+          "format": "pdf"
+        }
+      },
+      {
+        "id": "notify_completion",
+        "type": "notification",
+        "config": {
+          "channels": ["slack#marketing", "email"],
+          "message": "📧 Campaign sent successfully\nSubject: {{email_subject}}\nRecipients: {{campaign_input.recipient_count}}\nOpen Rate: {{generate_report.open_rate}}%"
+        }
+      }
+    ]
+  },
+  "required_integrations": ["email", "schedule", "reporting", "slack"],
+  "estimated_setup_time_minutes": 30,
+  "parameters": {
+    "recipient_source": "database:marketing_contacts",
+    "email_template": "<h1>Hello {{name}}!</h1><p>{{personalized_message}}</p>",
+    "template_variables": {
+      "name": "recipient.first_name",
+      "personalized_message": "Special offer just for you!"
+    },
+    "send_schedule": "0 9 * * 1",
+    "timezone": "America/New_York",
+    "email_provider": "sendgrid",
+    "sender_email": "marketing@company.com",
+    "email_subject": "Special Offer Inside!",
+    "tracking_webhook_url": "https://app.company.com/webhook/email-tracking"
+  }
+}

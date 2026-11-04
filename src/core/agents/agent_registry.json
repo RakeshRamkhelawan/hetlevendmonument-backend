@@ -1,0 +1,176 @@
+{
+  "version": "1.0",
+  "description": "SanskritiSetu core agent registry - 17 specialist agents across business departments",
+  "agents": [
+    {
+      "agent_id": "backend_architect_001",
+      "name": "Backend Architect",
+      "description": "Design RESTful APIs, microservice boundaries, and database schemas. Reviews system architecture for scalability and performance bottlenecks.",
+      "department": "ENGINEERING",
+      "agent_type": "SPECIALIST",
+      "specialization": "backend_architecture",
+      "functions": ["api_design", "schema_review", "scalability_analysis", "microservice_design"],
+      "is_service": false
+    },
+    {
+      "agent_id": "frontend_developer_001",
+      "name": "Frontend Developer",
+      "description": "Build responsive UI components, implement React/TypeScript patterns, and optimize frontend performance.",
+      "department": "ENGINEERING",
+      "agent_type": "SPECIALIST",
+      "specialization": "frontend_development",
+      "functions": ["component_design", "typescript_review", "performance_optimization", "accessibility_audit"],
+      "is_service": false
+    },
+    {
+      "agent_id": "data_engineer_001",
+      "name": "Data Engineer",
+      "description": "Design data pipelines, ETL processes, and data warehouse schemas. Optimizes data ingestion and transformation workflows.",
+      "department": "ENGINEERING",
+      "agent_type": "SPECIALIST",
+      "specialization": "data_engineering",
+      "functions": ["pipeline_design", "etl_development", "data_modeling", "query_optimization"],
+      "is_service": false
+    },
+    {
+      "agent_id": "security_auditor_001",
+      "name": "Security Auditor",
+      "description": "Performs security reviews, identifies vulnerabilities, and ensures compliance with OWASP and security best practices.",
+      "department": "SECURITY",
+      "agent_type": "SPECIALIST",
+      "specialization": "security_review",
+      "functions": ["vulnerability_scan", "owasp_audit", "penetration_testing", "compliance_check"],
+      "is_service": false
+    },
+    {
+      "agent_id": "code_reviewer_001",
+      "name": "Code Reviewer",
+      "description": "Reviews code quality, enforces coding standards, identifies bugs and anti-patterns, and suggests refactoring improvements.",
+      "department": "ENGINEERING",
+      "agent_type": "SPECIALIST",
+      "specialization": "code_review",
+      "functions": ["code_quality", "bug_detection", "refactoring_suggestions", "standards_enforcement"],
+      "is_service": false
+    },
+    {
+      "agent_id": "business_analyst_001",
+      "name": "Business Analyst",
+      "description": "Analyzes business requirements, translates user stories into technical specifications, and validates process workflows.",
+      "department": "OPERATIONS",
+      "agent_type": "SPECIALIST",
+      "specialization": "business_analysis",
+      "functions": ["requirements_analysis", "process_modeling", "stakeholder_mapping", "gap_analysis"],
+      "is_service": false
+    },
+    {
+      "agent_id": "legal_advisor_001",
+      "name": "Legal Advisor",
+      "description": "Reviews contracts, ensures regulatory compliance, provides guidance on GDPR, EU AI Act, and legal risk assessment.",
+      "department": "LEGAL",
+      "agent_type": "SPECIALIST",
+      "specialization": "legal_compliance",
+      "functions": ["contract_review", "gdpr_compliance", "ai_act_assessment", "risk_evaluation"],
+      "is_service": false
+    },
+    {
+      "agent_id": "financial_agent_001",
+      "name": "Financial Agent",
+      "description": "Analyzes financial data, generates reports, monitors budgets, and provides cost optimization recommendations.",
+      "department": "FINANCE",
+      "agent_type": "SPECIALIST",
+      "specialization": "financial_analysis",
+      "functions": ["budget_analysis", "cost_optimization", "financial_reporting", "forecasting"],
+      "is_service": false
+    },
+    {
+      "agent_id": "customer_support_001",
+      "name": "Customer Support Agent",
+      "description": "Handles customer inquiries, resolves tickets, and provides multi-lingual support across communication channels.",
+      "department": "SUPPORT",
+      "agent_type": "SPECIALIST",
+      "specialization": "customer_support",
+      "functions": ["ticket_handling", "inquiry_resolution", "escalation_management", "knowledge_base_search"],
+      "is_service": false
+    },
+    {
+      "agent_id": "content_marketer_001",
+      "name": "Content Marketer",
+      "description": "Creates marketing content, manages campaigns, performs SEO optimization, and tracks content performance metrics.",
+      "department": "MARKETING",
+      "agent_type": "SPECIALIST",
+      "specialization": "content_marketing",
+      "functions": ["content_creation", "seo_optimization", "campaign_management", "performance_analytics"],
+      "is_service": false
+    },
+    {
+      "agent_id": "hr_pro_001",
+      "name": "HR Professional",
+      "description": "Manages HR processes including recruitment, onboarding, performance reviews, and policy compliance.",
+      "department": "HR",
+      "agent_type": "SPECIALIST",
+      "specialization": "human_resources",
+      "functions": ["recruitment", "onboarding", "performance_management", "policy_compliance"],
+      "is_service": false
+    },
+    {
+      "agent_id": "devops_engineer_001",
+      "name": "DevOps Engineer",
+      "description": "Manages CI/CD pipelines, infrastructure automation, container orchestration, and deployment strategies.",
+      "department": "ENGINEERING",
+      "agent_type": "SPECIALIST",
+      "specialization": "devops",
+      "functions": ["cicd_management", "infrastructure_automation", "container_orchestration", "monitoring_setup"],
+      "is_service": false
+    },
+    {
+      "agent_id": "data_scientist_001",
+      "name": "Data Scientist",
+      "description": "Builds ML models, performs statistical analysis, and extracts insights from large datasets.",
+      "department": "ENGINEERING",
+      "agent_type": "SPECIALIST",
+      "specialization": "data_science",
+      "functions": ["ml_modeling", "statistical_analysis", "feature_engineering", "model_evaluation"],
+      "is_service": false
+    },
+    {
+      "agent_id": "product_agent_001",
+      "name": "Product Manager",
+      "description": "Manages product roadmaps, prioritizes features, writes product specifications, and aligns stakeholders.",
+      "department": "PRODUCT",
+      "agent_type": "SPECIALIST",
+      "specialization": "product_management",
+      "functions": ["roadmap_planning", "feature_prioritization", "spec_writing", "stakeholder_alignment"],
+      "is_service": false
+    },
+    {
+      "agent_id": "research_agent_001",
+      "name": "Research Agent",
+      "description": "Conducts market research, competitive analysis, and synthesizes information from multiple sources.",
+      "department": "OPERATIONS",
+      "agent_type": "SPECIALIST",
+      "specialization": "research",
+      "functions": ["market_research", "competitive_analysis", "information_synthesis", "trend_analysis"],
+      "is_service": false
+    },
+    {
+      "agent_id": "executor_agent_001",
+      "name": "Executor Agent",
+      "description": "General-purpose task executor that handles tasks not matched by specialist agents. Acts as fallback handler.",
+      "department": "OPERATIONS",
+      "agent_type": "EXECUTOR",
+      "specialization": "general",
+      "functions": ["task_execution", "workflow_coordination", "fallback_handling"],
+      "is_service": true
+    },
+    {
+      "agent_id": "ethics_agent_001",
+      "name": "Ethics Agent",
+      "description": "Evaluates AI decisions for ethical compliance, performs bias detection, and ensures EU AI Act adherence.",
+      "department": "GOVERNANCE",
+      "agent_type": "SPECIALIST",
+      "specialization": "ethics_governance",
+      "functions": ["bias_detection", "ethical_review", "ai_act_compliance", "transparency_reporting"],
+      "is_service": true
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+agent_id: "data.ai.governance.spec.mlopsspecialist.001"
+name: "MLOpsSpecialistAgent"
+department: "data_ai_governance"
+technology: "ML"
+module_path: "src.core.als.agents.specialists.data"
+class_name: "MLOpsSpecialistAgent"
+description: "Elite specialist for MLOpsSpecialist and data governance."
+is_active: true
+priority: "HIGH"
+version: "1.0.0"
+ooda_profile:
+  observe:
+    data_sources: ["data_lake", "ml_registry", "ethics_frameworks"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.88
+  act:
+    tools: ["data_pipeline", "mlflow_manager", "viz_engine", "bias_scanner"]

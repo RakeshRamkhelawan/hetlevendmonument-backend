@@ -1,0 +1,98 @@
+# Test- en kwaliteitstooling -- VOLLEDIG GEPIND, met opzet.
+#
+# Alles hier bepaalt de uitkomst van een CI-gate. Zolang deze regels `>=` waren, mat CI
+# met andere tools dan welke ontwikkelaar dan ook, en liep de mypy-baseline in drie weken
+# van 0 naar 39 zonder dat een gate iets zei. Concreet gemeten op identieke code:
+#   mypy 1.19.1 -> 52 fouten, mypy 2.3.0 -> 69, mypy 2.3.0 + types-redis -> 39
+#   pyright 1.1.408 -> 0 fouten, pyright 1.1.411 -> 3 op de code van TOEN (hier stond 2;
+#     ADR-036 OP-53. Het waren 2 OORZAKEN maar 3 DIAGNOSES: de slice-grens in
+#     system_monitor_agent gaf er twee op een regel. Nagemeten met een reproductie van die
+#     constructie op pyright 1.1.411: reportCallIssue "No overloads for __getitem__" PLUS de
+#     argumenttype-fout op slice[None, int | str, None] = 2 errors, naast 1 in
+#     subagent_loader.) Alle drie zijn opgelost in `30b8f90a`; sindsdien is de baseline 0.
+#   pytest 8.4.2 -> suite draait, pytest 9.1.1 -> harde collectiefout
+# Bump een regel hier alleen bewust, met een verse meting erbij -- nooit als bijvangst
+# van een `pip install -U`.
+
+# --- pytest ---------------------------------------------------------------------
+# 8.4.2 en niet 9.x: pytest 9 maakt van "mark op een fixture" een collectiefout en is een
+# major waarvan het effect op ~14k tests niet gemeten is. De CI-stap draait met `-x`, dus
+# de run die 9.1.1 gebruikte stopte na 451 tests -- veel te weinig om op te leunen.
+pytest==8.4.2
+pytest-asyncio==1.4.0
+pytest-xdist==3.8.0
+pytest-json-report==1.5.0
+pytest-cov==7.1.0
+pytest-timeout==2.4.0
+pytest-mock==3.15.1
+# pytest-env 1.3.0+ eist pytest>=9, dus 1.2.0 is de nieuwste die bij pytest 8 past.
+# NB: dit pakket wordt nergens geconfigureerd (geen `env`-sleutel in pyproject.toml) --
+# kandidaat om te verwijderen, maar dat is een eigen opruimactie.
+pytest-env==1.2.0
+respx==0.23.1
+httpx>=0.27.0
+debugpy
+
+# --- type checking --------------------------------------------------------------
+# De stub-pakketten wegen zwaarder dan je zou denken: zonder types-redis is `redis.Redis`
+# niet generiek, slaat disallow_any_generics niet aan, en lijken 23 `type: ignore[type-arg]`
+# overbodig terwijl ze noodzakelijk zijn. Wie die op basis van een lokale meting had
+# opgeruimd, had de CI-gate gesloopt.
+mypy==2.3.0
+pyright==1.1.411
+types-redis==4.6.0.20241004
+types-requests==2.33.0.20260712
+types-aiofiles==25.1.0.20260518
+types-PyYAML==6.0.12.20260724
+types-python-dateutil==2.9.0.20260716
+types-psycopg2==2.9.21.20260724
+
+# --- XML-schema (alleen voor de test van het SEPA-betaalbestand) -----------------
+# De standaardbibliotheek valideert geen XSD. `tests/integration/test_pain001_valideert_tegen_xsd.py` toetst het pain.001.001.09-bestand van
+# crediteuren dag 3 tegen het officiele schema van iso20022.org (`tests/fixtures/iso20022/`). Geen productiedependency (besluit regie
+# 2026-10-25). Beide exact gepind: xmlschema 4.3.2 (2026-06-30) vraagt elementpath >=5.1.3,<6.
+xmlschema==4.3.2
+elementpath==5.1.4
+
+# --- lint / architectuur --------------------------------------------------------
+ruff==0.16.1
+import-linter==2.13
+
+# --- mutatietesten --------------------------------------------------------------
+#
+# Waarom dit erbij staat (2026-08-31, besluit Rakesh). Dit project bewijst zijn guards met
+# mutatietesten: je muteert wat een guard bewaakt en eist dat hij ROOD wordt. Dat gebeurde tot
+# nu toe met HANDGESCHREVEN harnassen, en die zijn aantoonbaar onbetrouwbaar -- op 2026-08-31
+# produceerde er een ongeldige Python, pytest gaf daardoor geen samenvatting, en het harnas las
+# dat als GROEN. Een mutatietest die zijn eigen falen niet ziet is erger dan geen mutatietest.
+#
+# Poodle is gekozen boven mutmut en Cosmic Ray omdat het geen verplicht configuratiebestand
+# nodig heeft en de kleinste voetafdruk had: van zijn vier afhankelijkheden (click, jinja2,
+# mergedeep, wcmatch) was alleen `mergedeep` nieuw in deze venv.
+#
+# NIET in de blokkerende CI-poort, en dat is een bewuste keuze met een gemeten reden.
+# Mutatietesten is de duurste vorm van testanalyse in gangbaar gebruik: een suite van 60
+# seconden met 1000 mutanten is ~16 uur rekentijd. De poortsuite hier duurt 9 minuten. De
+# vastgelegde praktijk is daarom een SMALLE scope met een stabiel testcommando, diff-gebaseerd
+# op een PR en een volledige run periodiek -- zie `poodle.toml` voor de scope en het commando.
+poodle==1.3.4
+mergedeep==1.3.4
+
+# --- overig ---------------------------------------------------------------------
+aiofiles>=24.0.0
+righttyper>=0.0.27; python_version >= "3.12"
+
+# Beveiligingsscan. Stond hier NIET terwijl scripts/ci-local-fast.sh en
+# .github/workflows/ci-feature.yml hem allebei aanroepen -- gemeten 2026-09-15
+# (ADR-036 OP-244): de lokale scan meldde daardoor 'geen HIGH+HIGH findings'
+# terwijl bandit niet eens geinstalleerd was. Gepind, om dezelfde reden als mypy.
+bandit==1.9.4
+
+# Stackdump van een LEVEND proces, gepind zoals alle gereedschap hier. Toegevoegd
+# 2026-09-24 nadat de MCP-orchestrator twee keer dertig minuten hing en er geen enkele
+# manier was om te zien WAAR. Met `py-spy dump --pid <n>` was het in een minuut duidelijk:
+# een tweede, timeoutloze `communicate()` in subprocess.py:565 (alleen Windows). Zonder
+# dit gereedschap blijft zo'n hang een raadsel en wordt hij dus geraden in plaats van
+# gemeten -- en het staat hier omdat een tool die alleen in iemands venv leeft, morgen
+# niet bestaat.
+py-spy==0.4.2

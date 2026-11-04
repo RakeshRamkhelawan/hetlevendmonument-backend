@@ -1,0 +1,20 @@
+agent_id: "zzp.zzp_ops.inboxzero.001"
+name: "InboxZeroAgent"
+department: "zzp_ops"
+technology: "LLM"
+module_path: "src.core.als.agents.zzp.zzp_ops"
+class_name: "InboxZeroAgent"
+description: "Drafts replies and organizes email inbox."
+is_active: true
+priority: "MEDIUM"
+version: "1.0.0"
+allowed_tools: ["gmail_api", "filter_engine"]
+ooda_profile:
+  observe:
+    data_sources: ["solo_business_data", "social_apis"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.85
+  act:
+    tools: ["gmail_api", "filter_engine"]

@@ -1,0 +1,19 @@
+agent_id: "sales.marketing.sdr.001"
+name: "SDRAgent"
+department: "sales_marketing"
+technology: "LLM"
+module_path: "src.core.als.agents.departments.sales_marketing"
+class_name: "SDRAgent"
+description: "Specialized SDR agent for the sales_marketing department."
+is_active: true
+priority: "MEDIUM"
+version: "2.0.0"
+ooda_profile:
+  observe:
+    data_sources: ["internal_db", "api_endpoints"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.80
+  act:
+    tools: ["standard_toolbox"]

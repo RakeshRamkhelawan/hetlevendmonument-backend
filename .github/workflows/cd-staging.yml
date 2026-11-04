@@ -1,0 +1,1777 @@
+name: CD — Staging
+
+# Triggert automatisch bij elke merge naar develop.
+# De volledige lijst van geheimen, in de volgorde van de uitrol, staat in
+# docs/infra/UITROL-STAGING-2026-10.md. Nieuw sinds 2026-10-23 (en door de preflight geeist):
+#   STAGING_APP_DATABASE_URL      -- de applicatierol sanskritisetu_app voor API, werkers en planner;
+#                                    STAGING_DATABASE_URL (de eigenaar) is alleen nog voor de migratietaak
+#   STAGING_BYPASS_DATABASE_URL   -- de aparte pre-authenticatieverbinding (inloggen onder de applicatierol)
+#   STAGING_MISTRAL_API_KEY       -- Mistral (EU) is het taalmodel; er is geen DeepSeek en geen mock meer
+#   STAGING_MASTER_ENCRYPTION_KEY -- versleutelt klantsleutels (AP-verbinding per klant, providers)
+#   STAGING_FRONTEND_URL, STAGING_SMTP_HOST, STAGING_EMAIL_FROM -- links en mail
+#   (optioneel: STAGING_SMTP_PORT, STAGING_SMTP_USER, STAGING_SMTP_PASSWORD)
+#   STAGING_BONLEZER_REDIS_PASSWORD, STAGING_BONLEZER_STORAGE_ACCOUNT, STAGING_BONLEZER_STORAGE_KEY
+# Vereiste GitHub Secrets: STAGING_DATABASE_URL, STAGING_SECRET_KEY,
+#   STAGING_TOOL_PAYLOAD_PSEUDONYM_KEY  -- pseudonimiseringssleutel voor tool-payloads
+#   STAGING_AUDIT_CHAIN_HMAC_KEY        -- HMAC-sleutel voor de auditketen (OPTIONEEL)
+#     (ADR-036 OP-27). Minimaal 32 tekens; genereren met
+#     `python -c "import secrets; print(secrets.token_urlsafe(32))"`. Zonder deze sleutel
+#     weigert elke tool-uitvoering, dus de deploy stopt als hij ontbreekt. Wijzig hem NIET
+#     zonder reden: bestaande digests in de auditketen zijn dan niet meer na te rekenen.
+#
+# Activepieces secrets (eenmalig instellen in GitHub → Settings → Secrets):
+#   STAGING_AP_ENCRYPTION_KEY  — willekeurige 32-char string (bijv: openssl rand -hex 16)
+#   STAGING_AP_WORKER_TOKEN    -- (aanbevolen) vaste token voor server-worker-verkeer; leeg = de
+#                            container maakt er zelf een bij elke start (per replica anders)
+#   STAGING_AP_JWT_SECRET      — willekeurige JWT secret     (bijv: openssl rand -hex 32)
+#   STAGING_REDIS_HOST         — hostname van Azure Cache for Redis (staging)
+#   STAGING_AP_URL             — publieke URL van Activepieces (bijv. https://ap-staging.sanskritisetu.org)
+
+# Automatisch bij elke push naar develop (teruggezet 2026-08-29, ADR-036 OP-111,
+# Rakesh's GO -- docs/runbooks/azure-herbouw-OP-111.md stap 4).
+#
+# Stond sinds 2026-08-12 op HANDMATIG (workflow_dispatch): de Azure-omgeving was op
+# 2026-05-11 afgebroken (geen Redis, geen resourcegroep, geen container app), dus deze
+# workflow viel bij elke push om op de preflight -- permanent rood. Een run die altijd
+# faalt went, en dan kijk je op een dag over een echte storing heen (zie de mypy-baseline-
+# en Python-job-incidenten in de geschiedenis van dit bestand).
+#
+# De omgeving is op 2026-08-27/28 opnieuw opgebouwd (Postgres, Redis als container app,
+# Key Vault-secrets) en `staging-api`/`worker-staging` draaien. Bewijs dat de trigger weer
+# veilig aan kan: een push-getriggerde run op `develop` zelf (run 33199726688, commit
+# 6dd10f3b) is volledig groen. Nog steeds NIET de preflight verzwakt -- zie de git-
+# geschiedenis van dit bestand voor waarom dat eerder is afgewezen.
+# STILGELEGD 2026-09-14: het GitHub-abonnement was opgezegd, de runners weigerden elke job
+# (zie de toelichting in ci-feature.yml voor de meting). Dezelfde maatregel als op
+# 2026-08-12 hierboven beschreven, om een andere oorzaak: toen was de Azure-omgeving weg,
+# toen draaiden de runners zelf niet meer.
+#
+# SINDS 2026-10-23 STAAN CI EN CD-STAGING WEER AAN en draaien de runners weer (volgens de
+# regie, run 40030781485; hier niet opnieuw nagemeten). De trigger blijft HANDMATIG
+# (workflow_dispatch): er rolt niets uit zonder dat iemand het start. Sinds 2026-09-12 is er
+# niets naar staging gegaan; de eerste uitrol in deze vorm is nog niet gedaan.
+#
+# het-levend-monument: LET OP: de push-trigger op develop is UITGEZET (workflow_dispatch).
+# 1) Het GitHub-abonnement / cloud runner budget is stilgelegd om kosten te voorkomen.
+# 2) De staging-secrets en Azure service principal zijn voor deze repo niet ingericht;
+#    deploy naar staging gebeurt alleen handmatig via workflow_dispatch nadat secrets
+#    en de doelomgeving zijn ingericht.
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: cd-staging
+  cancel-in-progress: true
+
+env:
+  ACR: sanskritisetuacr.azurecr.io
+  KV_STAGING: sanskriti-kv-stg
+  AP_IMAGE_TAG: "0.92.1"  # Ook docker-compose.yml (service activepieces) bijwerken; een eigen Dockerfile is er niet
+
+jobs:
+  # --------------------------------------------------------------------------
+  # Quality gate: ruff + import sanity — faalt goedkoop vóór Docker builds
+  # --------------------------------------------------------------------------
+  quality-gate:
+    name: Quality Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install ruff
+        run: pip install "ruff==0.15.15"
+      - name: Ruff lint
+        run: ruff check src/ --exclude src/alembic
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-prod.txt
+          pip install "import-linter==2.13"
+      - name: FastAPI DI anti-pattern check
+        run: python scripts/check_fastapi_di_patterns.py --ci
+
+      - name: "NOOIT-lijst: datetime naive gate"
+        run: |
+          set -euo pipefail
+          matches=$(grep -rn --include="*.py" \
+            -E 'datetime\.(now|utcnow)\s*\(' src/ \
+            | grep -v 'timezone' \
+            | grep -v 'UTC' \
+            | grep -v 'tz=' \
+            | grep -v '# noqa: datetime-naive' \
+            || true)
+          count=$(echo "$matches" | grep -c . || true)
+          if [ "$count" -gt 0 ]; then
+            echo "::error::$count datetime.now()/utcnow() schendingen (NOOIT-lijst). Deploy geblokkeerd."
+            echo "$matches" | head -20
+            exit 1
+          fi
+          echo "Datetime naive gate: GROEN."
+
+      - name: "NOOIT-lijst: tenant-id-in-body gate"
+        run: |
+          set -euo pipefail
+          body_matches=$(grep -rn --include="*.py" \
+            -E 'tenant_id.*=.*Body\(|Body\(.*tenant_id' src/ \
+            | grep -v '# noqa: tenant-id-body' \
+            || true)
+          if [ -n "$body_matches" ]; then
+            count=$(echo "$body_matches" | grep -c . || true)
+            echo "$body_matches" | head -20
+            echo "::error::$count tenant-id Body() parameter schendingen in src/ (NOOIT-lijst)."
+            exit 1
+          fi
+          for dir in src/api/ src/routers/ src/schemas/; do
+            [ -d "$dir" ] || continue
+            matches=$(grep -rn --include="*.py" \
+              -E 'tenant_id\s*:\s*(str|UUID|int|Optional)' "$dir" \
+              | grep -v 'noqa: tenant-id-body' \
+              || true)
+            if [ -n "$matches" ]; then
+              echo "::error::tenant_id-in-body in $dir (ADR-036). Deploy geblokkeerd."
+              echo "$matches" | head -20
+              exit 1
+            fi
+          done
+          echo "Tenant-id-in-body gate: GROEN."
+
+      - name: "NOOIT-lijst: non-ASCII in Python gate"
+        run: |
+          set -euo pipefail
+          matches=$(grep -rn --include="*.py" \
+            -P '[^\x00-\x7F]' src/ scripts/ mcp-server/ \
+            | grep -v '^src/alembic/versions/archive/' \
+            || true)
+          count=$(echo "$matches" | grep -c . || true)
+          if [ "$count" -gt 0 ]; then
+            echo "::error::$count niet-ASCII tekens in Python-broncode (NOOIT-lijst). Deploy geblokkeerd."
+            echo "$matches" | head -20
+            exit 1
+          fi
+          echo "Non-ASCII gate: GROEN."
+
+      - name: Import-linter (ADR-033 + ADR-034 architectuurgrens)
+        # Correct commando: lint-imports (CLI binary van import-linter).
+        # `python -m importlinter` werkt NIET -- geen __main__.py.
+        # Config wordt automatisch geladen uit .importlinter.
+        run: |
+          set -euo pipefail
+          lint-imports
+          echo "Import-linter: GROEN."
+
+  preflight:
+    name: Verify required secrets
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check required secrets
+        run: |
+          MISSING=()
+          check_secret() {
+            local name="$1"
+            local value="$2"
+            if [ -z "$value" ]; then
+              MISSING+=("$name")
+            fi
+          }
+          check_secret "AZURE_CREDENTIALS"          "${GH_AZURE_CREDENTIALS}"
+          check_secret "STAGING_DATABASE_URL"       "${GH_STAGING_DATABASE_URL}"
+          check_secret "STAGING_SECRET_KEY"         "${GH_STAGING_SECRET_KEY}"
+          check_secret "STAGING_JWT_SECRET_KEY"     "${GH_STAGING_JWT_SECRET_KEY}"
+          # ADR-036 OP-27. Blokkerend en niet optioneel: zonder deze sleutel weigert elke
+          # tool-uitvoering. Staging valt NIET onder de omgevingen die een ephemere sleutel
+          # mogen gebruiken -- dan zou dezelfde waarde per worker een andere digest geven en
+          # verdwijnt stil de koppelbaarheid waarop het AI Act art.-12(2)-argument rust.
+          # Genereren: python -c "import secrets; print(secrets.token_urlsafe(32))"
+          check_secret "STAGING_TOOL_PAYLOAD_PSEUDONYM_KEY" \
+                       "${GH_STAGING_TOOL_PAYLOAD_PSEUDONYM_KEY}"
+          check_secret "STAGING_RESOURCE_GROUP"     "${GH_STAGING_RESOURCE_GROUP}"
+          # De worker en de scheduler importeren `workflow_worker.py`, dat zonder REDIS_URL
+          # een RuntimeError gooit bij het IMPORTEREN. Zonder een van deze twee start geen van
+          # beide (ADR-036 OP-87/OP-99). Hier in de preflight, zodat dat blijkt VOOR de
+          # backend-deploy -- anders staat er straks een nieuwe backend naast een oude worker.
+          if [ -z "${GH_STAGING_REDIS_URL}" ] && [ -z "${GH_STAGING_REDIS_HOST}" ]; then
+            MISSING+=("STAGING_REDIS_URL of STAGING_REDIS_HOST")
+          fi
+          check_secret "STAGING_BACKEND_APP"        "${GH_STAGING_BACKEND_APP}"
+          check_secret "STAGING_FRONTEND_APP"       "${GH_STAGING_FRONTEND_APP}"
+          check_secret "ACR_PASSWORD"               "${GH_ACR_PASSWORD}"
+          # Gemeten 2026-08-28 op staging: `seed.py:80` weigert te seeden zonder deze var en
+          # `app_lifespan.py:241` maakt daar na 3 pogingen een RuntimeError van, dus de
+          # backend komt niet door zijn startup-probe. Blokkerend hier, omdat noch
+          # config_validator.py noch enige guard dit vandaag afvangt -- de fout valt anders
+          # pas in de container, ruim na een groene deploy.
+          check_secret "STAGING_DEFAULT_ADMIN_PASSWORD" \
+                       "${GH_STAGING_DEFAULT_ADMIN_PASSWORD}"
+          # De applicatie, de werkers en de planner verbinden als de applicatierol
+          # `sanskritisetu_app` (STAGING_APP_DATABASE_URL); alleen de migratietaak gebruikt de
+          # eigenaar (STAGING_DATABASE_URL). De startcontrole `applicatierol_controle.py` weigert
+          # buiten ontwikkeling een rol die eigenaar, superuser of BYPASSRLS is, dus met de
+          # eigenaarsrol start de API niet. Ontbreekt dit geheim, dan faalt de uitrol HIER, voordat
+          # er iets is veranderd (docs/runbooks/applicatie-databaserol.md stap 6).
+          check_secret "STAGING_APP_DATABASE_URL" "${GH_STAGING_APP_DATABASE_URL}"
+          # Onder de applicatierol geeft de inlogopzoeking nul rijen zonder de aparte
+          # pre-authenticatieverbinding (src/core/database/bypass_session.py); inloggen valt dan
+          # stil. Daarom verplicht, en niet optioneel.
+          check_secret "STAGING_BYPASS_DATABASE_URL" "${GH_STAGING_BYPASS_DATABASE_URL}"
+          # Mistral (EU) is het taalmodel voor klantgegevens (ADR-041 B14, besluit Rakesh
+          # 2026-10-15). Geen stille terugval op `mock`: zonder sleutel faalt de uitrol hier.
+          check_secret "STAGING_MISTRAL_API_KEY" "${GH_STAGING_MISTRAL_API_KEY}"
+          # Versleutelt klantsleutels (AP-verbinding per klant, providersleutels). Zonder deze
+          # sleutel is het providerbeheer en de AP-verbinding per klant onbruikbaar.
+          check_secret "STAGING_MASTER_ENCRYPTION_KEY" "${GH_STAGING_MASTER_ENCRYPTION_KEY}"
+          # Mail (SMTP) en de links in mails en CORS. `config_validator.py` eist FRONTEND_URL en
+          # API_BASE_URL op staging; zonder SMTP_HOST valt de mailservice terug op localhost:587 en
+          # komt er geen enkele mail aan, ook geen debiteurenherinnering.
+          check_secret "STAGING_FRONTEND_URL" "${GH_STAGING_FRONTEND_URL}"
+          check_secret "STAGING_SMTP_HOST" "${GH_STAGING_SMTP_HOST}"
+          check_secret "STAGING_EMAIL_FROM" "${GH_STAGING_EMAIL_FROM}"
+          # De bonlezer: eigen Redis (wachtwoord) en een uploadvolume op Azure Files.
+          check_secret "STAGING_BONLEZER_REDIS_PASSWORD" "${GH_STAGING_BONLEZER_REDIS_PASSWORD}"
+          check_secret "STAGING_BONLEZER_STORAGE_ACCOUNT" "${GH_STAGING_BONLEZER_STORAGE_ACCOUNT}"
+          check_secret "STAGING_BONLEZER_STORAGE_KEY" "${GH_STAGING_BONLEZER_STORAGE_KEY}"
+
+          if [ ${#MISSING[@]} -gt 0 ]; then
+            echo "::error::De volgende GitHub Secrets ontbreken:"
+            for s in "${MISSING[@]}"; do
+              echo "::error::  - $s"
+            done
+            exit 1
+          fi
+          echo "All required secrets verified."
+
+        env:
+          GH_ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
+          GH_AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
+          GH_STAGING_APP_DATABASE_URL: ${{ secrets.STAGING_APP_DATABASE_URL }}
+          GH_STAGING_BACKEND_APP: ${{ secrets.STAGING_BACKEND_APP }}
+          GH_STAGING_BONLEZER_REDIS_PASSWORD: ${{ secrets.STAGING_BONLEZER_REDIS_PASSWORD }}
+          GH_STAGING_BONLEZER_STORAGE_ACCOUNT: ${{ secrets.STAGING_BONLEZER_STORAGE_ACCOUNT }}
+          GH_STAGING_BONLEZER_STORAGE_KEY: ${{ secrets.STAGING_BONLEZER_STORAGE_KEY }}
+          GH_STAGING_BYPASS_DATABASE_URL: ${{ secrets.STAGING_BYPASS_DATABASE_URL }}
+          GH_STAGING_DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+          GH_STAGING_DEFAULT_ADMIN_PASSWORD: ${{ secrets.STAGING_DEFAULT_ADMIN_PASSWORD }}
+          GH_STAGING_EMAIL_FROM: ${{ secrets.STAGING_EMAIL_FROM }}
+          GH_STAGING_FRONTEND_APP: ${{ secrets.STAGING_FRONTEND_APP }}
+          GH_STAGING_FRONTEND_URL: ${{ secrets.STAGING_FRONTEND_URL }}
+          GH_STAGING_JWT_SECRET_KEY: ${{ secrets.STAGING_JWT_SECRET_KEY }}
+          GH_STAGING_MASTER_ENCRYPTION_KEY: ${{ secrets.STAGING_MASTER_ENCRYPTION_KEY }}
+          GH_STAGING_MISTRAL_API_KEY: ${{ secrets.STAGING_MISTRAL_API_KEY }}
+          GH_STAGING_REDIS_HOST: ${{ secrets.STAGING_REDIS_HOST }}
+          GH_STAGING_REDIS_URL: ${{ secrets.STAGING_REDIS_URL }}
+          GH_STAGING_RESOURCE_GROUP: ${{ secrets.STAGING_RESOURCE_GROUP }}
+          GH_STAGING_SECRET_KEY: ${{ secrets.STAGING_SECRET_KEY }}
+          GH_STAGING_SMTP_HOST: ${{ secrets.STAGING_SMTP_HOST }}
+          GH_STAGING_TOOL_PAYLOAD_PSEUDONYM_KEY: ${{ secrets.STAGING_TOOL_PAYLOAD_PSEUDONYM_KEY }}
+      - name: Check that the app and the migration use different database roles
+        env:
+          OWNER_URL: ${{ secrets.STAGING_DATABASE_URL }}
+          APP_URL: ${{ secrets.STAGING_APP_DATABASE_URL }}
+          BYPASS_URL: ${{ secrets.STAGING_BYPASS_DATABASE_URL }}
+        run: |
+          # Twee geheimen met dezelfde inlognaam zijn geen twee geheimen: dan gaat de applicatie
+          # alsnog als de eigenaar naar de database en weigert de startcontrole te starten, pas in
+          # de container en ruim na een groene deploy. Hier faalt het voordat er iets verandert.
+          python3 -c '
+          import os, sys
+          from urllib.parse import urlsplit, unquote
+          eigenaar = unquote(urlsplit(os.environ["OWNER_URL"]).username or "")
+          app = unquote(urlsplit(os.environ["APP_URL"]).username or "")
+          if not eigenaar or not app:
+              print("::error::Een van de databasegeheimen bevat geen gebruikersnaam.")
+              sys.exit(1)
+          if eigenaar == app:
+              print("::error::STAGING_DATABASE_URL en STAGING_APP_DATABASE_URL gebruiken dezelfde rol. De applicatie hoort sanskritisetu_app te zijn, de migratie de eigenaar.")
+              sys.exit(1)
+          if app != "sanskritisetu_app":
+              print("::error::STAGING_APP_DATABASE_URL moet de rol sanskritisetu_app gebruiken (docs/runbooks/applicatie-databaserol.md).")
+              sys.exit(1)
+          # De aparte inlogverbinding is een derde rol. Zet iemand hem op de eigenaar of op de
+          # applicatierol, dan houdt de API-container via `bypass_session` eigenaarsrechten of
+          # verdwijnt de scheiding; `applicatierol_controle.py` toetst alleen DATABASE_URL.
+          bypass = unquote(urlsplit(os.environ["BYPASS_URL"]).username or "")
+          if not bypass or bypass in (eigenaar, app):
+              print("::error::STAGING_BYPASS_DATABASE_URL moet een EIGEN rol gebruiken (sanskritisetu_bypass), niet de eigenaar en niet de applicatierol.")
+              sys.exit(1)
+          print("Databaserollen verschillen: de migratie gebruikt de eigenaar, de applicatie sanskritisetu_app, het inloggen een eigen rol.")
+          '
+
+      - name: Check that the bonlezer Redis password is URL-safe
+        env:
+          BONLEZER_REDIS_PW: ${{ secrets.STAGING_BONLEZER_REDIS_PASSWORD }}
+        run: |
+          # Het wachtwoord staat in de URL van de API en de werker; een teken als `@`, `/` of `"`
+          # breekt de URL of de YAML. Hier controleren, VOORDAT er iets verandert (de controle in de
+          # stap "Deploy bonlezer Redis" komt pas na de backend).
+          case "$BONLEZER_REDIS_PW" in
+            *[!A-Za-z0-9._~-]*)
+              echo "::error::STAGING_BONLEZER_REDIS_PASSWORD bevat tekens die niet URL-veilig zijn. Gebruik hex (openssl rand -hex 24)."
+              exit 1 ;;
+          esac
+          echo "Bonlezer-Redis-wachtwoord is URL-veilig."
+
+      - name: Validate AZURE_CREDENTIALS JSON
+        run: |
+          CREDS="${GH_AZURE_CREDENTIALS}"
+          echo "$CREDS" | jq empty || (echo "::error::AZURE_CREDENTIALS is geen geldig JSON" && exit 1)
+          for field in clientId clientSecret subscriptionId tenantId; do
+            VALUE=$(echo "$CREDS" | jq -r ".$field // empty")
+            if [ -z "$VALUE" ]; then
+              echo "::error::AZURE_CREDENTIALS mist veld: $field"
+              exit 1
+            fi
+          done
+
+        env:
+          GH_AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
+  # --------------------------------------------------------------------------
+  # Uitrolcontrole (ADR-036 OP-227): `scripts/pre-deploy-check.sh` draaide tot 2026-10-24 alleen in
+  # cd-production.yml, dat uit staat. Daardoor draaide de controle bij geen enkele uitrol die vandaag
+  # kan plaatsvinden. `deploy-staging` hangt hieronder van deze job af (`needs`), bewaakt door
+  # tests/architecture/test_staging_uitrol_draait_de_uitrolcontrole.py.
+  #
+  # Welke stappen kunnen op een GitHub-runner, en welke niet:
+  #   1  Docker-bestanden in git        ja  (git ls-files na checkout)
+  #   1b compose-structuur              ja  (docker compose config --no-interpolate; lokaal gemeten)
+  #   2  build production-api           ja  (docker aanwezig op ubuntu-latest; niet op een runner gemeten)
+  #   3  build frontend                 ja  (idem)
+  #   3b migratie-keten (syntax, head)  ja  (hergebruikt het image van stap 2)
+  #   3c schematoets op echte database  ja  (docker run pgvector + pytest; niet op een runner gemeten)
+  #   4  GitHub Secrets lijsten         NEE (GITHUB_TOKEN mag geen secrets lijsten; de aanwezigheid
+  #                                         controleert de preflight-job hierboven)
+  #   5  Azure service principal        NEE (deze job logt niet in bij Azure; deploy-staging doet dat)
+  # Stap 4 en 5 worden overgeslagen via PRE_DEPLOY_SLA_OVER en verschijnen als WARN, nooit als OK.
+  #
+  # NIET GEMETEN, met naam: een echte run op GitHub. De YAML parseert, de jobstructuur is getoetst en
+  # de stappen 1, 1b en 3c zijn lokaal gedraaid.
+  # --------------------------------------------------------------------------
+  pre-deploy-check:
+    name: Uitrolcontrole (scripts/pre-deploy-check.sh)
+    needs: [preflight]
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    # Deze job leest alleen de repo; hij heeft geen schrijfrecht op de GITHUB_TOKEN nodig.
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      # De schematoets (stap 3c) importeert de hele modelregistratie en heeft dus de runtime-
+      # afhankelijkheden nodig: dezelfde lock als de Docker-image plus de testtooling.
+      - name: Install dependencies voor de schematoets
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-prod.lock
+          pip install -r requirements-test.txt
+      - name: Run pre-deploy-check.sh
+        env:
+          PRE_DEPLOY_SLA_OVER: "4 5"
+        run: bash scripts/pre-deploy-check.sh
+
+  # --------------------------------------------------------------------------
+  # Parallel builds: backend, frontend, worker tegelijk
+  # Elke job bouwt, valideert en pusht zijn eigen image naar ACR.
+  # --------------------------------------------------------------------------
+  build-backend:
+    name: Build & Push Backend
+    needs: [preflight, quality-gate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - name: Login ACR
+        run: echo "${GH_ACR_PASSWORD}" | docker login ${{ env.ACR }} -u sanskritisetuacr --password-stdin
+        env:
+          GH_ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3.10.0
+      - name: Cache Docker layers
+        uses: actions/cache@v4.2.2
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-backend-${{ github.sha }}
+          restore-keys: ${{ runner.os }}-buildx-backend-
+      - name: Build backend
+        run: |
+          docker buildx build --target production-api --load \
+            --cache-from type=local,src=/tmp/.buildx-cache \
+            --cache-to type=local,dest=/tmp/.buildx-cache-new,mode=max \
+            -t ${{ env.ACR }}/backend:staging \
+            -t ${{ env.ACR }}/backend:develop-${{ github.sha }} \
+            .
+          rm -rf /tmp/.buildx-cache && mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+      - name: Validate migration chain (offline dry-run)
+        run: |
+          IMAGE="${{ env.ACR }}/backend:staging"
+          DB_URL="postgresql+psycopg2://dummy:dummy@localhost/dummy"
+          echo "=== 1/2 Chain compile ==="
+          docker run --rm --pull=never --entrypoint python3 \
+            -e DATABASE_URL="$DB_URL" "$IMAGE" \
+            -m alembic -c /app/src/alembic.ini upgrade head --sql > /dev/null \
+            && echo "Chain compile: OK" \
+            || { echo "FAIL: Migration chain broken"; exit 1; }
+          echo "=== 2/2 Single head check ==="
+          set +e
+          HEADS_RAW=$(docker run --rm --pull=never --entrypoint python3 \
+            -e DATABASE_URL="$DB_URL" "$IMAGE" \
+            -m alembic -c /app/src/alembic.ini heads 2>&1)
+          set -e
+          HEAD_COUNT=$(echo "$HEADS_RAW" | grep -c '(head)' || echo "0")
+          if [ "$HEAD_COUNT" -ne 1 ]; then
+            echo "FAIL: ${HEAD_COUNT} heads gevonden, verwacht 1"
+            echo "$HEADS_RAW"; exit 1
+          fi
+          echo "Single head: OK"
+      - name: Push backend
+        run: |
+          docker push ${{ env.ACR }}/backend:staging
+          docker push ${{ env.ACR }}/backend:develop-${{ github.sha }}
+
+  build-frontend:
+    name: Build & Push Frontend
+    needs: [preflight, quality-gate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - name: Azure login
+        uses: azure/login@v2.2.0
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      - name: Login ACR
+        run: echo "${GH_ACR_PASSWORD}" | docker login ${{ env.ACR }} -u sanskritisetuacr --password-stdin
+        env:
+          GH_ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
+      - name: Get backend FQDN
+        id: fqdn
+        run: |
+          # Graceful fallback: Container App may not exist during infrastructure sprint
+          FQDN=$(az containerapp show \
+            --name ${GH_STAGING_BACKEND_APP} \
+            --resource-group ${GH_STAGING_RESOURCE_GROUP} \
+            --query properties.configuration.ingress.fqdn -o tsv 2>/dev/null || echo "")
+          echo "fqdn=${FQDN}" >> $GITHUB_OUTPUT
+        env:
+          GH_STAGING_BACKEND_APP: ${{ secrets.STAGING_BACKEND_APP }}
+          GH_STAGING_RESOURCE_GROUP: ${{ secrets.STAGING_RESOURCE_GROUP }}
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          docker build --load \
+            --build-arg VITE_API_URL=https://${{ steps.fqdn.outputs.fqdn }} \
+            --build-arg VITE_AUTH_URL=https://${{ steps.fqdn.outputs.fqdn }} \
+            -t ${{ env.ACR }}/frontend:staging \
+            -t ${{ env.ACR }}/frontend:develop-${{ github.sha }} \
+            .
+      - name: Validate frontend image
+        run: |
+          # Frontend uses 'serve' with /app/dist (not nginx)
+          docker run --rm --pull=never --entrypoint sh \
+            ${{ env.ACR }}/frontend:staging \
+            -c "test -f /app/dist/index.html && echo 'index.html OK'"
+      - name: Push frontend
+        run: |
+          docker push ${{ env.ACR }}/frontend:staging
+          docker push ${{ env.ACR }}/frontend:develop-${{ github.sha }}
+
+  build-worker:
+    name: Build & Push Worker
+    needs: [preflight, quality-gate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - name: Login ACR
+        run: echo "${GH_ACR_PASSWORD}" | docker login ${{ env.ACR }} -u sanskritisetuacr --password-stdin
+        env:
+          GH_ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
+      - name: Build & push worker
+        run: |
+          docker build --target production-worker --load \
+            -t ${{ env.ACR }}/worker:staging \
+            -t ${{ env.ACR }}/worker:develop-${{ github.sha }} \
+            .
+          docker push ${{ env.ACR }}/worker:staging
+          docker push ${{ env.ACR }}/worker:develop-${{ github.sha }}
+
+  # De bonlezer leest bonnen en facturen in een EIGEN image (Docling en torch horen niet in het
+  # backend- of werker-image; Dockerfile-doel `bonlezer-worker`, bewaakt door
+  # tests/architecture/test_bonlezer_zit_alleen_in_de_eigen_worker.py).
+  build-bonlezer:
+    name: Build & Push Bonlezer
+    needs: [preflight, quality-gate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - name: Login ACR
+        run: echo "${GH_ACR_PASSWORD}" | docker login ${{ env.ACR }} -u sanskritisetuacr --password-stdin
+        env:
+          GH_ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
+      - name: Build & push bonlezer
+        run: |
+          docker build --target bonlezer-worker --load \
+            -t ${{ env.ACR }}/bonlezer-worker:staging \
+            -t ${{ env.ACR }}/bonlezer-worker:develop-${{ github.sha }} \
+            .
+          docker push ${{ env.ACR }}/bonlezer-worker:staging
+          docker push ${{ env.ACR }}/bonlezer-worker:develop-${{ github.sha }}
+
+  # --------------------------------------------------------------------------
+  # Deploy: wacht op alle 4 builds, dan deploy + health check + rollback
+  # --------------------------------------------------------------------------
+  deploy-staging:
+    name: Deploy Staging
+    needs: [build-backend, build-frontend, build-worker, build-bonlezer, pre-deploy-check]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: staging
+    steps:
+      - uses: actions/checkout@v4.2.2
+
+      - name: Azure login
+        uses: azure/login@v2.2.0
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Login ACR
+        run: echo "${GH_ACR_PASSWORD}" | docker login ${{ env.ACR }} -u sanskritisetuacr --password-stdin
+        env:
+          GH_ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
+
+      # ------------------------------------------------------------------
+      # Stap 1: Secrets naar Key Vault
+      # ------------------------------------------------------------------
+      - name: Push secrets to Key Vault
+        run: |
+          az keyvault secret set --vault-name ${{ env.KV_STAGING }} \
+            --name database-url --value "${GH_STAGING_DATABASE_URL}" --output none
+          az keyvault secret set --vault-name ${{ env.KV_STAGING }} \
+            --name secret-key --value "${GH_STAGING_SECRET_KEY}" --output none
+          az keyvault secret set --vault-name ${{ env.KV_STAGING }} \
+            --name jwt-secret-key --value "${GH_STAGING_JWT_SECRET_KEY}" --output none
+          az keyvault secret set --vault-name ${{ env.KV_STAGING }} \
+            --name tool-payload-pseudonym-key \
+            --value "${GH_STAGING_TOOL_PAYLOAD_PSEUDONYM_KEY}" --output none
+          # ADR-036 OP-120. Conditioneel: zonder deze sleutel draait de keten op de
+          # bestaande SHA-256 -- werkend, dus geen reden een deploy te blokkeren.
+          if [ -n "${GH_STAGING_AUDIT_CHAIN_HMAC_KEY}" ]; then
+            az keyvault secret set --vault-name ${{ env.KV_STAGING }} \
+              --name audit-chain-hmac-key \
+              --value "${GH_STAGING_AUDIT_CHAIN_HMAC_KEY}" --output none
+          fi
+          # `database-url` hierboven is de EIGENAAR (STAGING_DATABASE_URL) en is alleen bedoeld voor
+          # de migratietaak. De applicatie, de werkers en de planner krijgen de applicatierol
+          # (STAGING_APP_DATABASE_URL) rechtstreeks als container-app-secret in hun eigen stap en
+          # lezen NIET uit dit Key-Vault-geheim.
+          # Taalmodel: Mistral (EU); de sleutel gaat als container-app-secret naar de apps die hem
+          # gebruiken. Er is geen DeepSeek en geen stille mock meer (ADR-041 B14).
+
+        env:
+          GH_STAGING_AUDIT_CHAIN_HMAC_KEY: ${{ secrets.STAGING_AUDIT_CHAIN_HMAC_KEY }}
+          GH_STAGING_DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+          GH_STAGING_JWT_SECRET_KEY: ${{ secrets.STAGING_JWT_SECRET_KEY }}
+          GH_STAGING_SECRET_KEY: ${{ secrets.STAGING_SECRET_KEY }}
+          GH_STAGING_TOOL_PAYLOAD_PSEUDONYM_KEY: ${{ secrets.STAGING_TOOL_PAYLOAD_PSEUDONYM_KEY }}
+      # ------------------------------------------------------------------
+      # Stap 2: Database migraties via Container App Job
+      # ------------------------------------------------------------------
+      - name: Update migration-job image
+        env:
+          ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
+          STAGING_RG: ${{ secrets.STAGING_RESOURCE_GROUP }}
+          IMAGE: ${{ env.ACR }}/backend:staging
+        run: |
+          SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+          cat > /tmp/migration-job-patch.json << EOF
+          {
+            "properties": {
+              "configuration": {
+                "secrets": [
+                  {"name":"database-url","keyVaultUrl":"https://sanskriti-kv-stg.vault.azure.net/secrets/database-url","identity":"system"},
+                  {"name":"secret-key","keyVaultUrl":"https://sanskriti-kv-stg.vault.azure.net/secrets/secret-key","identity":"system"},
+                  {"name":"acr-password","value":"${ACR_PASSWORD}"}
+                ],
+                "registries": [{"server":"sanskritisetuacr.azurecr.io","username":"sanskritisetuacr","passwordSecretRef":"acr-password"}]
+              },
+              "template": {
+                "containers": [{
+                  "name": "migration",
+                  "image": "${IMAGE}",
+                  "command": ["python3","-m","alembic","-c","/app/src/alembic.ini","upgrade","head"],
+                  "resources": {"cpu": 0.25, "memory": "0.5Gi"},
+                  "env": [
+                    {"name":"DATABASE_URL","secretRef":"database-url"},
+                    {"name":"SECRET_KEY","secretRef":"secret-key"},
+                    {"name":"RUN_MIGRATIONS","value":"true"},
+                    {"name":"PYTHONUNBUFFERED","value":"1"}
+                  ]
+                }]
+              }
+            }
+          }
+          EOF
+          az rest --method PATCH \
+            --url "https://management.azure.com/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${STAGING_RG}/providers/Microsoft.App/jobs/migration-job?api-version=2024-03-01" \
+            --body @/tmp/migration-job-patch.json --output none
+          rm -f /tmp/migration-job-patch.json
+          echo "Wachten op migration-job PATCH provisioning..."
+          for i in $(seq 1 30); do
+            STATE=$(az containerapp job show --name migration-job \
+              --resource-group "${STAGING_RG}" \
+              --query properties.provisioningState -o tsv 2>/dev/null || echo "Unknown")
+            echo "[$i/30] state: $STATE"
+            if [ "$STATE" = "Succeeded" ] || [ "$STATE" = "Failed" ] || [ "$STATE" = "Canceled" ]; then
+              break
+            fi
+            [ "$i" = "30" ] && { echo "ERROR: PATCH timeout"; exit 1; }
+            sleep 10
+          done
+
+      - name: Run migrations
+        # continue-on-error verwijderd 2026-09-10 (Rakesh GO via "bouw alles zoals het hoort").
+        # Infra rebuild is bevestigd compleet: run 33199726688 op develop volledig groen.
+        # Zie quality-gates.md: "continue-on-error op migrations is altijd een BEWUSTE uitzondering".
+        # Bewijs dat de stap 0 nieuwe fouten geeft: staging-api en migration-job draaien
+        # en zijn bereikbaar; zie docs/runbooks/azure-herbouw-OP-111.md.
+        run: |
+          set -euo pipefail
+          EXECUTION=$(az containerapp job start \
+            --name migration-job \
+            --resource-group ${GH_STAGING_RESOURCE_GROUP} \
+            --query name -o tsv)
+          echo "Migration execution: $EXECUTION"
+          for i in $(seq 1 30); do
+            STATUS=$(az containerapp job execution show \
+              --name migration-job \
+              --resource-group ${GH_STAGING_RESOURCE_GROUP} \
+              --job-execution-name "$EXECUTION" \
+              --query properties.status -o tsv 2>/dev/null || echo "Unknown")
+            echo "[$i/30] status: $STATUS"
+            [ "$STATUS" = "Succeeded" ] && { echo "Migraties succesvol."; exit 0; }
+            if [ "$STATUS" = "Failed" ]; then
+              echo "::error::Migraties MISLUKT. Controleer de migration-job logs in Azure."
+              echo "::error::Deploy geblokkeerd -- een gebroken migratie mag nooit stilletjes doorgaan."
+              exit 1
+            fi
+            [ "$i" = "30" ] && { echo "::error::Migratie-timeout na 300s."; exit 1; }
+            sleep 10
+          done
+
+        env:
+          GH_STAGING_RESOURCE_GROUP: ${{ secrets.STAGING_RESOURCE_GROUP }}
+      # ------------------------------------------------------------------
+      # Stap 3a-bis: Redis-verbinding bepalen (ADR-036 OP-87)
+      # ------------------------------------------------------------------
+      # De worker EN de scheduler importeren `src/workers/workflow_worker.py`, dat zonder
+      # REDIS_URL bij het IMPORTEREN een RuntimeError gooit. Omdat het entrypoint dramatiq is,
+      # is dat een stille storing: de container start, valt om, en niemand ziet een deploy-fout.
+      #
+      # Bewust GEEN nieuw secret nodig: deze job is hierboven al ingelogd op Azure, dus de sleutel
+      # is gewoon op te vragen. `STAGING_REDIS_HOST` bestaat al. Een expliciete `STAGING_REDIS_URL`
+      # wint als hij is gezet -- dan werkt dit ook voor een Redis buiten Azure.
+      - name: Resolve Redis connection string
+        env:
+          REDIS_URL_SECRET: ${{ secrets.STAGING_REDIS_URL }}
+          REDIS_HOST: ${{ secrets.STAGING_REDIS_HOST }}
+          RG: ${{ secrets.STAGING_RESOURCE_GROUP }}
+        run: |
+          set -euo pipefail
+
+          if [ -n "${REDIS_URL_SECRET}" ]; then
+            echo "::add-mask::${REDIS_URL_SECRET}"
+            # Gedelimiteerd schrijven (ADR-036 OP-99): een secret met een newline erin zou bij
+            # de kale `naam=waarde`-vorm extra omgevingsvariabelen injecteren in alle latere
+            # stappen. Vereist schrijfrechten op de secrets, dus laag risico -- maar de veilige
+            # vorm kost niets.
+            {
+              echo "RESOLVED_REDIS_URL<<__EOF_REDIS__"
+              echo "${REDIS_URL_SECRET}"
+              echo "__EOF_REDIS__"
+            } >> "$GITHUB_ENV"
+            echo "Redis-URL overgenomen uit het secret STAGING_REDIS_URL."
+            exit 0
+          fi
+
+          if [ -z "${REDIS_HOST}" ]; then
+            echo "::error::Noch STAGING_REDIS_URL noch STAGING_REDIS_HOST is ingesteld."
+            echo "::error::Zonder een van beide starten de worker en de scheduler niet."
+            exit 1
+          fi
+
+          # `mijncache.redis.cache.windows.net` -> `mijncache`
+          REDIS_NAME="${REDIS_HOST%%.*}"
+
+          KEY=$(az redis list-keys --name "$REDIS_NAME" --resource-group "$RG" \
+            --query primaryKey -o tsv 2>/dev/null || true)
+
+          if [ -z "$KEY" ]; then
+            # De cache kan in een andere resource group staan dan de apps.
+            FOUND_RG=$(az redis list --query "[?hostName=='${REDIS_HOST}'].resourceGroup | [0]" \
+              -o tsv 2>/dev/null || true)
+            if [ -n "$FOUND_RG" ]; then
+              KEY=$(az redis list-keys --name "$REDIS_NAME" --resource-group "$FOUND_RG" \
+                --query primaryKey -o tsv 2>/dev/null || true)
+            fi
+          fi
+
+          if [ -z "$KEY" ]; then
+            echo "::error::Kon de sleutel van Redis '${REDIS_NAME}' niet ophalen."
+            echo "::error::Waarschijnlijk mist de service principal het recht"
+            echo "::error::Microsoft.Cache/redis/listKeys/action. Twee opties: geef dat recht, of"
+            echo "::error::zet het secret STAGING_REDIS_URL met de volledige verbindingsstring."
+            exit 1
+          fi
+
+          echo "::add-mask::${KEY}"
+          # Poort 6380 met TLS: Azure Cache for Redis draait TLS op 6380, niet op 6379.
+          # De sleutel PERCENT-ENCODEREN (ADR-036 OP-94). `az redis list-keys` levert base64, en
+          # 47,6% van die sleutels bevat een `/` -- gemeten over 20.000 trekkingen. Zonder encoding
+          # valt de URL uit elkaar: urlsplit leest `aB3` als poort en faalt. `az` slaagt, de deploy
+          # meldt succes, en worker en scheduler komen in een crash-lus. Ongeveer een muntworp per
+          # sleutelrotatie.
+          #
+          # Onderzocht en bevestigd: redis-py haalt het wachtwoord door `urllib.parse.unquote`, en
+          # dramatiq's RedisBroker gebruikt `redis.from_url`. Percent-encoding komt er dus correct
+          # doorheen -- heen-en-terug geverifieerd met een sleutel die `/`, `+` en `=` bevat.
+          KEY_ENC=$(python3 -c 'import sys,urllib.parse;print(urllib.parse.quote(sys.argv[1],safe=""))' "$KEY")
+          URL="rediss://:${KEY_ENC}@${REDIS_HOST}:6380/0"
+          
+          # En controleren dat het resultaat parseert, zodat dit nooit meer stil kan falen.
+          if ! python3 -c 'import sys,urllib.parse as u;p=u.urlsplit(sys.argv[1]);sys.exit(0 if p.hostname and p.port==6380 else 1)' "$URL"; then
+            echo "::error::De samengestelde Redis-URL parseert niet. Bevat de sleutel iets dat de"
+            echo "::error::encoding niet dekt? Zet dan het secret STAGING_REDIS_URL handmatig."
+            exit 1
+          fi
+          echo "::add-mask::${URL}"
+          {
+            echo "RESOLVED_REDIS_URL<<__EOF_REDIS__"
+            echo "${URL}"
+            echo "__EOF_REDIS__"
+          } >> "$GITHUB_ENV"
+          echo "Redis-URL samengesteld uit STAGING_REDIS_HOST en de opgehaalde sleutel."
+
+      # ------------------------------------------------------------------
+      # Stap 3: Save current tag voor rollback, dan deploy (via az-retry.sh)
+      # ------------------------------------------------------------------
+      # ------------------------------------------------------------------
+      # Stap 3a-ter: publieke URL's en mailinstellingen bepalen
+      # ------------------------------------------------------------------
+      # `config_validator.py` eist op staging API_BASE_URL en FRONTEND_URL; FRONTEND_URL staat
+      # in de links van uitnodigingen en wachtwoordherstel (src/core/api/auth/uitnodiging.py) en
+      # in de CORS-lijst. De API-URL is de ingress van de backend zelf. Zonder SMTP_HOST valt
+      # `get_email_service()` terug op localhost:587: de mail faalt dan stil.
+      - name: Resolve public URLs and mail settings
+        env:
+          FRONTEND_URL_SECRET: ${{ secrets.STAGING_FRONTEND_URL }}
+          SMTP_HOST_SECRET: ${{ secrets.STAGING_SMTP_HOST }}
+          EMAIL_FROM_SECRET: ${{ secrets.STAGING_EMAIL_FROM }}
+          BACKEND_APP: ${{ secrets.STAGING_BACKEND_APP }}
+          RG: ${{ secrets.STAGING_RESOURCE_GROUP }}
+        run: |
+          set -euo pipefail
+          FQDN=$(az containerapp show --name "$BACKEND_APP" --resource-group "$RG" \
+            --query properties.configuration.ingress.fqdn -o tsv)
+          if [ -z "$FQDN" ]; then
+            echo "::error::De backend heeft geen ingress-FQDN; API_BASE_URL is niet te bepalen."
+            exit 1
+          fi
+          case "$FRONTEND_URL_SECRET" in
+            https://*) ;;
+            *) echo "::error::STAGING_FRONTEND_URL moet met https:// beginnen."; exit 1 ;;
+          esac
+          if [ -z "$SMTP_HOST_SECRET" ] || [ -z "$EMAIL_FROM_SECRET" ]; then
+            echo "::error::STAGING_SMTP_HOST en STAGING_EMAIL_FROM zijn verplicht: zonder komt er geen mail aan."
+            exit 1
+          fi
+          echo "RESOLVED_API_BASE_URL=https://${FQDN}" >> "$GITHUB_ENV"
+          echo "API-URL bepaald uit de ingress van de backend."
+
+      - name: Save current image tag for rollback
+        id: current_image
+        run: |
+          CURRENT=$(az containerapp show \
+            --name ${GH_STAGING_BACKEND_APP} \
+            --resource-group ${GH_STAGING_RESOURCE_GROUP} \
+            --query 'properties.template.containers[0].image' -o tsv)
+          echo "tag=${CURRENT}" >> $GITHUB_OUTPUT
+
+        env:
+          GH_STAGING_BACKEND_APP: ${{ secrets.STAGING_BACKEND_APP }}
+          GH_STAGING_RESOURCE_GROUP: ${{ secrets.STAGING_RESOURCE_GROUP }}
+      - name: Deploy backend (canary — 1 replica)
+        env:
+          # De API verbindt als de applicatierol (STAGING_APP_DATABASE_URL), niet als de eigenaar.
+          APP_DB_URL: ${{ secrets.STAGING_APP_DATABASE_URL }}
+          BYPASS_DB_URL: ${{ secrets.STAGING_BYPASS_DATABASE_URL }}
+          MISTRAL_KEY: ${{ secrets.STAGING_MISTRAL_API_KEY }}
+          MASTER_KEY: ${{ secrets.STAGING_MASTER_ENCRYPTION_KEY }}
+          ADMIN_PW: ${{ secrets.STAGING_DEFAULT_ADMIN_PASSWORD }}
+          PSEUDONYM_KEY: ${{ secrets.STAGING_TOOL_PAYLOAD_PSEUDONYM_KEY }}
+          AUDIT_KEY: ${{ secrets.STAGING_AUDIT_CHAIN_HMAC_KEY }}
+          BONLEZER_REDIS_PW: ${{ secrets.STAGING_BONLEZER_REDIS_PASSWORD }}
+          FRONTEND_URL_V: ${{ secrets.STAGING_FRONTEND_URL }}
+          SMTP_HOST_V: ${{ secrets.STAGING_SMTP_HOST }}
+          SMTP_PORT_V: ${{ secrets.STAGING_SMTP_PORT }}
+          SMTP_USER_V: ${{ secrets.STAGING_SMTP_USER }}
+          SMTP_PASSWORD_V: ${{ secrets.STAGING_SMTP_PASSWORD }}
+          EMAIL_FROM_V: ${{ secrets.STAGING_EMAIL_FROM }}
+          GH_STAGING_BACKEND_APP: ${{ secrets.STAGING_BACKEND_APP }}
+          GH_STAGING_RESOURCE_GROUP: ${{ secrets.STAGING_RESOURCE_GROUP }}
+        run: |
+          # ADR-036 OP-27: de pseudonimiseringssleutel als container-app-secret, met een env-var
+          # die ernaar verwijst. Zonder deze sleutel weigert elke tool-uitvoering (fail-closed);
+          # staging valt bewust niet onder de omgevingen die een ephemere sleutel mogen kiezen.
+          # ADR-036 OP-120: sleutel voor de auditketen. OPTIONEEL -- zonder sleutel valt
+          # `_compute_hash` terug op de bestaande SHA-256 en werkt alles zoals voorheen.
+          # Een verplichte check zou een deploy blokkeren voor iets dat per ontwerp
+          # optioneel is.
+          #
+          # Via een ARRAY en niet inline: `--set-secrets "audit-chain-hmac-key="` met een
+          # lege waarde is geen geldige aanroep. Het secret EN de env-var worden hier in
+          # EEN `if` gezet zodat ze niet uit elkaar kunnen lopen -- dat is precies de
+          # valkuil waar de comment over de pseudonimiseringssleutel voor waarschuwt: een
+          # secretref zonder eigen definitie resolveert naar de LETTERLIJKE string, en dan
+          # is de sleutel een publiek bekende constante.
+          AUDIT_SECRETS=()
+          AUDIT_ENVVARS=()
+          if [ -n "${AUDIT_KEY:-}" ]; then
+            AUDIT_SECRETS=("audit-chain-hmac-key=${AUDIT_KEY}")
+            AUDIT_ENVVARS=("AUDIT_CHAIN_HMAC_KEY=secretref:audit-chain-hmac-key")
+          fi
+          # `az containerapp update` heeft GEEN `--set-secrets`-vlag (alleen `--set-env-vars`
+          # en `--secret-volume-mount`, geverifieerd via `az containerapp update --help`,
+          # 2026-08-29) -- secrets zetten kan alleen via het aparte commando
+          # `containerapp secret set`. Deze stap draaide nooit end-to-end (trigger stond op
+          # workflow_dispatch sinds 2026-08-12) en dat bleef daardoor onopgemerkt.
+          # Mail: host en afzender zijn verplicht (de preflight eist ze); poort en inlog zijn
+          # optioneel, want een relay binnen het netwerk heeft geen inlog. Het wachtwoord is een
+          # secret EN een env-var in EEN `if`, zodat ze niet uit elkaar kunnen lopen.
+          SMTP_SECRETS=()
+          SMTP_ENVVARS=("SMTP_HOST=${SMTP_HOST_V}" "EMAIL_FROM=${EMAIL_FROM_V}")
+          if [ -n "${SMTP_PORT_V:-}" ]; then
+            SMTP_ENVVARS+=("SMTP_PORT=${SMTP_PORT_V}")
+          fi
+          if [ -n "${SMTP_USER_V:-}" ] && [ -n "${SMTP_PASSWORD_V:-}" ]; then
+            SMTP_SECRETS=("smtp-password=${SMTP_PASSWORD_V}")
+            SMTP_ENVVARS+=("SMTP_USER=${SMTP_USER_V}" "SMTP_PASSWORD=secretref:smtp-password")
+          fi
+
+          # `app-database-url` is de APPLICATIEROL (sanskritisetu_app). De migratietaak houdt de
+          # eigenaar; de API krijgt NOOIT het Key-Vault-geheim `database-url`. Mistral (EU) is het
+          # taalmodel; er is geen terugval op `mock`: de preflight heeft de sleutel al geeist.
+          bash .github/scripts/az-retry.sh containerapp secret set \
+            --name ${GH_STAGING_BACKEND_APP} \
+            --resource-group ${GH_STAGING_RESOURCE_GROUP} \
+            --secrets "tool-payload-pseudonym-key=${PSEUDONYM_KEY}" \
+              "redis-url=${RESOLVED_REDIS_URL}" \
+              "default-admin-password=${ADMIN_PW}" \
+              "app-database-url=${APP_DB_URL}" \
+              "bypass-database-url=${BYPASS_DB_URL}" \
+              "mistral-api-key=${MISTRAL_KEY}" \
+              "master-encryption-key=${MASTER_KEY}" \
+              "bonlezer-broker-url=redis://:${BONLEZER_REDIS_PW}@bonlezer-redis-staging:6379/0" \
+            ${SMTP_SECRETS[@]+"${SMTP_SECRETS[@]}"} \
+            ${AUDIT_SECRETS[@]+"${AUDIT_SECRETS[@]}"}
+
+          bash .github/scripts/az-retry.sh containerapp update \
+            --name ${GH_STAGING_BACKEND_APP} \
+            --resource-group ${GH_STAGING_RESOURCE_GROUP} \
+            --image ${{ env.ACR }}/backend:staging \
+            --min-replicas 1 --max-replicas 1 \
+            --set-env-vars "ENVIRONMENT=staging" "LOG_LEVEL=INFO" "PYTHONUNBUFFERED=1" \
+              "TOOL_PAYLOAD_PSEUDONYM_KEY=secretref:tool-payload-pseudonym-key" \
+              "REDIS_URL=secretref:redis-url" "PGSSLMODE=require" \
+              "DEFAULT_ADMIN_PASSWORD=secretref:default-admin-password" \
+              "DATABASE_URL=secretref:app-database-url" \
+              "BYPASS_DATABASE_URL=secretref:bypass-database-url" \
+              "MASTER_ENCRYPTION_KEY=secretref:master-encryption-key" \
+              "LLM_PROVIDER=mistral" "LLM_MODEL=mistral-small-latest" \
+              "MISTRAL_API_KEY=secretref:mistral-api-key" \
+              "FRONTEND_URL=${FRONTEND_URL_V}" "API_BASE_URL=${RESOLVED_API_BASE_URL}" \
+              "BONLEZER_BROKER_URL=secretref:bonlezer-broker-url" \
+              "BONLEZER_SOCKET_TIMEOUT=5" "BONLEZER_UPLOAD_ROOT=/data/bonnen" \
+              "${SMTP_ENVVARS[@]}" \
+              ${AUDIT_ENVVARS[@]+"${AUDIT_ENVVARS[@]}"}
+
+      - name: Deploy frontend
+        run: |
+          bash .github/scripts/az-retry.sh containerapp update \
+            --name ${GH_STAGING_FRONTEND_APP} \
+            --resource-group ${GH_STAGING_RESOURCE_GROUP} \
+            --image ${{ env.ACR }}/frontend:staging
+
+        env:
+          GH_STAGING_FRONTEND_APP: ${{ secrets.STAGING_FRONTEND_APP }}
+          GH_STAGING_RESOURCE_GROUP: ${{ secrets.STAGING_RESOURCE_GROUP }}
+      - name: Deploy worker
+        env:
+          PSEUDONYM_KEY: ${{ secrets.STAGING_TOOL_PAYLOAD_PSEUDONYM_KEY }}
+          AUDIT_KEY: ${{ secrets.STAGING_AUDIT_CHAIN_HMAC_KEY }}
+          # Via `env:` en niet in de shell-tekst (ADR-036 MEDIUM-6). Spiegelbeeld van dezelfde
+          # ingreep in cd-production.yml. De werker verbindt als de APPLICATIEROL, niet als de
+          # eigenaar (die is alleen voor de migratietaak).
+          DB_URL: ${{ secrets.STAGING_APP_DATABASE_URL }}
+          ACR_PW: ${{ secrets.ACR_PASSWORD }}
+          MISTRAL_KEY: ${{ secrets.STAGING_MISTRAL_API_KEY }}
+          MASTER_KEY: ${{ secrets.STAGING_MASTER_ENCRYPTION_KEY }}
+          FRONTEND_URL_V: ${{ secrets.STAGING_FRONTEND_URL }}
+          SMTP_HOST_V: ${{ secrets.STAGING_SMTP_HOST }}
+          SMTP_PORT_V: ${{ secrets.STAGING_SMTP_PORT }}
+          SMTP_USER_V: ${{ secrets.STAGING_SMTP_USER }}
+          SMTP_PASSWORD_V: ${{ secrets.STAGING_SMTP_PASSWORD }}
+          EMAIL_FROM_V: ${{ secrets.STAGING_EMAIL_FROM }}
+          GH_STAGING_BACKEND_APP: ${{ secrets.STAGING_BACKEND_APP }}
+          GH_STAGING_RESOURCE_GROUP: ${{ secrets.STAGING_RESOURCE_GROUP }}
+        run: |
+          # ADR-036 OP-27: de worker voert tools IN-PROCESS uit. De keten is
+          # src/core/tasks/workflow_tasks.py (@dramatiq.actor) -> AutonomousAgent ->
+          # BaseAgent._create_tool_broker() -> een lokale ToolBrokerService, dus niet via de
+          # HTTP-client naar de backend. Zonder deze sleutel weigert daar elke tool-aanroep,
+          # en omdat het entrypoint dramatiq is draait de bootcheck er nooit: dat wordt dus
+          # een stille storing in plaats van een luide deploy-fout.
+          # ADR-036 OP-120: sleutel voor de auditketen. OPTIONEEL -- zonder sleutel valt
+          # `_compute_hash` terug op de bestaande SHA-256 en werkt alles zoals voorheen.
+          # Een verplichte check zou een deploy blokkeren voor iets dat per ontwerp
+          # optioneel is.
+          #
+          # Via een ARRAY en niet inline: `--set-secrets "audit-chain-hmac-key="` met een
+          # lege waarde is geen geldige aanroep. Het secret EN de env-var worden hier in
+          # EEN `if` gezet zodat ze niet uit elkaar kunnen lopen -- dat is precies de
+          # valkuil waar de comment over de pseudonimiseringssleutel voor waarschuwt: een
+          # secretref zonder eigen definitie resolveert naar de LETTERLIJKE string, en dan
+          # is de sleutel een publiek bekende constante.
+          AUDIT_SECRETS=()
+          AUDIT_ENVVARS=()
+          if [ -n "${AUDIT_KEY:-}" ]; then
+            AUDIT_SECRETS=("audit-chain-hmac-key=${AUDIT_KEY}")
+            AUDIT_ENVVARS=("AUDIT_CHAIN_HMAC_KEY=secretref:audit-chain-hmac-key")
+          fi
+          # Mistral, de hoofdsleutel en de mailinstellingen voor de werker: een debiteurenherinnering
+          # wordt HIER verstuurd en een workflowstap vraagt het taalmodel van de klant. Zonder
+          # SMTP_HOST valt de mailservice stil terug op localhost:587.
+          SMTP_SECRETS=()
+          SMTP_ENVVARS=("SMTP_HOST=${SMTP_HOST_V}" "EMAIL_FROM=${EMAIL_FROM_V}")
+          if [ -n "${SMTP_PORT_V:-}" ]; then
+            SMTP_ENVVARS+=("SMTP_PORT=${SMTP_PORT_V}")
+          fi
+          if [ -n "${SMTP_USER_V:-}" ] && [ -n "${SMTP_PASSWORD_V:-}" ]; then
+            SMTP_SECRETS=("smtp-password=${SMTP_PASSWORD_V}")
+            SMTP_ENVVARS+=("SMTP_USER=${SMTP_USER_V}" "SMTP_PASSWORD=secretref:smtp-password")
+          fi
+          if az containerapp show --name worker-staging \
+            --resource-group ${GH_STAGING_RESOURCE_GROUP} &>/dev/null; then
+            # `az containerapp update` heeft geen `--set-secrets`-vlag -- zie de toelichting
+            # bij "Deploy backend (canary)" hierboven.
+            bash .github/scripts/az-retry.sh containerapp secret set \
+              --name worker-staging \
+              --resource-group ${GH_STAGING_RESOURCE_GROUP} \
+              --secrets "tool-payload-pseudonym-key=${PSEUDONYM_KEY}" \
+              ${AUDIT_SECRETS[@]+"${AUDIT_SECRETS[@]}"} \
+              ${SMTP_SECRETS[@]+"${SMTP_SECRETS[@]}"} \
+                "redis-url=${RESOLVED_REDIS_URL}" \
+                "app-database-url=${DB_URL}" \
+                "mistral-api-key=${MISTRAL_KEY}" \
+                "master-encryption-key=${MASTER_KEY}"
+
+            bash .github/scripts/az-retry.sh containerapp update \
+              --name worker-staging \
+              --resource-group ${GH_STAGING_RESOURCE_GROUP} \
+              --image ${{ env.ACR }}/worker:staging \
+              --set-env-vars "ENVIRONMENT=staging" "PYTHONUNBUFFERED=1" \
+                "DATABASE_URL=secretref:app-database-url" "PGSSLMODE=require" \
+                "REDIS_URL=secretref:redis-url" \
+                "TOOL_PAYLOAD_PSEUDONYM_KEY=secretref:tool-payload-pseudonym-key" \
+                "LLM_PROVIDER=mistral" "LLM_MODEL=mistral-small-latest" \
+                "MISTRAL_API_KEY=secretref:mistral-api-key" \
+                "MASTER_ENCRYPTION_KEY=secretref:master-encryption-key" \
+                "FRONTEND_URL=${FRONTEND_URL_V}" "API_BASE_URL=${RESOLVED_API_BASE_URL}" \
+                "${SMTP_ENVVARS[@]}" \
+                ${AUDIT_ENVVARS[@]+"${AUDIT_ENVVARS[@]}"}
+          else
+            ENV_NAME=$(az containerapp show \
+              --name ${GH_STAGING_BACKEND_APP} \
+              --resource-group ${GH_STAGING_RESOURCE_GROUP} \
+              --query 'properties.environmentId' -o tsv | awk -F'/' '{print $NF}')
+            # AANMAAK VIA --yaml, en niet via losse vlaggen (ADR-036 OP-13).
+            #
+            # De worker MOET met `--processes 1 --threads 8` starten. Zonder die twee leest
+            # dramatiq `cpu_count()` van de HOST -- niet van de container -- en start het
+            # veelvoud aan processen dat op 0,5 vCPU / 1 GiB gegarandeerd door het geheugen
+            # gaat. Dat eindigt in SIGKILL (exit -9) en een herstartlus, en de deploy meldt
+            # gewoon succes.
+            #
+            # Die instelling stond tot 2026-08-30 ALLEEN in Azure: handmatig gezet, door de
+            # update-tak keurig behouden, en bij een hercreatie stilzwijgend weg. Nu staat hij
+            # in de create-tak, waar hij hoort.
+            #
+            # `--args` kan hier niet: az' argparser weigert een waarde die met een streepje
+            # begint ("unrecognized arguments: --processes 1"), precies zoals bij de scheduler
+            # hieronder is vastgelegd. De YAML-vorm legt de argumenten als lijst vast.
+            #
+            # `command` blijft LEEG, net als in de draaiende app (gemeten 2026-08-30:
+            # `properties.template.containers[0].command` is null): het ENTRYPOINT van het
+            # image is al dramatiq, en die overschrijven zou een tweede waarheid maken.
+            cat > worker-staging.yaml << YAMLEOF
+            properties:
+              configuration:
+                activeRevisionsMode: Single
+                registries:
+                  - server: sanskritisetuacr.azurecr.io
+                    username: sanskritisetuacr
+                    passwordSecretRef: acr-password
+                secrets:
+                  - name: acr-password
+                    value: "${ACR_PW}"
+                  - name: app-database-url
+                    value: "${DB_URL}"
+                  - name: redis-url
+                    value: "${RESOLVED_REDIS_URL}"
+                  - name: mistral-api-key
+                    value: "${MISTRAL_KEY}"
+                  - name: master-encryption-key
+                    value: "${MASTER_KEY}"
+                  - name: tool-payload-pseudonym-key
+                    value: "${PSEUDONYM_KEY}"$( [ -n "${AUDIT_KEY:-}" ] && printf '\n        - name: audit-chain-hmac-key\n          value: "%s"' "${AUDIT_KEY}" )$( [ -n "${SMTP_USER_V:-}" ] && [ -n "${SMTP_PASSWORD_V:-}" ] && printf '\n        - name: smtp-password\n          value: "%s"' "${SMTP_PASSWORD_V}" )
+              template:
+                containers:
+                  - name: worker-staging
+                    image: ${{ env.ACR }}/worker:staging
+                    args:
+                      - "src.workers.workflow_worker:redis_broker"
+                      - "src.workers.actors"
+                      - "--processes"
+                      - "1"
+                      - "--threads"
+                      - "8"
+                    env:
+                      - name: DATABASE_URL
+                        secretRef: app-database-url
+                      - name: PGSSLMODE
+                        value: "require"
+                      - name: REDIS_URL
+                        secretRef: redis-url
+                      - name: ENVIRONMENT
+                        value: "staging"
+                      - name: PYTHONUNBUFFERED
+                        value: "1"
+                      - name: LLM_PROVIDER
+                        value: "mistral"
+                      - name: LLM_MODEL
+                        value: "mistral-small-latest"
+                      - name: MISTRAL_API_KEY
+                        secretRef: mistral-api-key
+                      - name: MASTER_ENCRYPTION_KEY
+                        secretRef: master-encryption-key
+                      - name: FRONTEND_URL
+                        value: "${FRONTEND_URL_V}"
+                      - name: API_BASE_URL
+                        value: "${RESOLVED_API_BASE_URL}"
+                      - name: SMTP_HOST
+                        value: "${SMTP_HOST_V}"
+                      - name: EMAIL_FROM
+                        value: "${EMAIL_FROM_V}"
+                      - name: TOOL_PAYLOAD_PSEUDONYM_KEY
+                        secretRef: tool-payload-pseudonym-key$( [ -n "${AUDIT_KEY:-}" ] && printf '\n            - name: AUDIT_CHAIN_HMAC_KEY\n              secretRef: audit-chain-hmac-key' )$( [ -n "${SMTP_PORT_V:-}" ] && printf '\n            - name: SMTP_PORT\n              value: "%s"' "${SMTP_PORT_V}" )$( [ -n "${SMTP_USER_V:-}" ] && [ -n "${SMTP_PASSWORD_V:-}" ] && printf '\n            - name: SMTP_USER\n              value: "%s"\n            - name: SMTP_PASSWORD\n              secretRef: smtp-password' "${SMTP_USER_V}" )
+                    resources:
+                      cpu: 0.5
+                      memory: 1.0Gi
+                scale:
+                  minReplicas: 1
+                  maxReplicas: 1
+          YAMLEOF
+
+            bash .github/scripts/az-retry.sh containerapp create \
+              --name worker-staging \
+              --resource-group ${GH_STAGING_RESOURCE_GROUP} \
+              --environment "$ENV_NAME" \
+              --yaml worker-staging.yaml
+          fi
+
+      # ------------------------------------------------------------------
+      # Stap 3c: Scheduler (ADR-036 OP-64/OP-84)
+      # ------------------------------------------------------------------
+      # Zonder dit proces draait GEEN van de opruimactors in
+      # `src/core/governance/retention_cleanup.py`. Elke bewaartermijn daar is dan een belofte die
+      # niemand nakomt -- en er komt geen foutmelding wanneer iets NIET gebeurt.
+      #
+      # Dezelfde image als de worker, ander startcommando: de planning staat op EEN plek
+      # (`scheduler.py`) en niet ook nog in cron-definities hier. BEWUST exact een replica: deze
+      # jobs zijn niet bedoeld om dubbel te draaien.
+      #
+      # LET OP: dit maakt bij de eerste deploy een NIEUWE Azure Container App aan. Dat is de
+      # kostenpost -- een replica van 0.25 vCPU / 0.5 Gi die altijd aan staat.
+      - name: Deploy scheduler
+        env:
+          PSEUDONYM_KEY: ${{ secrets.STAGING_TOOL_PAYLOAD_PSEUDONYM_KEY }}
+          AUDIT_KEY: ${{ secrets.STAGING_AUDIT_CHAIN_HMAC_KEY }}
+          # Via `env:` en niet in de shell-tekst (ADR-036 MEDIUM-6). Spiegelbeeld van dezelfde
+          # ingreep in cd-production.yml. De planner verbindt als de APPLICATIEROL, niet als de
+          # eigenaar (die is alleen voor de migratietaak).
+          DB_URL: ${{ secrets.STAGING_APP_DATABASE_URL }}
+          ACR_PW: ${{ secrets.ACR_PASSWORD }}
+          MASTER_KEY: ${{ secrets.STAGING_MASTER_ENCRYPTION_KEY }}
+          FRONTEND_URL_V: ${{ secrets.STAGING_FRONTEND_URL }}
+          SMTP_HOST_V: ${{ secrets.STAGING_SMTP_HOST }}
+          SMTP_PORT_V: ${{ secrets.STAGING_SMTP_PORT }}
+          SMTP_USER_V: ${{ secrets.STAGING_SMTP_USER }}
+          SMTP_PASSWORD_V: ${{ secrets.STAGING_SMTP_PASSWORD }}
+          EMAIL_FROM_V: ${{ secrets.STAGING_EMAIL_FROM }}
+          GH_STAGING_BACKEND_APP: ${{ secrets.STAGING_BACKEND_APP }}
+          GH_STAGING_RESOURCE_GROUP: ${{ secrets.STAGING_RESOURCE_GROUP }}
+        run: |
+          # `RESOLVED_REDIS_URL` komt uit de stap "Resolve Redis connection string" hierboven.
+          # Die faalt al hard als hij niets kan bepalen, dus hier hoeft dat niet nog een keer.
+          # ADR-036 OP-120: sleutel voor de auditketen. OPTIONEEL -- zonder sleutel valt
+          # `_compute_hash` terug op de bestaande SHA-256 en werkt alles zoals voorheen.
+          # Een verplichte check zou een deploy blokkeren voor iets dat per ontwerp
+          # optioneel is.
+          #
+          # Via een ARRAY en niet inline: `--set-secrets "audit-chain-hmac-key="` met een
+          # lege waarde is geen geldige aanroep. Het secret EN de env-var worden hier in
+          # EEN `if` gezet zodat ze niet uit elkaar kunnen lopen -- dat is precies de
+          # valkuil waar de comment over de pseudonimiseringssleutel voor waarschuwt: een
+          # secretref zonder eigen definitie resolveert naar de LETTERLIJKE string, en dan
+          # is de sleutel een publiek bekende constante.
+          AUDIT_SECRETS=()
+          AUDIT_ENVVARS=()
+          if [ -n "${AUDIT_KEY:-}" ]; then
+            AUDIT_SECRETS=("audit-chain-hmac-key=${AUDIT_KEY}")
+            AUDIT_ENVVARS=("AUDIT_CHAIN_HMAC_KEY=secretref:audit-chain-hmac-key")
+          fi
+          SMTP_SECRETS=()
+          SMTP_ENVVARS=("SMTP_HOST=${SMTP_HOST_V}" "EMAIL_FROM=${EMAIL_FROM_V}")
+          if [ -n "${SMTP_PORT_V:-}" ]; then
+            SMTP_ENVVARS+=("SMTP_PORT=${SMTP_PORT_V}")
+          fi
+          if [ -n "${SMTP_USER_V:-}" ] && [ -n "${SMTP_PASSWORD_V:-}" ]; then
+            SMTP_SECRETS=("smtp-password=${SMTP_PASSWORD_V}")
+            SMTP_ENVVARS+=("SMTP_USER=${SMTP_USER_V}" "SMTP_PASSWORD=secretref:smtp-password")
+          fi
+          if az containerapp show --name scheduler-staging \
+            --resource-group ${GH_STAGING_RESOURCE_GROUP} &>/dev/null; then
+            # `az containerapp update` heeft geen `--set-secrets`-vlag -- zie de toelichting
+            # bij "Deploy backend (canary)" hierboven.
+            bash .github/scripts/az-retry.sh containerapp secret set \
+              --name scheduler-staging \
+              --resource-group ${GH_STAGING_RESOURCE_GROUP} \
+              --secrets "tool-payload-pseudonym-key=${PSEUDONYM_KEY}" \
+              ${AUDIT_SECRETS[@]+"${AUDIT_SECRETS[@]}"} \
+              ${SMTP_SECRETS[@]+"${SMTP_SECRETS[@]}"} \
+                "redis-url=${RESOLVED_REDIS_URL}" \
+                "app-database-url=${DB_URL}" \
+                "master-encryption-key=${MASTER_KEY}"
+
+            bash .github/scripts/az-retry.sh containerapp update \
+              --name scheduler-staging \
+              --resource-group ${GH_STAGING_RESOURCE_GROUP} \
+              --image ${{ env.ACR }}/worker:staging \
+              --set-env-vars "ENVIRONMENT=staging" "PYTHONUNBUFFERED=1" \
+                "DATABASE_URL=secretref:app-database-url" "PGSSLMODE=require" \
+                "REDIS_URL=secretref:redis-url" \
+                "TOOL_PAYLOAD_PSEUDONYM_KEY=secretref:tool-payload-pseudonym-key" \
+                "MASTER_ENCRYPTION_KEY=secretref:master-encryption-key" \
+                "FRONTEND_URL=${FRONTEND_URL_V}" "API_BASE_URL=${RESOLVED_API_BASE_URL}" \
+                "${SMTP_ENVVARS[@]}" \
+                ${AUDIT_ENVVARS[@]+"${AUDIT_ENVVARS[@]}"}
+          else
+            ENV_NAME=$(az containerapp show \
+              --name ${GH_STAGING_BACKEND_APP} \
+              --resource-group ${GH_STAGING_RESOURCE_GROUP} \
+              --query 'properties.environmentId' -o tsv | awk -F'/' '{print $NF}')
+
+            # `command`/`args` kunnen NIET via `--command "python" "-m" "..."`: az's argparser
+            # stopt met verzamelen zodra een lijst-waarde met een streepje begint
+            # ("unrecognized arguments: -m src.workers.scheduler", gemeten 2026-08-29, run
+            # 33229004822). Geen `--command`/`--args`-combinatie zonder die beperking gevonden
+            # (10 varianten getest, waaronder `--args=`, JSON-array-string en een backslash-
+            # escape -- die twee laatste parsen wel maar leveren een FOUTE array op: het
+            # streepje blijft letterlijk in de waarde staan, of alles wordt een enkel
+            # spatie-bevattend element in plaats van twee losse argv-items). `--yaml` legt de
+            # array rechtstreeks vast en omzeilt de argparser volledig -- geverifieerd op een
+            # wegwerp-app: `args` wordt correct `["-m", "src.workers.scheduler"]`, twee losse
+            # elementen. `configuration.activeRevisionsMode` moet aanwezig zijn: zonder dat veld
+            # crasht de containerapp-CLI-extensie zelf op een None-waarde (TypeError diep in
+            # `set_up_service_type`), los van deze YAML.
+            cat > scheduler-staging.yaml << YAMLEOF
+            properties:
+              configuration:
+                activeRevisionsMode: Single
+                registries:
+                  - server: sanskritisetuacr.azurecr.io
+                    username: sanskritisetuacr
+                    passwordSecretRef: acr-password
+                secrets:
+                  - name: acr-password
+                    value: "${ACR_PW}"
+                  - name: app-database-url
+                    value: "${DB_URL}"
+                  - name: redis-url
+                    value: "${RESOLVED_REDIS_URL}"
+                  - name: master-encryption-key
+                    value: "${MASTER_KEY}"
+                  - name: tool-payload-pseudonym-key
+                    value: "${PSEUDONYM_KEY}"$( [ -n "${AUDIT_KEY:-}" ] && printf '\n        - name: audit-chain-hmac-key\n          value: "%s"' "${AUDIT_KEY}" )$( [ -n "${SMTP_USER_V:-}" ] && [ -n "${SMTP_PASSWORD_V:-}" ] && printf '\n        - name: smtp-password\n          value: "%s"' "${SMTP_PASSWORD_V}" )
+              template:
+                containers:
+                  - name: scheduler-staging
+                    image: ${{ env.ACR }}/worker:staging
+                    command: ["python"]
+                    args: ["-m", "src.workers.scheduler"]
+                    env:
+                      - name: DATABASE_URL
+                        secretRef: app-database-url
+                      - name: PGSSLMODE
+                        value: "require"
+                      - name: REDIS_URL
+                        secretRef: redis-url
+                      - name: ENVIRONMENT
+                        value: "staging"
+                      - name: PYTHONUNBUFFERED
+                        value: "1"
+                      - name: MASTER_ENCRYPTION_KEY
+                        secretRef: master-encryption-key
+                      - name: FRONTEND_URL
+                        value: "${FRONTEND_URL_V}"
+                      - name: API_BASE_URL
+                        value: "${RESOLVED_API_BASE_URL}"
+                      - name: SMTP_HOST
+                        value: "${SMTP_HOST_V}"
+                      - name: EMAIL_FROM
+                        value: "${EMAIL_FROM_V}"
+                      - name: TOOL_PAYLOAD_PSEUDONYM_KEY
+                        secretRef: tool-payload-pseudonym-key$( [ -n "${AUDIT_KEY:-}" ] && printf '\n            - name: AUDIT_CHAIN_HMAC_KEY\n              secretRef: audit-chain-hmac-key' )$( [ -n "${SMTP_PORT_V:-}" ] && printf '\n            - name: SMTP_PORT\n              value: "%s"' "${SMTP_PORT_V}" )$( [ -n "${SMTP_USER_V:-}" ] && [ -n "${SMTP_PASSWORD_V:-}" ] && printf '\n            - name: SMTP_USER\n              value: "%s"\n            - name: SMTP_PASSWORD\n              secretRef: smtp-password' "${SMTP_USER_V}" )
+                    resources:
+                      cpu: 0.25
+                      memory: 0.5Gi
+                scale:
+                  minReplicas: 1
+                  maxReplicas: 1
+          YAMLEOF
+
+            bash .github/scripts/az-retry.sh containerapp create \
+              --name scheduler-staging \
+              --resource-group ${GH_STAGING_RESOURCE_GROUP} \
+              --environment "$ENV_NAME" \
+              --yaml scheduler-staging.yaml
+          fi
+
+      # ------------------------------------------------------------------
+      # Stap 3d: Leerwerker (dramatiq src.core.learning.worker:_broker)
+      # ------------------------------------------------------------------
+      # Dezelfde image als de werker, een eigen wachtrij en een eigen app. Staat in
+      # docker-compose.prod.yml (`learning-worker`) maar stond niet in deze workflow: zonder deze
+      # app blijven de leertaken op de Redis-broker staan zonder dat iemand ze oppakt. Een proces
+      # en vier draden (`--processes 1 --threads 4`): zonder die vlaggen leest dramatiq het
+      # aantal kernen van de HOST en gaat de container op 0,5 vCPU / 1 GiB door het geheugen.
+      - name: Deploy learning worker
+        env:
+          PSEUDONYM_KEY: ${{ secrets.STAGING_TOOL_PAYLOAD_PSEUDONYM_KEY }}
+          AUDIT_KEY: ${{ secrets.STAGING_AUDIT_CHAIN_HMAC_KEY }}
+          DB_URL: ${{ secrets.STAGING_APP_DATABASE_URL }}
+          ACR_PW: ${{ secrets.ACR_PASSWORD }}
+          MISTRAL_KEY: ${{ secrets.STAGING_MISTRAL_API_KEY }}
+          MASTER_KEY: ${{ secrets.STAGING_MASTER_ENCRYPTION_KEY }}
+          GH_STAGING_BACKEND_APP: ${{ secrets.STAGING_BACKEND_APP }}
+          GH_STAGING_RESOURCE_GROUP: ${{ secrets.STAGING_RESOURCE_GROUP }}
+        run: |
+          set -euo pipefail
+          AUDIT_SECRETS=()
+          AUDIT_ENVVARS=()
+          if [ -n "${AUDIT_KEY:-}" ]; then
+            AUDIT_SECRETS=("audit-chain-hmac-key=${AUDIT_KEY}")
+            AUDIT_ENVVARS=("AUDIT_CHAIN_HMAC_KEY=secretref:audit-chain-hmac-key")
+          fi
+          if az containerapp show --name learning-worker-staging \
+            --resource-group ${GH_STAGING_RESOURCE_GROUP} &>/dev/null; then
+            bash .github/scripts/az-retry.sh containerapp secret set \
+              --name learning-worker-staging \
+              --resource-group ${GH_STAGING_RESOURCE_GROUP} \
+              --secrets "tool-payload-pseudonym-key=${PSEUDONYM_KEY}" \
+              ${AUDIT_SECRETS[@]+"${AUDIT_SECRETS[@]}"} \
+                "redis-url=${RESOLVED_REDIS_URL}" \
+                "app-database-url=${DB_URL}" \
+                "mistral-api-key=${MISTRAL_KEY}" \
+                "master-encryption-key=${MASTER_KEY}"
+
+            bash .github/scripts/az-retry.sh containerapp update \
+              --name learning-worker-staging \
+              --resource-group ${GH_STAGING_RESOURCE_GROUP} \
+              --image ${{ env.ACR }}/worker:staging \
+              --set-env-vars "ENVIRONMENT=staging" "PYTHONUNBUFFERED=1" \
+                "DATABASE_URL=secretref:app-database-url" "PGSSLMODE=require" \
+                "REDIS_URL=secretref:redis-url" \
+                "TOOL_PAYLOAD_PSEUDONYM_KEY=secretref:tool-payload-pseudonym-key" \
+                "LLM_PROVIDER=mistral" "LLM_MODEL=mistral-small-latest" \
+                "MISTRAL_API_KEY=secretref:mistral-api-key" \
+                "MASTER_ENCRYPTION_KEY=secretref:master-encryption-key" \
+                ${AUDIT_ENVVARS[@]+"${AUDIT_ENVVARS[@]}"}
+          else
+            ENV_NAME=$(az containerapp show \
+              --name ${GH_STAGING_BACKEND_APP} \
+              --resource-group ${GH_STAGING_RESOURCE_GROUP} \
+              --query 'properties.environmentId' -o tsv | awk -F'/' '{print $NF}')
+            cat > learning-worker-staging.yaml << YAMLEOF
+            properties:
+              configuration:
+                activeRevisionsMode: Single
+                registries:
+                  - server: sanskritisetuacr.azurecr.io
+                    username: sanskritisetuacr
+                    passwordSecretRef: acr-password
+                secrets:
+                  - name: acr-password
+                    value: "${ACR_PW}"
+                  - name: app-database-url
+                    value: "${DB_URL}"
+                  - name: redis-url
+                    value: "${RESOLVED_REDIS_URL}"
+                  - name: mistral-api-key
+                    value: "${MISTRAL_KEY}"
+                  - name: master-encryption-key
+                    value: "${MASTER_KEY}"
+                  - name: tool-payload-pseudonym-key
+                    value: "${PSEUDONYM_KEY}"$( [ -n "${AUDIT_KEY:-}" ] && printf '\n        - name: audit-chain-hmac-key\n          value: "%s"' "${AUDIT_KEY}" )
+              template:
+                containers:
+                  - name: learning-worker-staging
+                    image: ${{ env.ACR }}/worker:staging
+                    args:
+                      - "src.core.learning.worker:_broker"
+                      - "--processes"
+                      - "1"
+                      - "--threads"
+                      - "4"
+                    env:
+                      - name: DATABASE_URL
+                        secretRef: app-database-url
+                      - name: PGSSLMODE
+                        value: "require"
+                      - name: REDIS_URL
+                        secretRef: redis-url
+                      - name: ENVIRONMENT
+                        value: "staging"
+                      - name: PYTHONUNBUFFERED
+                        value: "1"
+                      - name: LLM_PROVIDER
+                        value: "mistral"
+                      - name: LLM_MODEL
+                        value: "mistral-small-latest"
+                      - name: MISTRAL_API_KEY
+                        secretRef: mistral-api-key
+                      - name: MASTER_ENCRYPTION_KEY
+                        secretRef: master-encryption-key
+                      - name: TOOL_PAYLOAD_PSEUDONYM_KEY
+                        secretRef: tool-payload-pseudonym-key$( [ -n "${AUDIT_KEY:-}" ] && printf '\n            - name: AUDIT_CHAIN_HMAC_KEY\n              secretRef: audit-chain-hmac-key' )
+                    resources:
+                      cpu: 0.5
+                      memory: 1.0Gi
+                scale:
+                  minReplicas: 1
+                  maxReplicas: 1
+          YAMLEOF
+
+            bash .github/scripts/az-retry.sh containerapp create \
+              --name learning-worker-staging \
+              --resource-group ${GH_STAGING_RESOURCE_GROUP} \
+              --environment "$ENV_NAME" \
+              --yaml learning-worker-staging.yaml
+          fi
+
+      # ------------------------------------------------------------------
+      # Stap 3e: Bonlezer -- uploadvolume, eigen Redis en eigen werker
+      # ------------------------------------------------------------------
+      # De bonlezer leest bonnen en facturen. Op de eigen machine (docker-compose.yml) zit hij op
+      # een intern netwerk zonder uitgaand verkeer en ziet hij de uploadmap alleen LEZEN. In
+      # Azure Container Apps is er een netwerk per omgeving: het netwerkverbod is hier NIET na te
+      # bouwen. Wat wel overeind blijft: een EIGEN Redis (niet de hoofd-Redis, eigen wachtwoord),
+      # de uploadmap alleen-lezen voor de werker (twee opslagdefinities op dezelfde share, een
+      # ReadWrite voor de API en een ReadOnly voor de werker) en een proces/een draad.
+      - name: Prepare bonlezer upload storage
+        env:
+          STORAGE_ACCOUNT: ${{ secrets.STAGING_BONLEZER_STORAGE_ACCOUNT }}
+          STORAGE_KEY: ${{ secrets.STAGING_BONLEZER_STORAGE_KEY }}
+          BACKEND_APP: ${{ secrets.STAGING_BACKEND_APP }}
+          RG: ${{ secrets.STAGING_RESOURCE_GROUP }}
+        run: |
+          set -euo pipefail
+          ENV_NAME=$(az containerapp show --name "$BACKEND_APP" --resource-group "$RG" \
+            --query 'properties.environmentId' -o tsv | awk -F'/' '{print $NF}')
+          # De share `bonlezer-uploads` moet bestaan; de uitrol maakt hem niet aan, zodat een
+          # typefout in de accountnaam niet stil een nieuwe, lege share oplevert.
+          if ! az storage share-rm show --storage-account "$STORAGE_ACCOUNT" \
+              --name bonlezer-uploads --output none 2>/dev/null; then
+            echo "::error::De Azure Files-share 'bonlezer-uploads' bestaat niet in het opslagaccount."
+            echo "::error::Maak hem aan (zie docs/infra/UITROL-STAGING-2026-10.md) en start de uitrol opnieuw."
+            exit 1
+          fi
+          for MODE in ReadWrite ReadOnly; do
+            if [ "$MODE" = "ReadWrite" ]; then NAME=bonlezer-uploads-rw; else NAME=bonlezer-uploads-ro; fi
+            bash .github/scripts/az-retry.sh containerapp env storage set \
+              --name "$ENV_NAME" --resource-group "$RG" \
+              --storage-name "$NAME" \
+              --azure-file-account-name "$STORAGE_ACCOUNT" \
+              --azure-file-account-key "$STORAGE_KEY" \
+              --azure-file-share-name bonlezer-uploads \
+              --access-mode "$MODE"
+          done
+
+      - name: Deploy bonlezer Redis
+        env:
+          BONLEZER_REDIS_PW: ${{ secrets.STAGING_BONLEZER_REDIS_PASSWORD }}
+          GH_STAGING_BACKEND_APP: ${{ secrets.STAGING_BACKEND_APP }}
+          GH_STAGING_RESOURCE_GROUP: ${{ secrets.STAGING_RESOURCE_GROUP }}
+        run: |
+          set -euo pipefail
+          # Het wachtwoord staat in de URL van de API en de werker; het moet dus URL-veilig zijn
+          # (hex, bijvoorbeeld `openssl rand -hex 24`). De preflight controleert alleen dat het er is.
+          case "$BONLEZER_REDIS_PW" in
+            *[!A-Za-z0-9._~-]*)
+              echo "::error::STAGING_BONLEZER_REDIS_PASSWORD bevat tekens die niet URL-veilig zijn. Gebruik hex."
+              exit 1 ;;
+          esac
+          if az containerapp show --name bonlezer-redis-staging \
+            --resource-group ${GH_STAGING_RESOURCE_GROUP} &>/dev/null; then
+            bash .github/scripts/az-retry.sh containerapp secret set \
+              --name bonlezer-redis-staging \
+              --resource-group ${GH_STAGING_RESOURCE_GROUP} \
+              --secrets "bonlezer-redis-password=${BONLEZER_REDIS_PW}"
+          else
+            ENV_NAME=$(az containerapp show \
+              --name ${GH_STAGING_BACKEND_APP} \
+              --resource-group ${GH_STAGING_RESOURCE_GROUP} \
+              --query 'properties.environmentId' -o tsv | awk -F'/' '{print $NF}')
+            # Geen poort naar buiten (`external: false`), niets naar schijf (`--appendonly no`,
+            # `--save ""`), begrensd geheugen met `noeviction`: zelfde opties als in
+            # docker-compose.yml (`bonlezer-redis`).
+            cat > bonlezer-redis-staging.yaml << YAMLEOF
+            properties:
+              configuration:
+                activeRevisionsMode: Single
+                ingress:
+                  external: false
+                  transport: tcp
+                  targetPort: 6379
+                  exposedPort: 6379
+                secrets:
+                  - name: bonlezer-redis-password
+                    value: "${BONLEZER_REDIS_PW}"
+              template:
+                containers:
+                  - name: bonlezer-redis-staging
+                    image: docker.io/library/redis:7-alpine
+                    command: ["sh", "-c"]
+                    args:
+                      - 'exec redis-server --requirepass "\$BONLEZER_REDIS_PASSWORD" --appendonly no --save "" --maxmemory 256mb --maxmemory-policy noeviction'
+                    env:
+                      - name: BONLEZER_REDIS_PASSWORD
+                        secretRef: bonlezer-redis-password
+                    resources:
+                      cpu: 0.25
+                      memory: 0.5Gi
+                scale:
+                  minReplicas: 1
+                  maxReplicas: 1
+          YAMLEOF
+
+            bash .github/scripts/az-retry.sh containerapp create \
+              --name bonlezer-redis-staging \
+              --resource-group ${GH_STAGING_RESOURCE_GROUP} \
+              --environment "$ENV_NAME" \
+              --yaml bonlezer-redis-staging.yaml
+          fi
+
+      - name: Deploy bonlezer worker
+        env:
+          BONLEZER_REDIS_PW: ${{ secrets.STAGING_BONLEZER_REDIS_PASSWORD }}
+          ACR_PW: ${{ secrets.ACR_PASSWORD }}
+          GH_STAGING_BACKEND_APP: ${{ secrets.STAGING_BACKEND_APP }}
+          GH_STAGING_RESOURCE_GROUP: ${{ secrets.STAGING_RESOURCE_GROUP }}
+        run: |
+          set -euo pipefail
+          if az containerapp show --name bonlezer-worker-staging \
+            --resource-group ${GH_STAGING_RESOURCE_GROUP} &>/dev/null; then
+            bash .github/scripts/az-retry.sh containerapp secret set \
+              --name bonlezer-worker-staging \
+              --resource-group ${GH_STAGING_RESOURCE_GROUP} \
+              --secrets "bonlezer-broker-url=redis://:${BONLEZER_REDIS_PW}@bonlezer-redis-staging:6379/0"
+
+            bash .github/scripts/az-retry.sh containerapp update \
+              --name bonlezer-worker-staging \
+              --resource-group ${GH_STAGING_RESOURCE_GROUP} \
+              --image ${{ env.ACR }}/bonlezer-worker:staging \
+              --set-env-vars "ENVIRONMENT=staging" "LOG_LEVEL=INFO" "PYTHONUNBUFFERED=1" \
+                "BONLEZER_BROKER_URL=secretref:bonlezer-broker-url" \
+                "BONLEZER_UPLOAD_ROOT=/data/bonnen"
+          else
+            ENV_NAME=$(az containerapp show \
+              --name ${GH_STAGING_BACKEND_APP} \
+              --resource-group ${GH_STAGING_RESOURCE_GROUP} \
+              --query 'properties.environmentId' -o tsv | awk -F'/' '{print $NF}')
+            # Een proces en een draad: Docling is niet bedoeld voor parallelle aanroepen in een
+            # proces. De uploadmap is hier ALLEEN LEZEN (`bonlezer-uploads-ro`). `command` blijft
+            # leeg: het ENTRYPOINT van het image is al dramatiq.
+            cat > bonlezer-worker-staging.yaml << YAMLEOF
+            properties:
+              configuration:
+                activeRevisionsMode: Single
+                registries:
+                  - server: sanskritisetuacr.azurecr.io
+                    username: sanskritisetuacr
+                    passwordSecretRef: acr-password
+                secrets:
+                  - name: acr-password
+                    value: "${ACR_PW}"
+                  - name: bonlezer-broker-url
+                    value: "redis://:${BONLEZER_REDIS_PW}@bonlezer-redis-staging:6379/0"
+              template:
+                volumes:
+                  - name: bonnen
+                    storageType: AzureFile
+                    storageName: bonlezer-uploads-ro
+                    mountOptions: "dir_mode=0777,file_mode=0666"
+                containers:
+                  - name: bonlezer-worker-staging
+                    image: ${{ env.ACR }}/bonlezer-worker:staging
+                    args:
+                      - "src.core.als.bonlezer.worker:_broker"
+                      - "--processes"
+                      - "1"
+                      - "--threads"
+                      - "1"
+                    env:
+                      - name: BONLEZER_BROKER_URL
+                        secretRef: bonlezer-broker-url
+                      - name: ENVIRONMENT
+                        value: "staging"
+                      - name: LOG_LEVEL
+                        value: "INFO"
+                      - name: PYTHONUNBUFFERED
+                        value: "1"
+                      - name: BONLEZER_UPLOAD_ROOT
+                        value: "/data/bonnen"
+                    volumeMounts:
+                      - volumeName: bonnen
+                        mountPath: /data/bonnen
+                    resources:
+                      cpu: 2.0
+                      memory: 4.0Gi
+                scale:
+                  minReplicas: 1
+                  maxReplicas: 1
+          YAMLEOF
+
+            bash .github/scripts/az-retry.sh containerapp create \
+              --name bonlezer-worker-staging \
+              --resource-group ${GH_STAGING_RESOURCE_GROUP} \
+              --environment "$ENV_NAME" \
+              --yaml bonlezer-worker-staging.yaml
+          fi
+
+      # De API schrijft de uploads: dezelfde share, maar ReadWrite. `az containerapp update` kent
+      # geen vlag voor een volume. Daarom een `az rest ... PATCH` op de app zelf (net als bij de
+      # migratietaak), met de container zoals hij nu draait (`az containerapp show`), zodat er
+      # niets uit de container verdwijnt: een PATCH vervangt de lijsten `volumes` en `containers`
+      # in hun geheel. NIET gemeten tegen Azure: zie "Niet gemeten" in
+      # docs/infra/UITROL-STAGING-2026-10.md.
+      - name: Mount the bonlezer upload volume on the backend
+        env:
+          BACKEND_APP: ${{ secrets.STAGING_BACKEND_APP }}
+          RG: ${{ secrets.STAGING_RESOURCE_GROUP }}
+        run: |
+          set -euo pipefail
+          az containerapp show --name "$BACKEND_APP" --resource-group "$RG" -o json > backend-app.json
+          python3 -c '
+          import json
+          app = json.load(open("backend-app.json"))
+          template = app["properties"]["template"]
+          volumes = template.get("volumes") or []
+          containers = template["containers"]
+          if len(containers) != 1:
+              print("::error::De backend heeft " + str(len(containers)) + " containers; deze stap verwacht er een.")
+              raise SystemExit(1)
+          if any(v.get("name") == "bonnen" for v in volumes):
+              print("Het uploadvolume zit al op de backend.")
+              raise SystemExit(0)
+          volumes.append({"name": "bonnen", "storageType": "AzureFile", "storageName": "bonlezer-uploads-rw", "mountOptions": "dir_mode=0777,file_mode=0666"})
+          containers[0].setdefault("volumeMounts", []).append({"volumeName": "bonnen", "mountPath": "/data/bonnen"})
+          json.dump({"properties": {"template": {"volumes": volumes, "containers": containers}}}, open("backend-volume.json", "w"))
+          print("Body voor het uploadvolume geschreven.")
+          '
+          if [ -f backend-volume.json ]; then
+            SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+            az rest --method PATCH \
+              --url "https://management.azure.com/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${RG}/providers/Microsoft.App/containerApps/${BACKEND_APP}?api-version=2024-03-01" \
+              --body @backend-volume.json --output none
+            rm -f backend-volume.json
+          fi
+          rm -f backend-app.json
+
+      # ------------------------------------------------------------------
+      # Stap 4: Activepieces (optioneel)
+      # ------------------------------------------------------------------
+      - name: Deploy Activepieces (staging)
+        env:
+          AP_ENC_KEY: ${{ secrets.STAGING_AP_ENCRYPTION_KEY }}
+          AP_JWT: ${{ secrets.STAGING_AP_JWT_SECRET }}
+          AP_WORKER_TOKEN: ${{ secrets.STAGING_AP_WORKER_TOKEN }}
+          REDIS_HOST: ${{ secrets.STAGING_REDIS_HOST }}
+          AP_URL: ${{ secrets.STAGING_AP_URL }}
+          DB_URL_RAW: ${{ secrets.STAGING_DATABASE_URL }}
+          GH_STAGING_BACKEND_APP: ${{ secrets.STAGING_BACKEND_APP }}
+          GH_STAGING_RESOURCE_GROUP: ${{ secrets.STAGING_RESOURCE_GROUP }}
+        run: |
+          if [ -z "${AP_ENC_KEY}" ]; then
+            echo "SKIP: STAGING_AP_ENCRYPTION_KEY niet ingesteld."
+            exit 0
+          fi
+          RG="${GH_STAGING_RESOURCE_GROUP}"
+          python3 -c '
+          import os, shlex; from urllib.parse import urlparse, unquote
+          u = urlparse(os.environ["DB_URL_RAW"])
+          with open("/tmp/db_env.sh", "w") as f:
+            f.write(f"DB_HOST={shlex.quote(u.hostname or str())}\n")
+            f.write(f"DB_USER={shlex.quote(unquote(u.username or str()))}\n")
+            f.write(f"DB_PASS={shlex.quote(unquote(u.password or str()))}\n")
+            f.write(f"DB_PORT={shlex.quote(str(u.port or 5432))}\n")
+          '
+          source /tmp/db_env.sh; rm -f /tmp/db_env.sh
+          ENV_NAME=$(az containerapp show \
+            --name ${GH_STAGING_BACKEND_APP} --resource-group "$RG" \
+            --query 'properties.environmentId' -o tsv | awk -F'/' '{print $NF}')
+          AP_ENVVARS=(
+            "AP_ENCRYPTION_KEY=${AP_ENC_KEY}" "AP_JWT_SECRET=${AP_JWT}"
+            "AP_POSTGRES_HOST=${DB_HOST}" "AP_POSTGRES_PORT=${DB_PORT}"
+            "AP_POSTGRES_USERNAME=${DB_USER}" "AP_POSTGRES_PASSWORD=${DB_PASS}"
+            "AP_POSTGRES_DATABASE=activepieces"
+            "AP_REDIS_HOST=${REDIS_HOST:-localhost}" "AP_REDIS_PORT=6379" "AP_REDIS_USE_SSL=true"
+            "AP_FRONTEND_URL=${AP_URL:-https://ap-staging.sanskritisetu.org}"
+            "AP_EXECUTION_MODE=SANDBOXED" "AP_WORKER_TYPE=THREAD" "AP_ENVIRONMENT=staging"
+            "AP_TELEMETRY_ENABLED=false" "AP_QUEUE_MODE=MEMORY"
+            "AP_LOG_LEVEL=info" "AP_WEBHOOK_TIMEOUT_SECONDS=30"
+            "AP_WORKER_TOKEN=${AP_WORKER_TOKEN}"
+            # Heette tot AP 0.82 AP_MAX_CONCURRENT_JOBS_PER_PROJECT; nieuwe standaard is 5.
+            "AP_DEFAULT_CONCURRENT_JOBS_LIMIT=100"
+          )
+          if az containerapp show --name activepieces-staging --resource-group "$RG" &>/dev/null; then
+            az containerapp update --name activepieces-staging --resource-group "$RG" \
+              --image ghcr.io/activepieces/activepieces:${{ env.AP_IMAGE_TAG }} \
+              --set-env-vars "${AP_ENVVARS[@]}"
+          else
+            az containerapp create --name activepieces-staging --resource-group "$RG" \
+              --environment "$ENV_NAME" \
+              --image ghcr.io/activepieces/activepieces:${{ env.AP_IMAGE_TAG }} \
+              --ingress external --target-port 80 \
+              --min-replicas 1 --max-replicas 1 --cpu 0.5 --memory 1.0Gi \
+              --env-vars "${AP_ENVVARS[@]}"
+          fi
+
+      # ------------------------------------------------------------------
+      # Stap 5: Deep health check (database + redis sub-status)
+      # ------------------------------------------------------------------
+      - name: Get backend FQDN
+        id: backend_fqdn
+        run: |
+          FQDN=$(az containerapp show \
+            --name ${GH_STAGING_BACKEND_APP} \
+            --resource-group ${GH_STAGING_RESOURCE_GROUP} \
+            --query properties.configuration.ingress.fqdn -o tsv)
+          echo "url=https://${FQDN}" >> $GITHUB_OUTPUT
+
+        env:
+          GH_STAGING_BACKEND_APP: ${{ secrets.STAGING_BACKEND_APP }}
+          GH_STAGING_RESOURCE_GROUP: ${{ secrets.STAGING_RESOURCE_GROUP }}
+      - name: Deep health check (canary gate)
+        # continue-on-error verwijderd 2026-09-10 (Rakesh GO). Infra rebuild compleet;
+        # DB + Redis draaien op staging (bevestigd run 33199726688).
+        # Een falende health check triggert de auto-rollback-stap hieronder.
+        uses: ./.github/actions/deep-health-check
+        with:
+          url: ${{ steps.backend_fqdn.outputs.url }}
+          retries: "5"
+          wait_seconds: "20"
+          initial_wait: "90"
+
+      - name: Auto-rollback on failure
+        if: failure()
+        run: |
+          PREVIOUS="${{ steps.current_image.outputs.tag }}"
+          echo "Deploy/health failed. Rolling back to: ${PREVIOUS}"
+          az containerapp update \
+            --name ${GH_STAGING_BACKEND_APP} \
+            --resource-group ${GH_STAGING_RESOURCE_GROUP} \
+            --image "${PREVIOUS}" --min-replicas 1 --max-replicas 2
+
+        env:
+          GH_STAGING_BACKEND_APP: ${{ secrets.STAGING_BACKEND_APP }}
+          GH_STAGING_RESOURCE_GROUP: ${{ secrets.STAGING_RESOURCE_GROUP }}
+      # ------------------------------------------------------------------
+      # Stap 6: Scale out + smoke test
+      # ------------------------------------------------------------------
+      - name: Scale out naar full replicas
+        run: |
+          bash .github/scripts/az-retry.sh containerapp update \
+            --name ${GH_STAGING_BACKEND_APP} \
+            --resource-group ${GH_STAGING_RESOURCE_GROUP} \
+            --min-replicas 1 --max-replicas 2
+
+        env:
+          GH_STAGING_BACKEND_APP: ${{ secrets.STAGING_BACKEND_APP }}
+          GH_STAGING_RESOURCE_GROUP: ${{ secrets.STAGING_RESOURCE_GROUP }}
+      - name: Smoke test (health endpoint)
+        # continue-on-error verwijderd 2026-09-10 (Rakesh GO). Infra rebuild compleet.
+        # Een 000 of 5xx op /health/ready blokkeert de deploy en triggert auto-rollback.
+        run: |
+          set -euo pipefail
+          BASE_URL="${{ steps.backend_fqdn.outputs.url }}"
+          # /health/ready en niet /health: ProbeBypassMiddleware beantwoordt /health statisch
+          # voor elke andere middleware en voor de router, dus dat bewijst alleen dat het proces
+          # een poort bindt. Readiness raakt de echte route (ADR-012).
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "${BASE_URL}/health/ready")
+          echo "Readiness endpoint: HTTP $STATUS"
+          if [ "$STATUS" != "200" ]; then
+            echo "::error::Readiness endpoint antwoordde HTTP $STATUS (verwacht 200)."
+            echo "::error::Deploy geblokkeerd -- rollback wordt uitgevoerd."
+            exit 1
+          fi
+          # De OpenAPI-oppervlakte MOET dicht zijn (ADR-036 OP-124). Een 4xx is geldig; een 2xx
+          # betekent dat het volledige schema onauthenticated bereikbaar is. Geen antwoord (000)
+          # is GEEN geldige "dicht" -- dan is de API onbereikbaar.
+          SCHEMA=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "${BASE_URL}/openapi.json")
+          echo "OpenAPI schema: HTTP $SCHEMA"
+          case "$SCHEMA" in
+            4??) echo "OpenAPI surface is closed." ;;
+            *) echo "::error::/openapi.json gaf HTTP $SCHEMA, verwacht 4xx (ADR-036 OP-124)"; exit 1 ;;
+          esac
+
+      - name: Build summary
+        run: |
+          echo "Gedeployed naar staging:"
+          echo "  ${{ env.ACR }}/backend:staging"
+          echo "  ${{ env.ACR }}/frontend:staging"
+          echo "  ${{ env.ACR }}/worker:staging"
+          echo "  ${{ env.ACR }}/bonlezer-worker:staging"
+
+      - name: Cleanup old ACR tags
+        continue-on-error: true
+        run: |
+          for REPO in backend frontend worker bonlezer-worker; do
+            TAGS=$(az acr repository show-tags --name sanskritisetuacr \
+              --repository "$REPO" --orderby time_asc \
+              --query "[?starts_with(@, 'develop-')]" -o tsv 2>/dev/null || true)
+            [ -z "$TAGS" ] && continue
+            COUNT=$(echo "$TAGS" | wc -l)
+            if [ "$COUNT" -gt 10 ]; then
+              echo "$TAGS" | head -n $((COUNT - 10)) | while IFS= read -r TAG; do
+                az acr repository delete --name sanskritisetuacr \
+                  --image "$REPO:$TAG" --yes 2>/dev/null || true
+              done
+            fi
+          done

@@ -1,0 +1,19 @@
+agent_id: "legal.compliance.contractanalysis.001"
+name: "ContractAnalysisAgent"
+department: "legal_compliance"
+technology: "ML"
+module_path: "src.core.als.agents.departments.legal_compliance"
+class_name: "ContractAnalysisAgent"
+description: "Specialized ContractAnalysis agent for the legal_compliance department."
+is_active: true
+priority: "MEDIUM"
+version: "2.0.0"
+ooda_profile:
+  observe:
+    data_sources: ["internal_db", "api_endpoints"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.80
+  act:
+    tools: ["standard_toolbox"]

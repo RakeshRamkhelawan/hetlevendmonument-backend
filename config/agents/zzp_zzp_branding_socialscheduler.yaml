@@ -1,0 +1,20 @@
+agent_id: "zzp.zzp_branding.socialscheduler.001"
+name: "SocialSchedulerAgent"
+department: "zzp_branding"
+technology: "ML"
+module_path: "src.core.als.agents.zzp.zzp_branding"
+class_name: "SocialSchedulerAgent"
+description: "Predicts best posting times and manages content calendar."
+is_active: true
+priority: "MEDIUM"
+version: "1.0.0"
+allowed_tools: ["buffer_api", "engagement_predictor"]
+ooda_profile:
+  observe:
+    data_sources: ["solo_business_data", "social_apis"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.85
+  act:
+    tools: ["buffer_api", "engagement_predictor"]

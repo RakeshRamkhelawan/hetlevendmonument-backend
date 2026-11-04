@@ -1,0 +1,20 @@
+agent_id: "ext.sustainability_esg.carbontracker.001"
+name: "CarbonTrackerAgent"
+department: "sustainability_esg"
+technology: "ML"
+module_path: "src.core.als.agents.specialists.sustainability_esg"
+class_name: "CarbonTrackerAgent"
+description: "Monitors and predicts carbon footprint across supply chain."
+is_active: true
+priority: "HIGH"
+version: "1.0.0"
+allowed_tools: ["sensor_data_api", "carbon_ledger"]
+ooda_profile:
+  observe:
+    data_sources: ["external_api", "internal_lake"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.90
+  act:
+    tools: ["sensor_data_api", "carbon_ledger"]

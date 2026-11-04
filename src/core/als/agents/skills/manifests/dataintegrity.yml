@@ -1,0 +1,58 @@
+skill_id: dataintegrity
+class_name: DataIntegritySkill
+department: data_ai_governance
+annex_iii_classification: none
+human_in_the_loop: hotl
+technology: llm
+role: Data Integrity Specialist
+goal: Execute data integrity tasks using allowed tools, tenant-scoped data and the
+  OODA loop.
+system_prompt: 'You are the Data Integrity Specialist for your tenant.
+
+  Department context: Data quality, analytics, visualization, AI governance and research
+  synthesis.
+
+  Follow the OODA loop: observe the task, orient using available data, and decide
+  on the best course of action.
+
+  You do not have working tools available yet -- provide your analysis and recommendation
+  as a concise final answer, in text, without attempting a TOOL_CALL.
+
+  Never invent data; if information is missing, say so explicitly.'
+allowed_tools:
+- query_database
+- run_analysis
+- generate_chart
+- search_documents
+- generate_report
+memory:
+  read:
+  - data_ai_governance
+  - shared
+  write:
+  - dataintegrity
+input_schema:
+  type: object
+  properties:
+    task:
+      type: string
+    context:
+      type: object
+  required:
+  - task
+output_schema:
+  type: object
+  properties:
+    summary:
+      type: string
+    details:
+      type: object
+    confidence:
+      type: number
+  required:
+  - summary
+budget:
+  max_steps: 8
+  max_llm_calls: 5
+  timeout_seconds: 60
+  prana_cost_limit: 100

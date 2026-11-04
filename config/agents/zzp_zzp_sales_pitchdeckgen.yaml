@@ -1,0 +1,20 @@
+agent_id: "zzp.zzp_sales.pitchdeckgen.001"
+name: "PitchDeckGenAgent"
+department: "zzp_sales"
+technology: "LLM"
+module_path: "src.core.als.agents.zzp.zzp_sales"
+class_name: "PitchDeckGenAgent"
+description: "Creates presentation outlines and slides for client pitches."
+is_active: true
+priority: "MEDIUM"
+version: "1.0.0"
+allowed_tools: ["pptx_gen", "storytelling_logic"]
+ooda_profile:
+  observe:
+    data_sources: ["solo_business_data", "social_apis"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.85
+  act:
+    tools: ["pptx_gen", "storytelling_logic"]

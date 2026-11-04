@@ -1,0 +1,17 @@
+Architectenbureau Tekenlijn
+Schetsweg 31, 3012 JD Voorbeeldveen
+KvK 38938100   BTW-nummer NL221700938B01
+
+FACTUUR
+Datum: 15-04-2026
+Factuurnr.: F28166
+
+Omschrijving                Aantal   Prijs     BTW   Bedrag
+Ontwerpkosten  2 x 450,00  21%  900,00
+Onderhoud contract  4 x 250,00  21%  1.000,00
+
+Subtotaal excl. btw: EUR 1.900,00
+BTW 21%  EUR 399,00
+Totaal te betalen: EUR 2.299,00
+
+Betaling binnen 14 dagen op NL00 TEST 0123 4567 89 t.n.v. Architectenbureau Tekenlijn

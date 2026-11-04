@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /docenten
+Disallow: /magic-link
+
+Sitemap: /api/v1/foundation/sitemap.xml

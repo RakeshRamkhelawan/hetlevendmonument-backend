@@ -1,0 +1,691 @@
+# SanskritiSetu Docker Compose - Base Configuration
+# Use with: docker compose -f docker-compose.yml -f docker-compose.<env>.yml up
+
+services:
+  # ============================================================================
+  # == Infrastructure Core
+  # ============================================================================
+  postgres:
+    image: ankane/pgvector:v0.5.1
+    container_name: sanskritisetu_postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is verplicht}
+      POSTGRES_DB: ${POSTGRES_DB:-sanskritisetu}
+    networks:
+      - sanskritisetu_network
+    ports:
+      - "127.0.0.1:5435:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-databases.sql:/docker-entrypoint-initdb.d/99-init-databases.sql:ro
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    container_name: sanskritisetu_redis
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is verplicht}
+      --appendonly yes
+    networks:
+      - sanskritisetu_network
+    ports:
+      - "127.0.0.1:6385:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  # ============================================================================
+  # == AI/ML Services (Semantic Router)
+  # ============================================================================
+  # Lokaal taalmodel -- de BODEM van de LLM-keten, geen extraatje. Elke installatie draait
+  # hem mee zodat klantdata het eigen systeem niet hoeft te verlaten (besluit Rakesh
+  # 2026-09-20). Daarom GEEN `profiles:` meer: hij was de enige van zeventien services die
+  # niet meestartte, en een bodem die je apart moet aanzetten is geen bodem.
+  #
+  # Versie gepind op 0.34.2 en niet op 0.3.13 (najaar 2024): gemeten 2026-09-20 staat 0.3.13
+  # niet op de machine en 0.34.2 wel, en de agentlaag leunt op tool-calling -- dat is sinds
+  # 2024 juist het deel dat is verbeterd. Pinnen en niet `latest`, want een stille
+  # versiesprong onder een agent die TOOL_CALL moet afgeven is een onmeetbare gedragswijziging.
+  ollama:
+    image: ollama/ollama:0.34.2
+    container_name: sanskritisetu_ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "127.0.0.1:11434:11434"
+    networks:
+      - sanskritisetu_network
+    environment:
+      - OLLAMA_HOST=0.0.0.0:11434
+      # Houd het geladen model in het geheugen in plaats van het na vijf minuten stilte te
+      # lossen. GEMETEN 2026-09-20: het laden van gemma4:e4b-it-qat kostte 54,7 seconden,
+      # terwijl het manifest van de piloot-skill een harde grens van 60 seconden per aanroep
+      # heeft. De eerste vraag na een rustige periode zou die grens dus bijna opsouperen en
+      # als "budget overschreden" eindigen -- een rode uitslag die niets zegt over het model
+      # of de keten. Warm kost dezelfde aanroep 4,3 seconden.
+      - OLLAMA_KEEP_ALIVE=${OLLAMA_KEEP_ALIVE:--1}
+    # Naast het embedding-model ook een CHATmodel ophalen. Zonder die tweede regel start
+    # Ollama wel maar kan de agent niets vragen: `nomic-embed-text` maakt vectoren, geen
+    # antwoorden. Gemeten 2026-09-20: `ollama list` was leeg en elke generate() zou falen.
+    #
+    # WAAROM gemma4:e4b-it-qat EN NIET llama3.2:3b. Gemeten 2026-09-20 op drie HR-taken met
+    # dezelfde prompt en dezelfde parser: beide leverden 3/3 een correct geformatteerde
+    # TOOL_CALL, maar llama3.2:3b koos bij de kloofvraag `search_documents` -- een tool die
+    # niet bestaat, dus die stap faalt in de keten. Gemma koos `analyze_skill_gap`, de tool
+    # die daar juist voor gebouwd is. Kosten van die keuze: 3,1 GB VRAM in plaats van 2,6 GB
+    # (43/43 lagen op de GPU) en 4,3s per aanroep in plaats van 0,7s -- ruim binnen de
+    # 60-secondengrens van het manifest. Het juiste gereedschap kiezen weegt zwaarder dan
+    # drie seconden.
+    entrypoint: >
+      sh -c "ollama serve &
+             sleep 10 &&
+             ollama pull nomic-embed-text &&
+             ollama pull gemma4:e4b-it-qat &&
+             wait"
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 2G
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:11434/api/tags || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      # 600s en niet 120s: de eerste start haalt twee modellen op (~2,3 GB). Met de oude
+      # grens staat de container op `unhealthy` terwijl hij gewoon aan het downloaden is,
+      # en dan lijkt een werkende installatie kapot.
+      start_period: 600s
+
+  # ============================================================================
+  # == Application Services
+  # ============================================================================
+  backend:
+    image: sanskritisetu/backend:latest
+    container_name: sanskritisetu_backend
+    environment:
+      # Zonder deze sleutel kiest elk proces buiten development een eigen efemere sleutel
+      # (redaction.py). Goedkeuren gebeurt in de API en verzilveren in een werker: met
+      # verschillende sleutels komt de goedkeuringsbinding nooit overeen en is elke
+      # goedkeuring stil onbruikbaar (ADR-036 OP-75, tweede oorzaak).
+      - TOOL_PAYLOAD_PSEUDONYM_KEY=${TOOL_PAYLOAD_PSEUDONYM_KEY:-}
+      - AUDIT_CHAIN_HMAC_KEY=${AUDIT_CHAIN_HMAC_KEY:-}
+      # Het adres van de frontend voor de links in uitnodigingen en wachtwoordherstel. Dit bestand ALLEEN heeft geen
+      # ENVIRONMENT voor de API, dus de API valt terug op production en weigert te starten zonder (src/core/config/frontend_url.py).
+      # `make up` legt docker-compose.dev.yml erover (ENVIRONMENT=development): daar blijft localhost de terugval.
+      - FRONTEND_URL=${FRONTEND_URL:-}
+      # Versleutelt KLANT-API-sleutels, met een afgeleide sleutel per tenant.
+      # Hier `:-` en in docker-compose.prod.yml `:?`: lokaal moet de stack zonder deze
+      # sleutel kunnen starten (het providerbeheer geeft dan een nette 503), in
+      # productie mag hij niet ontbreken.
+      - MASTER_ENCRYPTION_KEY=${MASTER_ENCRYPTION_KEY:-}
+      # Bonlezer (dag 3): opdrachten naar de EIGEN Redis van de bonlezer en uploads naar het volume dat
+      # de worker alleen leest. `:-` in de URL: een leeg wachtwoord geeft een nette 503 van de route in
+      # plaats van een stille terugval. LET OP: `bonlezer-redis` en `bonlezer-worker` hebben dezelfde
+      # variabele wel met `:?`, en compose controleert dat voor het hele bestand; zet
+      # `BONLEZER_REDIS_PASSWORD` dus in elke `.env`.
+      - BONLEZER_BROKER_URL=redis://:${BONLEZER_REDIS_PASSWORD:-}@bonlezer-redis:6379/0
+      # Hoogstens 5 s wachten op de bonlezer-Redis: een worker die Redis pauzeert mag de threadpool van
+      # de backend niet laten vollopen.
+      - BONLEZER_SOCKET_TIMEOUT=5
+      - BONLEZER_UPLOAD_ROOT=/data/bonnen
+    volumes:
+      - bonlezer_uploads:/data/bonnen
+    networks:
+      - sanskritisetu_network
+      # Alleen om de eigen Redis van de bonlezer te bereiken, over een EIGEN koppelnetwerk waar de worker
+      # niet op zit (op hetzelfde netwerk zag de worker `backend:8000` rechtstreeks, buiten Traefik om).
+      # Het eigen uitgaande verkeer van de backend blijft via `sanskritisetu_network` lopen.
+      - bonlezer_koppel
+    ports:
+      - "127.0.0.1:5678:5678"
+      - "127.0.0.1:8111:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      # Ollama is sinds 2026-09-20 de bodem van de LLM-keten en draait altijd mee.
+      # BEWUST `service_started` en niet `service_healthy`: de eerste start haalt ~2,3 GB
+      # aan modellen op, en de backend tien minuten onbereikbaar houden voor een
+      # mogelijkheid die zonder model gewoon een nette fout geeft, is de verkeerde ruil.
+      # Alles wat geen taalmodel nodig heeft (auth, HR-import, API) werkt direct.
+      ollama:
+        condition: service_started
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 180s  # voor migratie-buffer
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend.rule=PathPrefix(`/api/`)"
+      - "traefik.http.routers.backend.priority=100"
+      - "traefik.http.routers.backend.entrypoints=web,websecure"
+      - "traefik.http.routers.backend.tls=true"
+      - "traefik.http.routers.backend.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.backend.service=backend-svc"
+      - "traefik.http.services.backend-svc.loadbalancer.server.port=8000"
+      - "traefik.http.middlewares.security-headers.headers.frameDeny=true"
+      - "traefik.http.middlewares.security-headers.headers.contentTypeNosniff=true"
+      - "traefik.http.middlewares.security-headers.headers.referrerPolicy=same-origin"
+      - "traefik.http.middlewares.security-headers.headers.stsSeconds=31536000"
+      - "traefik.http.middlewares.security-headers.headers.stsIncludeSubdomains=true"
+      - "traefik.http.routers.backend.middlewares=security-headers"
+
+  # ============================================================================
+  # == YJS Sync Server (Hocuspocus)
+  # ============================================================================
+  sync-server:
+    build:
+      context: ./services/sync-server
+      dockerfile: Dockerfile
+    container_name: sanskritisetu_sync_server
+    networks:
+      - sanskritisetu_network
+    ports:
+      - "127.0.0.1:1234:1234"
+    environment:
+      - PORT=1234
+      - BACKEND_URL=http://backend:8110
+      - SYNC_WEBHOOK_SECRET=${SYNC_WEBHOOK_SECRET:?SYNC_WEBHOOK_SECRET is verplicht}
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "nc -z 127.0.0.1 1234 || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  frontend:
+    image: sanskritisetu/frontend:latest
+    container_name: sanskritisetu_frontend
+    networks:
+      - sanskritisetu_network
+    depends_on:
+      backend:
+        condition: service_healthy
+      sync-server:
+        condition: service_started
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.frontend.priority=1"
+      - "traefik.http.routers.frontend.entrypoints=web,websecure"
+      - "traefik.http.routers.frontend.tls=true"
+      - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.frontend.service=frontend-svc"
+      - "traefik.http.services.frontend-svc.loadbalancer.server.port=3000"
+      - "traefik.http.routers.frontend.middlewares=security-headers"
+
+  # ============================================================================
+  # == Levend Monument Public Heritage Portal (ADR-029)
+  # ============================================================================
+  portal:
+    image: sanskritisetu/portal:latest
+    container_name: sanskritisetu_portal
+    networks:
+      - sanskritisetu_network
+    ports:
+      - "127.0.0.1:5174:5174"
+    depends_on:
+      backend:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.portal.rule=Host(`levendmonument.nl`) || Host(`www.levendmonument.nl`) || Host(`levend-monument.nl`) || Host(`www.levend-monument.nl`) || Host(`portal.sanskritisetu.org`) || HostRegexp(`^[a-z0-9-]+\\.levendmonument\\.nl$$`) || HostRegexp(`^[a-z0-9-]+\\.levend-monument\\.nl$$`)"
+      - "traefik.http.routers.portal.priority=10"
+      - "traefik.http.routers.portal.entrypoints=web,websecure"
+      - "traefik.http.routers.portal.tls=true"
+      - "traefik.http.routers.portal.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.portal.service=portal-svc"
+      - "traefik.http.services.portal-svc.loadbalancer.server.port=5174"
+      - "traefik.http.routers.portal.middlewares=security-headers"
+
+
+  # Workflow Worker — voert ProductionWorkflowEngine taken uit via Dramatiq
+  # Gebruikt hetzelfde Dockerfile target als de learning-worker (production-worker).
+  # Op Azure wordt dit als aparte Container App gedeployed (worker-staging / worker).
+  workflow-worker:
+    container_name: sanskritisetu_workflow_worker
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production-worker
+    command: ["src.workers.workflow_worker:redis_broker", "src.workers.actors", "--processes", "2", "--threads", "4"]
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=redis://:${REDIS_PASSWORD:?REDIS_PASSWORD is verplicht}@redis:6379/0
+      - DRAMATIQ_BROKER_URL=redis://:${REDIS_PASSWORD:?REDIS_PASSWORD is verplicht}@redis:6379/1
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      # Deze werker voert tools IN-PROCESS uit (BaseAgent._create_tool_broker), dus hij heeft
+      # dezelfde pseudonimiseringssleutel nodig als de backend. Stond hij hier niet, dan koos elk
+      # werkerproces buiten development een eigen efemere sleutel en waren de digests niet meer
+      # koppelbaar aan die van de backend -- precies wat het art.-12(2)-argument nodig heeft.
+      - TOOL_PAYLOAD_PSEUDONYM_KEY=${TOOL_PAYLOAD_PSEUDONYM_KEY:-}
+      - AUDIT_CHAIN_HMAC_KEY=${AUDIT_CHAIN_HMAC_KEY:-}
+      # Versleutelt KLANT-API-sleutels, met een afgeleide sleutel per tenant.
+      # Hier `:-` en in docker-compose.prod.yml `:?`: lokaal moet de stack zonder deze
+      # sleutel kunnen starten (het providerbeheer geeft dan een nette 503), in
+      # productie mag hij niet ontbreken.
+      - MASTER_ENCRYPTION_KEY=${MASTER_ENCRYPTION_KEY:-}
+      # Bonlezer dag 4: de dagelijkse opruiming (`ruim_bonnen_op`, bonnen na 30 dagen) draait in DEZE
+      # worker en moet het uploadvolume dus kunnen schrijven. De bonlezer-worker zelf houdt het `:ro`.
+      - BONLEZER_UPLOAD_ROOT=/data/bonnen
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - bonlezer_uploads:/data/bonnen
+    networks:
+      - sanskritisetu_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+
+  # ============================================================================
+  # == Geplande taken (retentie, opruiming) -- ADR-036 OP-64
+  # ============================================================================
+  # Zonder dit proces draait GEEN van de opruimactors in
+  # `src/core/governance/retention_cleanup.py`. Gemeten 2026-08-06: `start_scheduler` had nul
+  # aanroepers buiten zijn eigen `__main__`, en geen enkele compose-opstelling startte hem. Elke
+  # bewaartermijn in die module was daarmee een belofte die niemand nakwam -- en er komt geen
+  # foutmelding wanneer iets NIET gebeurt.
+  #
+  # Bewust EEN replica: de jobs zijn per definitie niet bedoeld om dubbel te draaien.
+  scheduler:
+    container_name: sanskritisetu_scheduler
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production-worker
+    entrypoint: ["python", "-m", "src.workers.scheduler"]
+    environment:
+      - TOOL_PAYLOAD_PSEUDONYM_KEY=${TOOL_PAYLOAD_PSEUDONYM_KEY:-}
+      - AUDIT_CHAIN_HMAC_KEY=${AUDIT_CHAIN_HMAC_KEY:-}
+      # Versleutelt KLANT-API-sleutels, met een afgeleide sleutel per tenant.
+      # Hier `:-` en in docker-compose.prod.yml `:?`: lokaal moet de stack zonder deze
+      # sleutel kunnen starten (het providerbeheer geeft dan een nette 503), in
+      # productie mag hij niet ontbreken.
+      - MASTER_ENCRYPTION_KEY=${MASTER_ENCRYPTION_KEY:-}
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=redis://:${REDIS_PASSWORD:?REDIS_PASSWORD is verplicht}@redis:6379/0
+      - DRAMATIQ_BROKER_URL=redis://:${REDIS_PASSWORD:?REDIS_PASSWORD is verplicht}@redis:6379/1
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - PYTHONUNBUFFERED=1
+    networks:
+      - sanskritisetu_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ============================================================================
+  # == Edge Gateway (ADR-009: Traefik replaces Nginx)
+  # ============================================================================
+  traefik:
+    image: traefik:v3.1
+    container_name: sanskritisetu_traefik
+    # CLI flags: Docker Compose interpoleert env vars hier wel (in tegenstelling tot traefik.yml)
+    command:
+      - "--configFile=/traefik.yml"
+      - "--certificatesresolvers.letsencrypt.acme.email=${LETSENCRYPT_EMAIL:-admin@sanskritisetu.org}"
+    ports:
+      - "127.0.0.1:80:80"
+      - "127.0.0.1:443:443"
+      - "127.0.0.1:8080:8080"  # dashboard + Prometheus metrics
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/traefik.yml:/traefik.yml:ro
+      - traefik_certs:/letsencrypt
+    networks:
+      - sanskritisetu_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ============================================================================
+  # == Automation & AI Integration
+  # ============================================================================
+  activepieces:
+    image: ghcr.io/activepieces/activepieces:0.92.1
+    container_name: sanskritisetu_activepieces_internal
+    # Vanaf AP 0.88.2 zit er geen PM2 meer in de image: een crash stopt de container.
+    restart: unless-stopped
+    expose:
+      - "80"
+    environment:
+      - AP_ENCRYPTION_KEY=${AP_ENCRYPTION_KEY:?AP_ENCRYPTION_KEY is verplicht}
+      - AP_JWT_SECRET=${AP_JWT_SECRET:?AP_JWT_SECRET is verplicht}
+      # Vereist in AP 0.81.4+ voor interne server-worker authenticatie
+      - AP_WORKER_TOKEN=${AP_WORKER_TOKEN:?AP_WORKER_TOKEN is verplicht}
+      - AP_WEBHOOK_TIMEOUT_SECONDS=30
+      # Heette tot AP 0.82 AP_MAX_CONCURRENT_JOBS_PER_PROJECT (standaard 100); de nieuwe
+      # standaard is 5. 100 houdt het gedrag van 0.81.4; die negeert deze naam.
+      - AP_DEFAULT_CONCURRENT_JOBS_LIMIT=100
+      - AP_TRIGGER_DEFAULT_POLL_INTERVAL=5
+      - AP_QUEUE_MODE=MEMORY
+      - AP_SANDBOX_RUN_TIME_SECONDS=600
+      - AP_TELEMETRY_ENABLED=false
+      - AP_PIECES_SOURCE=CLOUD_AND_DB
+      - AP_LOG_LEVEL=info
+      # Database Configuration
+      - AP_POSTGRES_DATABASE=${POSTGRES_DB:-sanskritisetu}
+      - AP_POSTGRES_HOST=postgres
+      - AP_POSTGRES_PORT=5432
+      - AP_POSTGRES_USERNAME=${POSTGRES_USER:-postgres}
+      - AP_POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is verplicht}
+      # Redis Configuration (newer versions)
+      - AP_REDIS_HOST=redis
+      - AP_REDIS_PORT=6379
+      - AP_REDIS_USE_SSL=false
+      # Security & Features
+      - AP_EXECUTION_MODE=SANDBOXED
+      - AP_WORKER_TYPE=THREAD
+      - AP_ENVIRONMENT=prod
+      # ActivePieces is bereikbaar via Traefik op /automation/ (StripPrefix verwijdert het prefix).
+      # AP_FRONTEND_URL = volledige basis-URL inclusief pad (zonder trailing slash)
+      # AP_API_URL = wat de browser gebruikt voor API-calls naar de ActivePieces backend
+      - AP_FRONTEND_URL=${AP_FRONTEND_URL:-http://localhost/automation}
+      - AP_API_URL=${AP_API_URL:-http://localhost/automation/api}
+    volumes:
+      - activepieces_data:/root/.activepieces
+    networks:
+      - sanskritisetu_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      # ActivePieces bereikbaar via /automation — StripPrefix verwijdert /automation voor de container
+      - "traefik.http.routers.activepieces.rule=PathPrefix(`/automation`)"
+      - "traefik.http.routers.activepieces.entrypoints=web,websecure"
+      - "traefik.http.routers.activepieces.tls=true"
+      - "traefik.http.routers.activepieces.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.activepieces.service=activepieces-svc"
+      - "traefik.http.services.activepieces-svc.loadbalancer.server.port=80"
+      # StripPrefix: /automation/api/v1/... -> /api/v1/... voor de container
+      - "traefik.http.middlewares.ap-strip.stripprefix.prefixes=/automation"
+      - "traefik.http.routers.activepieces.middlewares=security-headers,ap-strip"
+
+  # FocusBuilder — TOEKOMSTIGE microservice, nog niet geimplementeerd.
+  # Placeholder zodat docker-compose niet faalt bij services die hiervan afhankelijk zijn.
+  # Vervangt door een echte implementatie zodra de FocusBuilder module beschikbaar is.
+  # NIET gedeployed op Azure — geen Container App in CD pipeline.
+  focusbuilder:
+    container_name: sanskritisetu_focusbuilder
+    image: alpine:3.20
+    command: [ "tail", "-f", "/dev/null" ]
+    networks:
+      - sanskritisetu_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+
+  # ============================================================================
+  # == Learning & Feedback Workers
+  # ============================================================================
+  learning-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sanskritisetu_learning_worker
+    command: [ "dramatiq", "src.core.learning.worker:_broker", "--processes", "4", "--threads", "2" ]
+    networks:
+      - sanskritisetu_network
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - DRAMATIQ_BROKER_URL=${DRAMATIQ_BROKER_URL:-redis://redis:6379/1}
+      - ASYNC_FEEDBACK_PROCESSING=true
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "pgrep -f dramatiq || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  # ============================================================================
+  # == Observability Stack
+  # ============================================================================
+  prometheus:
+    image: prom/prometheus:v2.55.0
+    container_name: sanskritisetu_prometheus
+    networks:
+      - sanskritisetu_network
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/alerts:/etc/prometheus/alerts:ro
+      - ./prometheus/learning-alerts.yml:/etc/prometheus/learning-alerts.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+
+  grafana:
+    image: grafana/grafana:11.1.4
+    container_name: sanskritisetu_grafana
+    networks:
+      - sanskritisetu_network
+    ports:
+      - "127.0.0.1:4000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD is verplicht}
+      - GF_USERS_ALLOW_SIGN_UP=false
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.60.0
+    container_name: sanskritisetu_jaeger
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "16686:16686" # Jaeger UI
+      - "4317:4317" # OTLP gRPC
+    networks:
+      - sanskritisetu_network
+
+  # ============================================================================
+  # == Metrics Exporters (Prometheus)
+  # ============================================================================
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: sanskritisetu_redis_exporter
+    environment:
+      - REDIS_ADDR=redis://redis:6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:?REDIS_PASSWORD is verplicht}
+    ports:
+      - "127.0.0.1:9121:9121"
+    networks:
+      - sanskritisetu_network
+    depends_on:
+      - redis
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: sanskritisetu_postgres_exporter
+    environment:
+      - DATA_SOURCE_NAME=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is verplicht}@postgres:5432/${POSTGRES_DB:-sanskritisetu}?sslmode=disable
+    ports:
+      - "127.0.0.1:9187:9187"
+    networks:
+      - sanskritisetu_network
+    depends_on:
+      - postgres
+
+# ============================================================================
+# == Persistence & Networking
+# ============================================================================
+  # ============================================================================
+  # == Bonlezer-worker (bonlezer dag 2) -- leest bonnen en facturen, los van de backend
+  # ============================================================================
+  # Een EIGEN image (Dockerfile-doel `bonlezer-worker`): Docling en torch horen niet in het
+  # backend-image. De dienst staat ALLEEN op het interne netwerk `bonlezer_intern` (`internal: true`):
+  # geen uitgaand verkeer, alleen de EIGEN Redis `bonlezer-redis` (de opdrachten en de uitkomst). Hij
+  # ziet de uploadmap alleen LEZEN (`:ro`) en heeft geen database nodig (geen tabel; zie de docstring
+  # van de worker). `tenant_id` komt uit de opdracht die de backend maakt, nooit uit het bestand.
+  #
+  # `bonlezer-redis`: een aparte Redis voor alleen de bonlezer (dag 3, besluit regie), zodat een
+  # gecompromitteerde parser de hoofd-Redis (sessies, andere wachtrijen, limieten) niet raakt. Op twee
+  # interne netwerken: `bonlezer_intern` (met de worker) en `bonlezer_koppel` (met de backend). Worker en
+  # backend zien elkaar zo niet. Geen poort, wachtwoord zonder terugval, niets naar schijf: de resultaten
+  # bevatten velden van een bon en blijven hooguit 5 minuten in het geheugen. Begrensd geheugen, zodat een
+  # worker die Redis volschrijft niets buiten deze container raakt.
+  bonlezer-redis:
+    image: redis:7-alpine
+    container_name: sanskritisetu_bonlezer_redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --requirepass ${BONLEZER_REDIS_PASSWORD:?BONLEZER_REDIS_PASSWORD is verplicht}
+      --appendonly no
+      --save ""
+      --maxmemory 256mb
+      --maxmemory-policy noeviction
+    networks:
+      - bonlezer_intern
+      - bonlezer_koppel
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+    healthcheck:
+      test: [ "CMD-SHELL", "redis-cli -a \"$$REDISCLI_AUTH\" ping | grep -q PONG" ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    environment:
+      - REDISCLI_AUTH=${BONLEZER_REDIS_PASSWORD:?BONLEZER_REDIS_PASSWORD is verplicht}
+
+  bonlezer-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: bonlezer-worker
+    container_name: sanskritisetu_bonlezer_worker
+    restart: unless-stopped
+    pids_limit: 256
+    command: [ "src.core.als.bonlezer.worker:_broker", "--processes", "1", "--threads", "1" ]
+    networks:
+      - bonlezer_intern
+    environment:
+      # De EIGEN Redis van de bonlezer, nooit de hoofd-Redis en nooit het hoofdwachtwoord.
+      - BONLEZER_BROKER_URL=redis://:${BONLEZER_REDIS_PASSWORD:?BONLEZER_REDIS_PASSWORD is verplicht}@bonlezer-redis:6379/0
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - BONLEZER_UPLOAD_ROOT=/data/bonnen
+    volumes:
+      - bonlezer_uploads:/data/bonnen:ro
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      bonlezer-redis:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "python", "-c", "import os,sys; sys.exit(0 if any(b'dramati'+b'q' in open('/proc/'+p+'/cmdline','rb').read() for p in os.listdir('/proc') if p.isdigit()) else 1)" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          # Gelijk aan `pids_limit` hierboven: docker compose v5 weigert de config als die twee
+          # verschillen, en een ontbrekende waarde telt daar als verschil (gemeten met v5.6.1).
+          pids: 256
+        reservations:
+          memory: 1G
+
+volumes:
+  postgres_data:
+    name: sanskritisetu_postgres_data
+  bonlezer_uploads:
+    name: sanskritisetu_bonlezer_uploads
+  redis_data:
+    name: sanskritisetu_redis_data
+  ollama_data:
+    name: sanskritisetu_ollama_data
+  prometheus_data:
+    name: sanskritisetu_prometheus_data
+  grafana_data:
+    name: sanskritisetu_grafana_data
+  activepieces_data:
+    name: sanskritisetu_activepieces_data
+  traefik_certs:
+    name: sanskritisetu_traefik_certs
+
+networks:
+  sanskritisetu_network:
+    name: sanskritisetu_network
+    driver: bridge
+  # Geen uitgaand verkeer: alleen de bonlezer-worker en de bonlezer-Redis zitten erop.
+  bonlezer_intern:
+    name: sanskritisetu_bonlezer_intern
+    driver: bridge
+    internal: true
+  # Geen uitgaand verkeer: alleen de backend en de bonlezer-Redis. De worker zit hier NIET op.
+  bonlezer_koppel:
+    name: sanskritisetu_bonlezer_koppel
+    driver: bridge
+    internal: true

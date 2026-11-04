@@ -1,0 +1,20 @@
+agent_id: "mkb.local_marketing.reviewresponder.001"
+name: "ReviewResponderAgent"
+department: "local_marketing"
+technology: "LLM"
+module_path: "src.core.als.agents.mkb.local_marketing"
+class_name: "ReviewResponderAgent"
+description: "Automatically responds to customer reviews with empathy."
+is_active: true
+priority: "MEDIUM"
+version: "1.0.0"
+allowed_tools: ["review_api", "sentiment_checker"]
+ooda_profile:
+  observe:
+    data_sources: ["mkb_specific_api", "manual_uploads"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.85
+  act:
+    tools: ["review_api", "sentiment_checker"]

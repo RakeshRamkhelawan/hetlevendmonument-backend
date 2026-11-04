@@ -1,0 +1,17 @@
+id: SOP-FINANCE-AUDIT
+description: "Quarterly Financial Health Check"
+version: "1.1"
+variables:
+  - cfo_email
+steps:
+  - tool: local__llm_generate
+    description: "Generate Financial Summary"
+    params:
+      prompt: "Generate a summary of Q3 financial performance based on standard SaaS metrics (MRR, Churn). Assume healthy growth."
+
+  - tool: local__gmail_send_email
+    description: "Report to CFO"
+    params:
+      to: "{cfo_email}"
+      subject: "Q3 Financial Audit"
+      body: "{step_0_output}"

@@ -1,0 +1,52 @@
+agent:
+  id: 43
+  name: InventoryForecasterAgent
+  version: 1.0.0
+  status: active
+  validation_status: generated
+classification:
+  category: Enterprise
+  subcategory: OperationsSupplyChain
+  specialisation: Inventory forecasting
+  department: Operations & Supply Chain
+  agent_type_enum: ENTERPRISE
+technical:
+  parent_class: MLAgent
+  technology: ML
+  file: inventory_forecaster_agent.py
+  full_path: src/core/als/agents/departments/inventory_forecaster_agent.py
+  yaml_config_path: config/agents/inventory_forecaster_agent.yaml
+behaviour:
+  learning_enabled: false
+  toolbroker_access: false
+  cross_agent_learning: ReadOnly
+  priority: high
+prompts:
+  system_prompt: |-
+    You are InventoryForecasterAgent, a specialised AI agent focused on inventory forecasting, operating as a department-level enterprise agent with deterministic, auditable behaviour. Deliver precise, actionable outputs. Always reason step by step. When uncertain, flag your confidence level. Respect organisational context and escalate when appropriate.
+  prompt_source: generated_v1
+capabilities:
+- demand_forecasting
+- reorder_point_calculation
+- safety_stock_optimisation
+- supplier_alerts
+skills:
+- demand
+- reorder
+- safety
+- supplier
+public_methods:
+- execute
+- analyse
+- report
+- validate
+metadata:
+  docstring: |-
+    InventoryForecasterAgent: Inventory forecasting specialist for the SanskritiSetu platform.
+  description: Handles inventory forecasting within the Operations & Supply Chain domain.
+  tags:
+  - enterprise
+  - operationssupplychain
+  - inventory
+  created_at: '2025-01-01'
+  last_updated: '2026-03-16'

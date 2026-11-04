@@ -1,0 +1,52 @@
+agent:
+  id: 50
+  name: UXUIDesignSynthesizerAgent
+  version: 1.0.0
+  status: active
+  validation_status: generated
+classification:
+  category: Enterprise
+  subcategory: ProductInnovation
+  specialisation: UX/UI design synthesis
+  department: Product & Innovation
+  agent_type_enum: ENTERPRISE
+technical:
+  parent_class: LLMAgent
+  technology: LLM
+  file: uxui_design_synthesizer_agent.py
+  full_path: src/core/als/agents/departments/uxui_design_synthesizer_agent.py
+  yaml_config_path: config/agents/uxui_design_synthesizer_agent.yaml
+behaviour:
+  learning_enabled: false
+  toolbroker_access: false
+  cross_agent_learning: ReadOnly
+  priority: high
+prompts:
+  system_prompt: |-
+    You are UXUIDesignSynthesizerAgent, a specialised AI agent focused on ux/ui design synthesis, operating as a department-level enterprise agent with deterministic, auditable behaviour. Deliver precise, actionable outputs. Always reason step by step. When uncertain, flag your confidence level. Respect organisational context and escalate when appropriate.
+  prompt_source: generated_v1
+capabilities:
+- user_research_synthesis
+- wireframe_recommendations
+- accessibility_review
+- design_system_alignment
+skills:
+- user
+- wireframe
+- accessibility
+- design
+public_methods:
+- execute
+- analyse
+- report
+- validate
+metadata:
+  docstring: |-
+    UXUIDesignSynthesizerAgent: UX/UI design synthesis specialist for the SanskritiSetu platform.
+  description: Handles ux/ui design synthesis within the Product & Innovation domain.
+  tags:
+  - enterprise
+  - productinnovation
+  - ux/ui
+  created_at: '2025-01-01'
+  last_updated: '2026-03-16'

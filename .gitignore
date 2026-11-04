@@ -1,0 +1,504 @@
+# MCP Configuration (contains API keys)
+.vscode/mcp-config.json
+
+# Root design/inventory artifacts (local only)
+*.xlsx
+*.pptx
+WIREFRAMES_AND_IA.html
+/SanskritiSetu_Interactive_Prototype.jsx
+agents_inventory_phase0b.json
+agents_response.json
+sbi_*.json
+/sbi_*.csv
+/sbi_*.sql
+/seed_*.sql
+/seed_*.py
+/fetch_*.py
+/generate_*.py
+/insert_*.py
+/validate_*.py
+/show_*.py
+/final_check.py
+/quickstart.py
+/create_design_spec.js
+/test_templates_view.ps1
+
+# AI tool state folders (local only)
+.ai/
+.qwen/
+.serena/
+.kimi-rules/
+.superpowers/
+
+# Audit artifacts -- tar archives te groot voor git (>50MB)
+*.tar.gz
+.dmypy.json
+.utcp_config.json
+/activepieces-repo
+
+# ============================================
+# INFRASTRUCTURE ARTIFACTS
+# ============================================
+# Nginx config directory (vervangen door Traefik — ADR-009)
+nginx/
+# Traefik/LetsEncrypt certificaten (bevatten private keys — nooit committen)
+traefik/acme.json
+letsencrypt/acme.json
+
+# ============================================
+# SECRETS & CREDENTIALS (NEVER COMMIT THESE!)
+# ============================================
+.env
+.env.*
+.env.local
+.env.development
+.env.staging
+.env.production
+# Microsoft Office temp files
+~$*.xlsx
+~$*.docx
+~$*.pptx
+*.pem
+*.key
+*.p12
+*.pfx
+secrets.yaml
+secrets.json
+credentials.json
+service-account.json
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+# Python lib folders (but NOT frontend/src/lib)
+lib/
+lib64/
+!frontend/src/lib/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.pytest_logs/
+coverage/
+coverage_*.txt
+coverage_results.txt
+coverage-*.json
+.coverage.*
+
+# Test Results & Outputs
+logs/
+!logs/.gitkeep
+*_tests.txt
+*_test_results.txt
+*_test_output.txt
+frontend/test-results/
+# Het hele rapport, niet alleen data/. index.html is gegenereerde uitvoer van 512 kB die
+# elke testronde herschrijft; hij stond getrackt terwijl data/ al genegeerd was.
+# Gemeten 2026-10-01: git ls-files gaf precies een bestand in deze map.
+frontend/playwright-report/
+*.webm
+*.png
+# Pictogrammen van de installeerbare app: zonder deze staat er op een bouw uit git geen
+# pictogram en is de applicatie niet installeerbaar (gemeten 2026-10-03, no-acceptable-icon).
+!frontend/public/icons/*.png
+debug_pytest.txt
+all_backend_tests_collection.txt
+test_*.txt
+test_*.xml
+test_*.json
+test_output.txt
+final_test_result.txt
+contract_*.txt
+load_collect.txt
+p5_*.txt
+p58_*.txt
+INTEGRATION_TEST_COVERAGE_REPORT.md
+INTEGRATION_FINAL_STATUS.txt
+
+# Debug & temporary output files
+frontend/debug-*.txt
+frontend/failures.txt
+frontend/integration-failures.txt
+frontend/test-output*.txt
+
+# Local-only Storybook source files (do not commit/deploy)
+frontend/src/**/*.stories.ts
+frontend/src/**/*.stories.tsx
+frontend/src/**/*.mdx
+
+# Backup and disabled files
+*.bak
+*.disabled
+*.backup
+*~
+*.BAK
+*backup*
+*.baseline
+alembic/versions/archive/
+backups/
+
+# Playwright artifacts (keep report index, exclude data)
+frontend/playwright-report/data/
+test-results/
+
+# E2E test reproduction files
+frontend/tests/e2e/reproduce_*.spec.ts
+
+# Playwright stored auth state (contains real JWT tokens)
+frontend/auth.json
+
+# Claude/AI settings (local only)
+.claude/settings.local.json
+.claude/worktrees/
+
+# nul file (Windows artifact)
+nul
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment Files (NEVER commit secrets)
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Archived environment files
+env_archive/
+c7.bak/
+docker_archive/
+greenfield/
+legacy/
+archive/
+production-ready-agents/
+
+# Docker Secrets (file-based)
+secrets/*.txt
+secrets/*.key
+secrets/*.pem
+!secrets/README.md
+!secrets/.gitkeep
+
+
+
+# Deployment artifacts
+deployments/*.sql
+backups/*.sql
+letsencrypt/acme.json
+*.tar.gz
+production-deployment.tar.gz
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+*.db.backup*
+.test_postgres_data/
+chroma_db/
+eval_demo.db
+rollback_test.db
+test.db
+sanskriti_setu.db*
+
+# Logs (all variants)
+*.log
+logs/
+docker-build-log.txt
+docker_exports/
+*_logs.txt
+*_log.txt
+backend_*.log
+pytest_*.log
+rbac_errors*.log
+# Runtime-log dat de CVA-agents naar de repo-ROOT schrijven, met een RELATIEF pad:
+# src/core/agents/cva_autonomous_trigger.py:1124 en cva_file_manager.py:56.
+# Stond per ongeluk in git. Gemeten 2026-09-03: een volledige poortsuite-run liet het
+# bestand met 11 regels groeien, dus elke testrun vervuilde de werkboom.
+sandboxlog.md
+system_audit.log
+backend_logs_*.txt
+backend_health_check.txt
+backend_ws_trace.txt
+inspect_routes.py
+scripts/extract_traceback.py
+
+# Alembic debug/temp files
+alembic_current*.txt
+alembic_debug*.txt
+alembic_heads*.txt
+alembic_history*.txt
+alembic_manual_upgrade*.txt
+app_entrypoint_prod*.txt
+env_inside_container*.txt
+listening_ports.txt
+docker_ports.txt
+
+# Test results (temporary output)
+test_results*
+testrun_*.xml
+testrun_*.json
+test_output*.txt
+*_test_results.txt
+*_test_output.txt
+login*.json
+tokens.txt
+audit_report.json
+bandit_report.json
+bandit-report*.json
+src/bandit-report*.json
+semgrep_report.json
+coverage*.json
+.coverage
+security_audit*.json
+
+# Cache
+.cache/
+.mypy_cache/
+.ruff_cache/
+.benchmarks/
+.playwright-mcp/
+.structural-analysis/
+.tmp/
+.utcp_config.json
+
+# Docker
+.docker
+
+# Analysis & Test Outputs
+vibe_output*.json
+user_stories*.json
+quick_test*.json
+
+# Session Documentation (local only)
+*SESSION*.md
+*HANDOFF*.md
+*HANDOVER*.md
+*DEPLOYMENT_CURRENT*.md
+
+# SQL Generated Files (never commit credentials)
+scripts/sql/generated/
+*_admin_*.sql
+seed_users.sql
+
+# Frontend compiled files (but keep source)
+frontend/src/**/*.js
+frontend/src/**/*.js.map
+frontend/src/**/*.d.ts
+frontend/src/**/*.d.ts.map
+!frontend/src/**/*.test.js
+!frontend/src/**/*.config.js
+!frontend/src/lib/**/*.ts
+!frontend/src/lib/**/*.tsx
+!frontend/src/vite-env.d.ts
+
+
+#Ignore vscode AI rules
+.github\instructions\codacy.instructions.md
+
+# Development Tools (local only)
+.memory-bank/
+.mcp/
+alembic.zip
+test_batches/
+
+# External repositories and clones (do not commit)
+/activepieces/
+/activepieces-repo/
+
+# Legacy/Backup folders
+stichting-backend-ai/
+stichting-backup-*/
+frontend-app/node_modules/
+node_modules
+# Cleanup: Temporary verification and test data
+.test_postgres_data/
+
+# Debug and test folders
+debug-scripts/
+debug_scripts/
+temp/
+temp_validation/
+test_keys/
+test-outputs/
+test_outputs/
+sessions/
+
+# Test mirror folders
+tests_prod_mirror/
+tests_realworld/
+tests_reboot/
+
+# Analysis folder
+analysis/
+verify_*.py
+temp_*.py
+*_output.txt
+
+tests_manual_*.py
+
+mlruns/
+log.txt
+reproduce_*.py
+scripts/debug_*.py
+error_log.txt
+debug_*.py
+
+# Build tools
+bfg.jar
+cleanup_secret_history.ps1
+
+# Additional test logs and backups
+pytest_*.txt
+*_run.txt
+tests/integration/temp_disabled_backup/
+
+# Security - Secret Prevention
+.env*
+!.env.example
+# `.env.<naam>.example`-varianten horen er ook bij. Hierboven op regel ~183 stond
+# `!.env.*.example` al, maar deze bredere `.env*` komt later en de laatste match wint --
+# daardoor bleef `.env.single-tenant.example` onzichtbaar voor git. Dat bestand bestond
+# alleen lokaal, terwijl docs/deployment/single-tenant-guide.md stap 1 ernaar verwijst en
+# tests/architecture/test_single_tenant_deployment.py het eist. In CI faalde die test dus.
+!.env.*.example
+*.BACKUP*
+*_COMPLETION_REPORT.md
+sprints/
+# Secrets in test files (GitGuardian)
+tests/als/live_demo/test_kimi_openai_lib.py
+tests/integration/conftest.py.bak
+tests/als/live_demo/debug_kimi_anthropic.py
+*.bak
+
+*storybook.log
+
+# TestSprite — config files contain API keys and credentials
+testsprite_tests/tmp/config.json
+frontend/testsprite_tests/tmp/config.json
+
+# Firecrawl cache — web scraping artifacts
+.firecrawl/
+
+# Superpowers brainstorm sessions — internal tooling state
+.superpowers/brainstorm/
+
+# Agent skills cache
+.agents/
+
+# Temp files
+temp_unit_results*.txt
+agent_validation_report.json
+.kimi-rules/
+KIMI.local.md
+letsencrypt/acme.json
+
+# ============================================
+# DEBUG & LOCAL ARTIFACTS (nooit op GitHub)
+# ============================================
+# Mypy output bestanden
+mypy_*.txt
+mypy_*.out
+mypy_*.flag
+mypy_*.ini
+# CI/test log bestanden
+ci_run*.txt
+ci_full_run*.txt
+coverage-*.txt
+cva_auto*.txt
+cva_autonomous*.txt
+diag_*.txt
+e2e_collected*.txt
+e2e_results*.txt
+e2e_stderr.txt
+first4_failures*.txt
+frontend-unit-lane-raw*.txt
+frontend_build_results.txt
+frontend_lint_*.txt
+frontend_unit_full_run*.txt
+full_unit_results*.txt
+goal_router_*.txt
+health_errors.txt
+lint_*.txt
+lint_*.json
+ml_import_validation.txt
+system_errors.txt
+system_lines.txt
+providers_errors.txt
+# Mypy/debug config
+temp_mypy.ini
+mypy_minimal.ini
+mypy_skip.ini
+# Tijdelijke bestanden
+*.flag
+.tmp_*.py
+tmp_*.py
+test_ndarray.py
+test-results.json
+bandit-report-local.json
+coverage-gap.mjs
+gap-detail.mjs
+current_state.yml
+# Phase/sprint rapport txt bestanden
+PHASE*.txt
+DELIVERABLES_*.txt
+VISUAL_REDESIGN_*.txt
+
+# Dev drift/inspection artifacts (not for git)
+drift_report*.txt
+model_tables.txt
+
+# Windows temp paths (sandbox artifacts)
+C:*
+
+# Gemini/Antigravity werkmap: scratch-scripts en tussenresultaten van een andere tool.
+# Bewust smal gehouden (alleen brain/): .gemini/subagent_planning_v2.md en
+# subagent_tasks_v2.md zijn WEL getrackt en moeten dat blijven. Zie OP-17: een te ruim
+# ignore-patroon verbergt tracked bestanden voor ripgrep zonder dat git dat meldt.
+.gemini/antigravity/brain/
+
+# Root-level ad-hoc scratch scripts (2026-08-25, ADR-029-cleanup): eenmalige
+# DB-inspectie/migratie-patch-scriptjes, geen herbruikbare tooling (die staat in
+# scripts/). Exacte bestandsnamen, bewust geen wildcard-patroon (zie OP-17 hierboven).
+add_test.py
+audit_multitenant_report.json
+check_db.py
+check_db2.py
+check_db3.py
+count_rows.py
+export_db.py
+export_db_final.py
+export_db_fixed.py
+fix_enum.py
+
+# Lokale act-runs (artefacten van --artifact-server-path)
+.act-artifacts/
+
+# scratch/: lokale acceptantbewijzen, dumps en analyses; niet in git (ADR-040)
+/scratch/
+/Claude outputs/

@@ -1,0 +1,20 @@
+agent_id: "mkb.hr_lite.leavemanager.001"
+name: "LeaveManagerAgent"
+department: "hr_lite"
+technology: "LLM"
+module_path: "src.core.als.agents.mkb.hr_lite"
+class_name: "LeaveManagerAgent"
+description: "Automates holiday and sick leave registrations."
+is_active: true
+priority: "MEDIUM"
+version: "1.0.0"
+allowed_tools: ["leave_database", "policy_checker"]
+ooda_profile:
+  observe:
+    data_sources: ["mkb_specific_api", "manual_uploads"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.85
+  act:
+    tools: ["leave_database", "policy_checker"]

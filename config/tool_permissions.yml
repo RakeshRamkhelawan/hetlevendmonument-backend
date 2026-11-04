@@ -1,0 +1,156 @@
+version: "1.0"
+
+# Tool permission profiles for ToolPermissionManager (ADR-015 default-deny).
+# Agents not listed here are denied all tools.
+# The "copilot" entry covers all Council action_types routed via _ToolBrokerAdapter.
+#
+# ~80 generated agents have no profile here -- currently none of them call execute_tool()
+# directly, so default-deny is not triggered in production (verified 2026-06-27).
+# tests/architecture/test_generated_agents_tool_permissions.py enforces this: if a generated
+# agent starts calling execute_tool(), that test fails and forces a profile to be added here.
+#
+# ALS skills (src/core/als/agents/skills/): only the pilot skill "skillsgaptraining" has a
+# profile (AUDIT-008, 2026-07-30). The other 134 skills deliberately stay on their
+# system-prompt stopgap (no TOOL_CALL attempts) until they each get a profile in a later
+# sprint. tests/architecture/test_als_skills_tool_permissions.py enforces the invariant:
+# a skill without the manifest stopgap MUST have a profile here (and vice versa).
+# NAAMRUIMTE (`namespace`, verplicht sinds 2026-08-01 -- ADR-036 D10 stap 3, BE-AGT-039):
+# dit bestand bevat twee soorten namen die er identiek uitzien maar het niet zijn.
+#
+#   namespace: council_action  -- Council `action_type`-strings. GECONTROLEERD via
+#     _ToolBrokerAdapter.is_allowed (copilot/council/factory.py). Bij APPROVED stuurt
+#     `CopilotService._execute_decision` ELKE naam naar ToolBrokerService.execute_tool
+#     (agent_id "copilot"); er zijn geen aparte copilot-actiehandlers. Gemeten 2026-10-05 met
+#     `is_known_tool`: alleen create_task/list_tasks/update_task/delete_task resolveren daar;
+#     de andere 13 namen weigert de broker als onbekende tool. Bij HITL_REQUIRED weigert
+#     `handle_turn` zo'n naam al voor het ticket (ToolExecutionException, OP-78).
+#     Een tool buiten dit profiel (bv. `send_payment_reminder`, alleen bij `dunning`) geeft
+#     in `handle_turn` een nette weigering (verdict "blocked"), geen ticket en geen 500.
+#   namespace: broker_tool     -- echte toolnamen die via ToolBrokerService.execute_tool
+#     worden uitgevoerd. Die moeten resolveren: `local__*`, `test__*`, `serena__*`,
+#     `sequentialthinking__*`, of een van de vier business-tools (create_task, list_tasks,
+#     update_task, delete_task).
+#
+# Waarom dit veld er is: zonder onderscheid leest een lezer 13 "ontbrekende tools" in het
+# copilot-profiel die geen gat zijn, en krijgt tegelijk GEEN signaal wanneer een skill-tool
+# werkelijk niet bestaat. Bewaakt door tests/architecture/test_tool_profile_namespaces.py.
+agent_profiles:
+  - agent_id: "copilot"
+    namespace: "council_action"
+    allowed_tools:
+      # CVA / copilot actions
+      - "send_notification"
+      - "navigate_to"
+      - "read_data"
+      - "write_data"
+      - "create_task"
+      - "list_tasks"
+      - "update_task"
+      - "delete_task"
+      - "admin_action"
+      # Scheduling voice actions
+      - "create_meeting"
+      - "cancel_meeting"
+      - "reschedule_meeting"
+      - "check_availability"
+      - "list_meetings"
+      - "clarify"
+      - "confirm"
+      - "unknown"
+    denied_tools: []
+    max_tools: 50
+  # Pilot skill (AUDIT-008, ADR-036 D10): first ALS skill with a real profile.
+  # allowed_tools mirrors the skill manifest exactly
+  # (src/core/als/agents/skills/manifests/skillsgaptraining.yml) -- least privilege:
+  # the broker may never allow more than the skill itself declares.
+  # tests/architecture/test_als_skills_tool_permissions.py enforces that every
+  # skill whose manifest stopgap is removed keeps a profile here.
+  - agent_id: "skillsgaptraining"
+    # Broker-naamruimte: deze namen gaan via execute_tool. Stand 2026-09-21: alle DRIE bestaan
+    # en zijn uitvoerbaar door de broker die deze skill werkelijk heeft. Hier stonden er zes,
+    # waarvan er op 2026-08-01 geen enkele bestond; drie zijn nooit gebouwd en zijn uit het
+    # manifest gehaald met de meting als reden (zie de toelichting daar).
+    #
+    # `local__llm_generate` stond hier kort en is er weer uit: `BaseSpecialistAgent` bouwt zijn
+    # ToolBrokerService zonder `local_registry` (gemeten: `None`), dus de `local__`-tak gooit
+    # "Local tool registry not initialized". Toestemming geven voor iets dat niet kan draaien is
+    # precies wat het onderscheid tussen dit bestand en wiring onzichtbaar maakt.
+    #
+    # Dit profiel moet een deelverzameling van het manifest blijven -- least privilege, bewaakt
+    # door tests/architecture/test_als_skills_tool_permissions.py.
+    namespace: "broker_tool"
+    allowed_tools:
+      - "query_hr_database"  # gap analysis reads employee/role data (tenant-scoped)
+      - "analyze_skill_gap"  # de kloof per functie: eis versus beoordeeld niveau
+      - "schedule_training"  # wijst de afgesproken training toe -- HIGH, dus langs de HITL-poort
+    denied_tools: []
+    # ADR-036 D5 -- "nooit aanraken" (AI Act art. 14). Harde denylist, gecontroleerd op
+    # stap 0 van execute_tool en dus VOOR de HITL/Council-poort: geen menselijke
+    # goedkeuring kan hier iets aan veranderen.
+    #
+    # Reconciliatie met denied_tools (D5, verplicht): denied_tools is de legacy-alias en
+    # functioneel een deelverzameling; denied_actions is leidend voor nieuwe profielen.
+    # Beide worden gehandhaafd -- de UNIE is verboden -- zodat een bestaand profiel niet
+    # losser wordt zodra alleen het nieuwe veld wordt ingevuld.
+    #
+    # Waarom juist deze vier voor een skills-gap-skill: het is een ADVISERENDE rol
+    # (niveau "Voorstellen"/"Voorbereiden" uit D5). Onomkeerbare personeelsbesluiten en
+    # dossiermutaties horen nooit bij een adviserende agent, ook niet met goedkeuring --
+    # die horen bij een mens met de juiste bevoegdheid.
+    denied_actions:
+      - "delete_employee_record"   # onomkeerbaar, raakt persoonsgegevens (AVG)
+      - "update_salary"            # arbeidsvoorwaardelijk besluit, geen advieshandeling
+      - "terminate_employment"     # zwaarste personeelsbesluit dat er is
+      - "export_employee_data"     # bulk-export van persoonsgegevens buiten het DSAR-pad
+    max_tools: 10
+  # De debiteurenagent (dag 2, 2026-10-05): de tweede ALS-skill met een echt profiel. Gelijk aan
+  # het manifest (src/core/als/agents/skills/manifests/dunning.yml) -- least privilege, bewaakt
+  # door tests/architecture/test_als_skills_tool_permissions.py. Beide tools staan in
+  # `src/core/tool_broker/receivables_registry.py` en zijn uitvoerbaar door de broker van de skill.
+  - agent_id: "dunning"
+    namespace: "broker_tool"
+    allowed_tools:
+      - "list_receivables"       # openstaande facturen lezen, zonder naam of adres -- MEDIUM
+      - "send_payment_reminder"  # een brief klaarzetten in outgoing_messages -- HIGH, HITL-poort
+    denied_tools: []
+    # ADR-036 D5 -- "nooit aanraken". Een debiteurenagent herinnert en maant; hij scheldt niet
+    # kwijt, wijzigt geen bankgegevens en draagt niets over aan incasso. Dat zijn besluiten met
+    # geldgevolgen die bij een mens horen, ook met goedkeuring (ADR-039 noemt ze als kandidaat
+    # voor vier ogen; hier staan ze helemaal buiten bereik van de agent).
+    denied_actions:
+      - "write_off_receivable"     # afboeken: een vordering opgeven is een financieel besluit
+      - "change_bank_account"      # IBAN wijzigen: klassieke fraudevector
+      - "transfer_to_collection"   # overdracht aan incasso: zware stap richting de klant
+    max_tools: 5
+  # De crediteurenagent (crediteuren dag 2, 2026-10-24): een inkoopfactuur die de bonlezer las zelf verwerken. Gelijk aan het
+  # manifest (src/core/als/agents/skills/manifests/crediteuren.yml), bewaakt door test_als_skills_tool_permissions.py. Beide
+  # tools staan in `src/core/tool_broker/payables_registry.py`.
+  - agent_id: "crediteuren"
+    namespace: "broker_tool"
+    allowed_tools:
+      - "record_supplier_invoice"   # het SCHONE geval zelf vastleggen -- MEDIUM, de tool beoordeelt zelf opnieuw
+      - "propose_supplier_invoice"  # elke uitzondering: een ticket met het waarom -- HIGH, HITL-poort
+      - "propose_payment_run"       # een betaalvoorstel: een ticket met de lijst facturen -- HIGH, HITL-poort; betaalt niets zelf
+    denied_tools: []
+    # ADR-036 D5 -- "nooit aanraken". Een crediteurenagent legt facturen vast; hij betaalt niet, keurt niet goed en
+    # wijzigt geen bankgegevens buiten een goedgekeurd ticket. Betalen is dag 4 en altijd een mensenbesluit.
+    denied_actions:
+      - "execute_payment"        # geld overmaken: onomkeerbaar
+      - "approve_payable"        # goedkeuren is een procesbevoegdheid van een mens (ADR-039)
+      - "change_bank_account"    # IBAN wijzigen buiten een goedgekeurd ticket: klassieke fraudevector
+      - "delete_supplier"        # een leverancier verwijderen raakt de historie en de AVG-bewaartermijn
+    max_tools: 5
+  # De identiteit van een WORKFLOWSTAP (ADR-036 OP-13, brief 2026-10-22). Een workflow draait zonder mens erbij, dus
+  # dit profiel is bewust klein: taken lezen, aanmaken en wijzigen (LOW en MEDIUM). Verwijderen en alles met
+  # hoog risico (HITL) staat er niet in: een workflowstap kan geen goedkeuring afwachten en faalt dan zichtbaar.
+  # Een tool erbij is een regel hier PLUS een test; dat is een productbesluit en geen technische keuze.
+  - agent_id: "workflow_engine"
+    namespace: "broker_tool"
+    allowed_tools:
+      - "list_tasks"    # taken lezen -- LOW
+      - "create_task"   # een taak aanmaken -- MEDIUM
+      - "update_task"   # een taak wijzigen -- MEDIUM
+    denied_tools: []
+    denied_actions:
+      - "delete_task"   # verwijderen is onomkeerbaar: niet zonder mens
+    max_tools: 3

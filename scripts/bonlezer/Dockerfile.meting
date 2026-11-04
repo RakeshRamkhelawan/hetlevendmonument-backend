@@ -1,0 +1,40 @@
+# Meetopstelling voor de bonlezer (dag 1): Docling + Tesseract nld, losstaand van het projectimage.
+#
+# Waarom een eigen image. De bonlezer is nog niet bedraad; Docling haalt PyTorch en meer binnen
+# en hoort pas in het projectimage als dat is besloten (zie docs/evidence/bonlezer-meting-*.md,
+# sectie grootte). Hier meten we het lezen en de licenties in een schone, wegwerpomgeving.
+#
+# Bouwen (netwerk nodig; modellen en pakketten worden hier binnengehaald):
+#   docker build -t bonlezer-meting:dag1 -f scripts/bonlezer/Dockerfile.meting scripts/bonlezer/
+#
+# Draaien ZONDER netwerk (dat is het punt: lezen mag niets van buiten halen):
+#   docker run --rm --network none -e BONLEZER_NETWERK="geen (docker --network none)" \
+#     -v <repo>:/repo:ro -v <uit>:/uit bonlezer-meting:dag1 \
+#     python /repo/scripts/bonlezer_meting.py --artifacts /modellen --uit /uit/verslag.md
+#
+# De build-context is alleen deze map (alleen dit bestand): de repo wordt NIET meegekopieerd.
+#
+# Dit is een WEGWERP-meetimage: het draait als root, het basisimage staat niet op een digest en er zijn
+# geen hashes. Voor een productie-image (eigen worker, besluit regie 2026-10-15) hoort daar een
+# niet-root gebruiker, een digest en `pip install --require-hashes` bij (Gate 2, security).
+
+FROM python:3.11-slim-bookworm
+
+ENV PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1 PYTHONUNBUFFERED=1
+
+# Tesseract met het Nederlandse model; libgl1 en libglib2.0-0 vragen opencv.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-nld libgl1 libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# PyTorch alleen voor de CPU: het GPU-wiel is meer dan een gigabyte groter en hier niet nodig.
+RUN pip install torch==2.14.1+cpu torchvision==0.29.1+cpu --index-url https://download.pytorch.org/whl/cpu
+
+# Alleen docling is vastgepind (de rest van de keten volgt uit zijn eisen, zonder hashes): een latere
+# herbouw kan andere transitieve versies geven dan in docs/evidence/bonlezer-licenties-*.csv staan.
+RUN pip install docling==2.139.0 pip-licenses
+
+# De modellen van Docling VOORAF binnenhalen; tijdens het lezen is er geen netwerk.
+RUN docling-tools models download -o /modellen
+
+ENV HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1

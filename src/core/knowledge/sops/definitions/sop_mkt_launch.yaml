@@ -1,0 +1,76 @@
+id: SOP-MKT-LAUNCH
+description: "Product Launch Campaign Workflow - Coordinated multi-channel launch"
+version: "1.1"
+variables:
+  - product_name
+  - launch_date
+  - target_audience
+  - linkedin_author_urn
+  - pricing_page_url
+  - teams_team_id
+  - teams_channel_id
+
+steps:
+  - tool: local__llm_generate
+    description: "Create Launch Messaging Framework"
+    params:
+      prompt: |
+        Create a messaging framework for the launch of {product_name}.
+        Target audience: {target_audience}
+        Launch date: {launch_date}
+
+        Include: value proposition, key messages, taglines.
+
+  - tool: local__llm_generate
+    description: "Write launch press release"
+    params:
+      prompt: |
+        Write a press release for the launch of {product_name}.
+        Use this messaging framework:
+        {step_0_output}
+        Include quotes from leadership.
+
+  - tool: local__llm_generate
+    description: "Create customer email announcement"
+    params:
+      prompt: |
+        Write an email announcement for existing customers about {product_name}.
+        Highlight benefits and include early-access offer.
+        Include this CTA URL: {pricing_page_url}
+
+  - tool: local__llm_generate
+    description: "Generate LinkedIn launch post"
+    params:
+      prompt: |
+        Create one primary LinkedIn launch post for {product_name}.
+        Context:
+        - Messaging: {step_0_output}
+        - Press release: {step_1_output}
+        - Email angle: {step_2_output}
+        Include: launch CTA, credibility statement, and hashtags.
+
+  - tool: local__openapi_call_endpoint
+    description: "Publish LinkedIn launch post"
+    params:
+      base_url: "https://api.linkedin.com"
+      method: "POST"
+      path: "/v2/ugcPosts"
+      headers:
+        Content-Type: "application/json"
+      body:
+        author: "{linkedin_author_urn}"
+        lifecycleState: "PUBLISHED"
+        specificContent:
+          com.linkedin.ugc.ShareContent:
+            shareCommentary:
+              text: "{step_3_output}"
+            shareMediaCategory: "NONE"
+        visibility:
+          com.linkedin.ugc.MemberNetworkVisibility: "PUBLIC"
+
+  - tool: local__teams_post_message
+    description: "Share launch pack in internal channel"
+    params:
+      team_id: "{teams_team_id}"
+      channel_id: "{teams_channel_id}"
+      message: "Launch assets for {product_name} are ready. Planned launch date: {launch_date}."

@@ -1,0 +1,20 @@
+agent_id: "mkb.ecommerce_retail.retailpriceoptimizer.001"
+name: "RetailPriceOptimizerAgent"
+department: "ecommerce_retail"
+technology: "ML"
+module_path: "src.core.als.agents.mkb.ecommerce_retail"
+class_name: "RetailPriceOptimizerAgent"
+description: "Optimizes local retail pricing based on neighborhood competitors."
+is_active: true
+priority: "MEDIUM"
+version: "1.0.0"
+allowed_tools: ["pricing_engine", "local_market_api"]
+ooda_profile:
+  observe:
+    data_sources: ["mkb_specific_api", "manual_uploads"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.85
+  act:
+    tools: ["pricing_engine", "local_market_api"]

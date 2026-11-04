@@ -1,0 +1,70 @@
+id: SOP-MKT-REPURPOSE
+description: "Content Repurposing Workflow - Transform content across platforms"
+version: "1.1"
+variables:
+  - source_content
+  - target_platforms
+  - linkedin_author_urn
+  - campaign_name
+  - notion_parent_id
+  - slack_channel
+
+steps:
+  - tool: local__llm_generate
+    description: "Analyze source and extract content angles"
+    params:
+      prompt: |
+        Analyze the following source content and extract:
+        1) key themes
+        2) strongest proof points
+        3) 3 audience-specific hooks
+        4) CTA variants
+
+        Content:
+        {source_content}
+
+  - tool: local__llm_generate
+    description: "Generate LinkedIn post draft"
+    params:
+      prompt: |
+        Create a production-ready LinkedIn post for campaign {campaign_name}.
+        Use this analysis:
+        {step_0_output}
+
+        Requirements:
+        - Dutch business tone
+        - one clear CTA
+        - 3-5 relevant hashtags
+        - max 1200 characters
+
+  - tool: local__openapi_call_endpoint
+    description: "Publish LinkedIn post via API"
+    params:
+      base_url: "https://api.linkedin.com"
+      method: "POST"
+      path: "/v2/ugcPosts"
+      headers:
+        Content-Type: "application/json"
+      body:
+        author: "{linkedin_author_urn}"
+        lifecycleState: "PUBLISHED"
+        specificContent:
+          com.linkedin.ugc.ShareContent:
+            shareCommentary:
+              text: "{step_1_output}"
+            shareMediaCategory: "NONE"
+        visibility:
+          com.linkedin.ugc.MemberNetworkVisibility: "PUBLIC"
+
+  - tool: local__notion_create_page
+    description: "Archive final copy in Notion"
+    params:
+      parent_id: "{notion_parent_id}"
+      title: "LinkedIn Post - {campaign_name}"
+      content: "{step_1_output}"
+
+  - tool: local__slack_post_message
+    description: "Notify marketing channel"
+    params:
+      channel: "{slack_channel}"
+      text: "LinkedIn content flow completed for {campaign_name}. Notion and publish step executed."

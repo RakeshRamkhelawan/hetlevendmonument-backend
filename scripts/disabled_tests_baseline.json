@@ -1,0 +1,24 @@
+{
+  "_toelichting": [
+    "Aantal tests per bestand dat in de blokkerende poort NOOIT draait.",
+    "Gemeten met scripts/count_disabled_tests.py via pytest-collectie.",
+    "Elk getal mag alleen OMLAAG; wie er een repareert past dit bestand aan",
+    "in DEZELFDE commit (--write-baseline). Zie ADR-036 OP-196 en OP-201."
+  ],
+  "totaal": 75,
+  "per_bestand": {
+    "tests/unit/learning/test_feedback_loop.py": 13,
+    "tests/unit/test_autonomous_SIMPLIFIED.py": 1,
+    "tests/unit/test_generate_agent_yaml.py": 13,
+    "tests/unit/test_memory_services.py": 4,
+    "tests/unit/test_neo_account_lockout_postgres.py": 3,
+    "tests/unit/test_oauth2_endpoints.py": 1,
+    "tests/unit/test_quota_middleware.py": 1,
+    "tests/unit/test_security_service.py": 4,
+    "tests/unit/test_ssl_tls.py": 8,
+    "tests/unit/test_tenant_middleware_coverage.py": 14,
+    "tests/unit/test_token_refresh_rotation.py": 2,
+    "tests/unit/test_workflow.py": 5,
+    "tests/unit/test_workflow_versioning_service.py": 6
+  }
+}

@@ -1,0 +1,280 @@
+# AlertManager Rules for SanskritiSetu.org
+# Task 5.3.1: Prometheus + AlertManager Configuration
+# Task 5.3.3: Error Rate & SLA Monitoring
+
+groups:
+  # =============================================================================
+  # SLA & AVAILABILITY ALERTS
+  # =============================================================================
+  - name: sla_alerts
+    rules:
+      # High Error Rate Alert (>0.1% target)
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(http_errors_total{status_code=~"5.."}[5m]))
+            /
+            sum(rate(http_requests_total[5m]))
+          ) * 100 > 0.1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | printf \"%.2f\" }}% (threshold: 0.1%)"
+          runbook_url: "https://docs.sanskritisetu.org/runbooks/high-error-rate"
+
+      # Uptime Below SLA (99.5%)
+      - alert: UptimeBelowSLA
+        expr: current_uptime_percent < 99.5
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Uptime below SLA target"
+          description: "Current uptime is {{ $value | printf \"%.2f\" }}% (SLA target: 99.5%)"
+          runbook_url: "https://docs.sanskritisetu.org/runbooks/uptime-sla"
+
+      # High P95 Latency (>200ms target)
+      - alert: HighP95Latency
+        expr: request_latency_p95_seconds > 0.2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "P95 latency exceeds target"
+          description: "P95 latency is {{ $value | printf \"%.3f\" }}s (target: 0.2s)"
+          runbook_url: "https://docs.sanskritisetu.org/runbooks/high-latency"
+
+      # High P99 Latency (>500ms)
+      - alert: HighP99Latency
+        expr: request_latency_p99_seconds > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "P99 latency is high"
+          description: "P99 latency is {{ $value | printf \"%.3f\" }}s"
+
+  # =============================================================================
+  # HEALTH CHECK ALERTS
+  # =============================================================================
+  - name: health_alerts
+    rules:
+      # Database Unhealthy
+      - alert: DatabaseUnhealthy
+        expr: component_health_status{component="database"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Database health check failing"
+          description: "Database connectivity is down. Immediate investigation required."
+          runbook_url: "https://docs.sanskritisetu.org/runbooks/database-down"
+
+      # Redis Unhealthy (warning - optional component)
+      - alert: RedisUnhealthy
+        expr: component_health_status{component="redis"} == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis health check failing"
+          description: "Redis connectivity is down. Caching may be affected."
+          runbook_url: "https://docs.sanskritisetu.org/runbooks/redis-down"
+
+      # LLM API Unhealthy
+      - alert: LLMAPIUnhealthy
+        expr: component_health_status{component="llm_api"} == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "LLM API health check failing"
+          description: "LLM API connectivity is down. AI features may be affected."
+          runbook_url: "https://docs.sanskritisetu.org/runbooks/llm-api-down"
+
+      # Readiness Probe Failing
+      - alert: ReadinessProbesFailing
+        expr: |
+          increase(health_check_total{check_type="ready",status!="healthy"}[5m]) > 5
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Readiness probes failing frequently"
+          description: "Multiple readiness check failures detected"
+
+  # =============================================================================
+  # TRAINING & ML ALERTS
+  # =============================================================================
+  - name: training_alerts
+    rules:
+      # Training Service Unhealthy
+      - alert: TrainingServiceUnhealthy
+        expr: training_service_health == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Training service is unhealthy"
+          description: "The ML training service is reporting unhealthy status."
+
+      # No Training Sessions
+      - alert: NoTrainingSessions
+        expr: |
+          increase(training_sessions_total[24h]) == 0
+        for: 1h
+        labels:
+          severity: info
+        annotations:
+          summary: "No training sessions in 24h"
+          description: "No training sessions have been completed in the last 24 hours."
+
+      # High Training Failure Rate
+      - alert: HighTrainingFailureRate
+        expr: |
+          (
+            sum(rate(training_failure_total[1h]))
+            /
+            (sum(rate(training_success_total[1h])) + sum(rate(training_failure_total[1h])))
+          ) > 0.2
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High training failure rate"
+          description: "More than 20% of training sessions are failing."
+
+      # MLflow Connection Down
+      - alert: MLflowConnectionDown
+        expr: mlflow_connection_status == 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "MLflow connection is down"
+          description: "Unable to connect to MLflow tracking server."
+
+  # =============================================================================
+  # RESOURCE ALERTS
+  # =============================================================================
+  - name: resource_alerts
+    rules:
+      # High CPU Usage
+      - alert: HighCPUUsage
+        expr: sanskriti_system_cpu_percent > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is {{ $value | printf \"%.1f\" }}%"
+
+      # High Memory Usage
+      - alert: HighMemoryUsage
+        expr: sanskriti_system_memory_percent > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is {{ $value | printf \"%.1f\" }}%"
+
+      # Critical Memory Usage
+      - alert: CriticalMemoryUsage
+        expr: sanskriti_system_memory_percent > 95
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical memory usage"
+          description: "Memory usage is {{ $value | printf \"%.1f\" }}%. Immediate action required."
+
+      # Low Health Score
+      - alert: LowHealthScore
+        expr: sanskriti_health_score < 70
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "System health score is low"
+          description: "Health score is {{ $value | printf \"%.1f\" }} (threshold: 70)"
+
+      # Critical Health Score
+      - alert: CriticalHealthScore
+        expr: sanskriti_health_score < 50
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "System health score is critical"
+          description: "Health score is {{ $value | printf \"%.1f\" }} (critical threshold: 50)"
+
+  # =============================================================================
+  # DIGITAL TWIN ALERTS (ADR-026)
+  # =============================================================================
+  - name: digital_twin_alerts
+    rules:
+      # Twin LLM cost approaching hard cap (>80%)
+      - alert: TwinLLMCostNearHardCap
+        expr: |
+          (
+            twin_llm_cost_eur_total
+            /
+            on(tenant_id) (twin_llm_budget_hard_eur > 0)
+          ) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Twin LLM cost approaching hard cap for tenant"
+          description: "Tenant {{ $labels.tenant_id }} has spent {{ $value | printf \"%.0f\" }}% of hard cap"
+          runbook_url: "https://docs.sanskritisetu.org/runbooks/twin-llm-budget"
+
+      # Twin LLM provider failures spike
+      - alert: TwinLLMProviderFailuresHigh
+        expr: |
+          increase(twin_llm_provider_failures_total[10m]) > 10
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High Twin LLM provider failure rate"
+          description: "Provider {{ $labels.provider }} has {{ $value }} failures in 10m"
+          runbook_url: "https://docs.sanskritisetu.org/runbooks/twin-llm-failover"
+
+      # Twin LLM circuit breaker open
+      - alert: TwinLLMCircuitBreakerOpen
+        expr: |
+          increase(twin_llm_provider_circuit_open_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Twin LLM circuit breaker opened"
+          description: "Provider {{ $labels.provider }} circuit is open"
+          runbook_url: "https://docs.sanskritisetu.org/runbooks/twin-llm-failover"
+
+      # Twin hard delete backlog growing
+      - alert: TwinHardDeleteBacklogHigh
+        expr: twin_hard_delete_pending_count > 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Twin hard delete backlog is high"
+          description: "{{ $value }} users have pending hard delete requests"
+          runbook_url: "https://docs.sanskritisetu.org/runbooks/twin-hard-delete"
+
+      # Twin retention cleanup not running (zero deletions for 24h)
+      - alert: TwinRetentionCleanupStalled
+        expr: |
+          increase(twin_retention_deleted_rows_total[24h]) == 0
+        for: 1h
+        labels:
+          severity: info
+        annotations:
+          summary: "Twin retention cleanup may be stalled"
+          description: "No retention deletions in the last 24 hours"
+          runbook_url: "https://docs.sanskritisetu.org/runbooks/twin-retention"

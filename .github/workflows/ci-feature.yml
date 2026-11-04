@@ -1,0 +1,977 @@
+name: CI
+
+# Draait op elke feature/hotfix push en op PRs naar develop.
+# Zelfde checks als de pre-commit hook — als dit slaagt, slaagt de pre-commit ook.
+
+# STILGELEGD 2026-09-14: het GitHub-abonnement is opgezegd. De runners weigeren elke job
+# ("The job was not started because recent account payments have failed or your spending
+# limit needs to be increased" -- gemeten via `gh run view 34798995231`, alle zes jobs
+# afgebroken na 2-3 seconden). De repo is PRIVE, dus zelfs op het gratis plan is het
+# plafond 2000 minuten per maand terwijl een CI-run hier ~45 minuten kost: ongeveer 35
+# pushes en de maand is op. Teruggaan is geen realistische terugvaloptie.
+#
+# Daarom alleen nog `workflow_dispatch`. De reden staat al een keer in cd-staging.yml
+# opgeschreven, toen de Azure-omgeving weg was: een run die ALTIJD faalt went, en dan kijk
+# je op een dag over een echte storing heen.
+#
+# Dit bestand blijft staan als de BESCHRIJVING van wat gecontroleerd moet worden. De
+# uitvoering ligt nu bij:
+#   - scripts/run_ci_act.ps1  (act in Docker: security, frontend, docker-validate, bicep)
+#   - de pre-push hook        (de volledige pytest-poort, native ~15 min)
+#   - tests/architecture/test_local_ci_runner_covers_every_ci_job.py bewaakt dat elke job
+#     hieronder bij die runner bekend is, zodat een nieuwe job niet stilletjes nergens
+#     draait.
+#
+# De vorige trigger stond hier, met zijn eigen geschiedenis: `develop` was op 2026-08-05
+# toegevoegd (Rakesh GO) omdat al het werk rechtstreeks naar develop gaat en de gates die
+# op 2026-07-15 blokkerend werden develop simpelweg nooit zagen.
+on:
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: "3.11"
+  NODE_VERSION: "20"
+  # Opt-in to Node.js 24 for actions (fixes deprecation warning)
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  # --------------------------------------------------------------------------
+  # Bicep: templates moeten compileren (ADR-036 OP-111)
+  #
+  # `infra/README.md` claimt sinds 2026-05-26 dat deze gate bestaat. Dat klopte niet -- er stond
+  # geen enkele `az bicep`-aanroep in een workflow. Compileren vraagt GEEN Azure-verbinding en
+  # geen credentials, dus dit hoort gewoon in de feature-CI.
+  # --------------------------------------------------------------------------
+  bicep:
+    name: Bicep templates compileren
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # `schedule` vuurt ALTIJD op de default branch (main), die 421 commits achterliep --
+          # zie tests/architecture/test_scheduled_run_measures_develop.py voor de meting.
+          # Leeg bij elk ander event = standaardgedrag, dus ook de merge-ref bij een PR.
+          ref: ${{ github.event_name == 'schedule' && 'develop' || '' }}
+      - name: az bicep build
+        run: |
+          set -euo pipefail
+          # Zonder nullglob blijft een lege glob letterlijk staan en draait de lus
+          # een keer met 'infra/main-*.bicep' als bestandsnaam -- dan faalt az en is
+          # de vangnet-tak hieronder onbereikbaar.
+          shopt -s nullglob
+          BICEP_CMD="az bicep build --file"
+          if ! command -v az &>/dev/null; then
+            if ! command -v bicep &>/dev/null; then
+              echo "az niet gevonden -- bicep standalone binary downloaden..."
+              curl -sLo /usr/local/bin/bicep https://github.com/Azure/bicep/releases/latest/download/bicep-linux-x64
+              chmod +x /usr/local/bin/bicep
+            fi
+            BICEP_CMD="bicep build"
+          fi
+          gevonden=0
+          for template in infra/main-*.bicep; do
+            echo "--- $template"
+            $BICEP_CMD "$template" --stdout > /dev/null
+            gevonden=$((gevonden + 1))
+          done
+          if [ "$gevonden" -eq 0 ]; then
+            echo "::error::Geen enkele infra/main-*.bicep gevonden -- deze gate meet dan niets."
+            exit 1
+          fi
+          echo "$gevonden template(s) compileren."
+
+  # --------------------------------------------------------------------------
+  # Python: lint + unit tests (geen externe services nodig)
+  # --------------------------------------------------------------------------
+  python:
+    name: Python
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: sanskritisetu
+        ports:
+          - 5432:5432
+          # 5435 matches the local dev/docker-compose convention that
+          # tests/integration/conftest.py probes for (see CLAUDE.md "PostgreSQL
+          # testdatabase (poort 5455)"). Without this, "Tenant integration tests"
+          # self-skips on every CI run because the probe never finds a match.
+          - 5435:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # fetch-depth: 0 toegevoegd 2026-08-13 (BE-CI-006). Zonder dit haalt de runner
+          # precies EEN commit op en bestaat `origin/develop` daar niet. De Any-type gate
+          # hieronder deed `git diff origin/develop...HEAD`, dat faalde, `|| true` slikte de
+          # fout op en de stap meldde "skipping" -- groen, in elk event-type. De gate heeft
+          # dus nooit een enkel bestand gecontroleerd.
+          fetch-depth: 0
+          # `schedule` vuurt ALTIJD op de default branch (main), die 421 commits achterliep --
+          # zie tests/architecture/test_scheduled_run_measures_develop.py voor de meting.
+          # Leeg bij elk ander event = standaardgedrag, dus ook de merge-ref bij een PR.
+          ref: ${{ github.event_name == 'schedule' && 'develop' || '' }}
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # Use requirements-prod.txt (same deps as Docker) + test deps
+          # DO NOT use requirements.txt — it includes requirements-ml.txt
+          # with PyTorch and conflicting langchain versions that differ
+          # from what is actually deployed.
+          #
+          # De LOCK, niet requirements-prod.txt (2026-08-05). Dat bestand zegt zelf in
+          # regel 1: "Input file for pip-compile. DO NOT install directly in production.
+          # Use: pip install -r requirements-prod.lock" -- en toch installeerden zowel CI
+          # als de Dockerfile het ongepinde bestand. Gevolg: pip loste elke `>=` opnieuw
+          # op bij elke run. Zo kwam mcp 2.0.0 binnen (`mcp>=0.1.0`), dat Tool.inputSchema
+          # hernoemde naar input_schema -- een AttributeError in productie, niet gevonden
+          # door welke gate dan ook. De lock pint mcp op 1.27.1 en 207 andere pakketten
+          # met hashes.
+          pip install -r requirements-prod.lock
+          pip install -r requirements-test.txt
+
+      - name: Ruff lint
+        run: ruff check src/ --exclude src/alembic
+
+      # NOOIT-lijst gates + import-linter
+      # Goedkoop, voor de type-checkers. Geblokkeerde patronen uit CLAUDE.md en quality-gates.md.
+      # Elke stap gebruikt set -euo pipefail; valkuil valkuil_falend_commando_gevolgd_door_slagend_commando:
+      # een pipe maskeert de exitcode als pipefail ontbreekt.
+      - name: "NOOIT-lijst: datetime naive gate"
+        run: |
+          set -euo pipefail
+          # Alleen src/ -- scripts/ zijn dev-tooling (naive timestamps geoorloofd).
+          # Geldige timezone-aanroepen: timezone(.utc) | UTC (Python 3.11) | tz=
+          # grep kan 1 (geen match) of 0 (match) teruggeven; de || true = altijd exit 0
+          # VOOR de wc zodat set -e niet afbreekt op een leeg resultaat.
+          matches=$(grep -rn --include="*.py" \
+            -E 'datetime\.(now|utcnow)\s*\(' src/ \
+            | grep -v 'timezone' \
+            | grep -v 'UTC' \
+            | grep -v 'tz=' \
+            | grep -v '# noqa: datetime-naive' \
+            || true)
+          count=$(echo "$matches" | grep -c . || true)
+          if [ "$count" -gt 0 ]; then
+            echo "::error::$count verboden datetime.now()/utcnow() aanroepen (NOOIT-lijst)."
+            echo "::error::Gebruik altijd datetime.now(timezone.utc) of de project-helper utc_now()."
+            echo "$matches" | head -20
+            exit 1
+          fi
+          echo "Datetime naive gate: GROEN (0 schendingen)."
+
+      - name: "NOOIT-lijst: tenant-id-in-body gate"
+        run: |
+          set -euo pipefail
+          # Deze stap was tot 2026-09-18 een grep over `src/api/ src/routers/ src/schemas/`.
+          # GEMETEN op die dag: `src/routers/` en `src/schemas/` BESTAAN NIET en `src/api/`
+          # bevat drie bestanden, terwijl de API in `src/core/api/` staat (honderden
+          # bestanden). De stap meldde dus jarenlang "GROEN (0 schendingen)" over een lege
+          # scan -- en er zat wel degelijk een `tenant_id` in een request body
+          # (`ExecutionEvent` in `api/webhooks/activepieces_handler.py`, twee endpoints).
+          #
+          # Naar de juiste mappen wijzen loste het NIET op: dezelfde grep geeft daar 339 + 94
+          # treffers, vrijwel allemaal functieparameters en response-modellen. Een altijd-rode
+          # stap is geen betere gate dan een altijd-groene.
+          #
+          # De controle zit daarom nu in `tests/architecture/test_geen_tenant_id_in_een_request_body.py`:
+          # een AST-scan over heel `src/` die een REQUEST BODY onderscheidt van een
+          # `Depends()`-parameter en van een response-model, met mutatiebewijs in beide
+          # richtingen. Die map draait hieronder in de blokkerende `Full unit tests`-stap, dus
+          # de regel is hier niet losgelaten maar verplaatst naar een gate die hem echt kan zien.
+          echo "Tenant-id-in-body gate: verplaatst naar tests/architecture (zie comment hierboven)."
+
+      - name: "NOOIT-lijst: non-ASCII in Python gate"
+        run: |
+          set -euo pipefail
+          # Dezelfde controle als de pre-commit: scripts/check_non_ascii.py is de enige definitie (src/, scripts/ en
+          # mcp-server/, zonder het alembic-archief). Zie tests/architecture/test_precommit_weigert_niet_ascii.py.
+          python scripts/check_non_ascii.py --alles
+          echo "Non-ASCII gate: GROEN (0 schendingen)."
+
+      - name: Import-linter (ADR-033 + ADR-034 architectuurgrens)
+        # Correct commando: lint-imports (CLI binary van import-linter).
+        # `python -m importlinter` werkt NIET -- het pakket heeft geen __main__.py.
+        # Config wordt automatisch geladen uit .importlinter (default).
+        # Bewaakt de API-routergrens (ADR-033 Contract 1) en de agent_runtime-grens
+        # (ADR-034 Contracts 2+3). importlinter staat in requirements-test.txt.
+        run: |
+          set -euo pipefail
+          lint-imports
+          echo "Import-linter: GROEN."
+
+      - name: FastAPI DI anti-pattern check
+        run: python scripts/check_fastapi_di_patterns.py --ci
+
+      # BE-CI-006: deze stap viel eerder ALTIJD stil terug op "skipping". Drie oorzaken,
+      # alle drie lokaal gereproduceerd: geen fetch-depth (hierboven opgelost), een leeg
+      # diff-bereik bij een push naar develop (`origin/develop...HEAD` is dan niets), en
+      # een `|| true` die elke fout in een groene exit veranderde.
+      #
+      # De basis is nu per event correct EN de terugval is fail-closed: kan het bereik niet
+      # bepaald worden, dan scant hij alles in plaats van niets.
+      - name: Any-type gate (fails on new Any without TODO)
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          set -euo pipefail
+          RANGE=""
+          if [ -n "${BASE_SHA:-}" ] && git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
+            RANGE="${BASE_SHA}..HEAD"
+          fi
+
+          if [ -z "$RANGE" ]; then
+            echo "Geen bruikbare basis (${BASE_SHA:-leeg}); volledige scan van src/ en scripts/."
+            python scripts/check_any_gate.py --fail
+            exit $?
+          fi
+
+          CHANGED=$(git diff --name-only --diff-filter=ACMRT "$RANGE" -- '*.py' | grep -E '^(src|scripts)/' || true)
+          if [ -z "$CHANGED" ]; then
+            echo "Geen gewijzigde Python-bronbestanden in $RANGE; volledige scan als vangnet."
+            python scripts/check_any_gate.py --fail
+            exit $?
+          fi
+          echo "Gewijzigd in $RANGE:"
+          echo "$CHANGED"
+          echo "$CHANGED" | xargs python scripts/check_any_gate.py --fail
+
+      # De ratel. Faalt bij ELKE afwijking van docs/any_type_baseline.json, omhoog en
+      # omlaag: een daling die niet wordt vastgelegd laat het getal ongemerkt terugkruipen.
+      - name: Any-type ratel (geboekte schuld mag niet bewegen)
+        run: python scripts/check_any_gate.py --mode acknowledged --baseline docs/any_type_baseline.json
+
+      - name: Type check (pyright)
+        # continue-on-error verwijderd 2026-07-15 (Rakesh GO, SP-CI-001 dag 7): baseline
+        # nu 0 op 5 bekende, gedocumenteerde uitzonderingen na (dsar_service.py x2 --
+        # GDPR-sprint-eigendom, events_router.py x2 + audit_endpoints.py x1 --
+        # pre-existing, ongerelateerd, zie .claude/rules/quality-gates.md). Deze stap
+        # faalt bewust rood totdat die uitzonderingen apart zijn opgelost.
+        env:
+          # Pyright draait op node en kreeg de standaard-heap van ~2 GB. Sinds
+          # pyrightconfig.json in de repo staat (2026-08-05) lost pyright de imports
+          # daadwerkelijk op in plaats van er overheen te struikelen, en dat kost fors
+          # meer geheugen: run 31004657110 viel om met "Reached heap limit Allocation
+          # failed" na 152s, terwijl twee eerdere runs met dezelfde code net wel
+          # haalden. Zonder deze grens is de stap dus een dobbelsteen.
+          # Zelfde middel als frontend/package.json voor vitest.
+          NODE_OPTIONS: --max-old-space-size=8192
+        run: |
+          # VASTGEPINDE versie (ADR-036 OP-53, 2026-08-05). `pip install pyright` zonder pin
+          # installeerde de laatste versie op het moment van de run, en dat maakt een
+          # 0-fouten-baseline niet reproduceerbaar. Gemeten diezelfde dag: pyright upgradede
+          # zichzelf lokaal van 1.1.408 naar 1.1.411 en meldde toen 3 fouten in code die sinds
+          # juni 2026 niet is gewijzigd (subagent_loader.py, system_monitor_agent.py). Met
+          # 1.1.408 op exact dezelfde commit: 0 fouten. Een ongepinde checker kan de poort dus
+          # stil strenger EN stil losser maken; het tweede is erger, want dan verdwijnt een
+          # echte fout zonder dat iemand het merkt.
+          # Verhogen is een BEWUSTE stap: eerst de nieuwe fouten oplossen, dan de pin bijwerken.
+          # Dat is op 2026-08-05 gedaan -- de 3 fouten zijn opgelost en BEIDE versies geven nu 0,
+          # dus de pin staat op de nieuwere. Gemeten op dezelfde commit: 1.1.408 -> 0 fouten,
+          # 1.1.411 -> 0 fouten.
+          # De pin staat sinds deze merge in requirements-test.txt (pyright==1.1.411)
+          # en is dus al geinstalleerd bij "Install dependencies". Een losse
+          # `pip install` hier zou een tweede plek zijn waar de versie staat, en dan
+          # lopen die twee vroeg of laat uit elkaar.
+          pyright
+
+      - name: Cache mypy (.mypy_cache)
+        uses: actions/cache@v4.2.2
+        with:
+          path: .mypy_cache
+          # Invalidate when mypy config, deps, or source layout changes.
+          # python_version is embedded in pyproject.toml so hash covers it.
+          key: mypy-${{ runner.os }}-py${{ env.PYTHON_VERSION }}-${{ hashFiles('pyproject.toml', 'requirements-prod.txt', 'requirements-test.txt') }}
+          restore-keys: |
+            mypy-${{ runner.os }}-py${{ env.PYTHON_VERSION }}-
+
+      - name: Type check (mypy)
+        # continue-on-error verwijderd 2026-07-15 (Rakesh GO, SP-CI-001 dag 7).
+        # `pip install mypy` (ongepind) stond hier tot 2026-08-04 en was de reden dat de
+        # baseline kon weglopen: pip haalde stilzwijgend mypy 2.x op terwijl de 0-baseline
+        # met 1.19.1 was gehaald. De versie staat nu gepind in requirements-test.txt en
+        # is daar al geinstalleerd -- hier niets meer bij-installeren.
+        run: |
+          python scripts/run_mypy_audit.py --fail-on-increase
+
+      # Uitzondering OP-11 gesloten: Lokaal hard geverifieerd dat de migraties schoon
+      # doorlopen op een verse testdatabase. Fouten hierin blokkeren vanaf nu de merge.
+      - name: Run migrations
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/sanskritisetu
+          BM25_INDEX_DIR: /tmp/bm25-indexes
+        run: |
+          mkdir -p /tmp/bm25-indexes
+          alembic -c src/alembic.ini upgrade head
+
+      - name: Guard pytest warning filters
+        run: |
+          if grep -nE 'ignore::gevent\.monkey\._errors\.MonkeyPatchWarning' pyproject.toml; then
+            echo "ERROR: Forbidden pytest warning filter found in pyproject.toml"
+            echo "Use a message-based Warning filter instead to avoid importing optional gevent."
+            exit 1
+          fi
+
+      - name: MCP server syntax check
+        # De MCP server is een nieuwe component (mcp-server/). Syntaxfouten daarin
+        # worden niet gedekt door de reguliere pyright/mypy-stappen (andere sys.path).
+        # py_compile geeft bij de eerste fout direct een leesbare SyntaxError terug.
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            mcp-server/server.py \
+            mcp-server/store.py \
+            mcp-server/tools/coordination.py \
+            mcp-server/tools/quality.py \
+            mcp-server/tools/sprint.py \
+            mcp-server/tools/scripts.py \
+            mcp-server/resources/work_queue.py \
+            mcp-server/resources/dashboard.py
+          echo "MCP server syntax: GROEN."
+
+      # Authoritative step for BE-SVC-043: tenant service refactor.
+      # Keeps the feedback loop tight; full suite runs afterwards as informational.
+      - name: Unit tests (BE-SVC-043 + architecture fitness)
+        timeout-minutes: 15
+        env:
+          ENVIRONMENT: test
+          JWT_SECRET_KEY: test-secret-key-for-ci-pipeline-32c
+          SECRET_KEY: test-secret-key-for-ci-pipeline-32c
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/sanskritisetu
+          REDIS_URL: redis://localhost:6379/0
+          BM25_INDEX_DIR: /tmp/bm25-indexes
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          mkdir -p logs
+          pytest -c pyproject.toml \
+            tests/unit/services/test_tenant_service.py \
+            tests/architecture/test_api_layer.py \
+            tests/architecture/test_tenants_*.py \
+            -x -q --tb=short --timeout=60
+
+      # continue-on-error verwijderd 2026-07-31 (Rakesh GO, OP-11): de stap stond op
+      # "informational", dus een rode unit-suite blokkeerde nooit een merge. Dat is
+      # precies hoe de integratie-baseline van 0 naar 34 failures kon lopen zonder dat
+      # iemand het zag -- met twee echte productiebugs erin verstopt. Baseline op het
+      # moment van deze wijziging: 14.134 passed / 0 failed (gemeten op develop,
+      # commit c9a2eae3).
+      - name: Full unit tests
+        timeout-minutes: 50
+        env:
+          ENVIRONMENT: test
+          JWT_SECRET_KEY: test-secret-key-for-ci-pipeline-32c
+          SECRET_KEY: test-secret-key-for-ci-pipeline-32c
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/sanskritisetu
+          REDIS_URL: redis://localhost:6379/0
+          BM25_INDEX_DIR: /tmp/bm25-indexes
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          # tests/core toegevoegd 2026-07-31 (OP-11): die map viel buiten ZOWEL
+          # `pytest tests/unit/` als `pytest tests/integration/` -- de twee commando's uit
+          # CLAUDE.md -- en draaide dus nergens. Gevolg: 22 failures die niemand zag, en
+          # daaronder drie tests die het ONVEILIGE gedrag vastlegden (consent standaard aan,
+          # consent_given default True, EU-only-residency niet aannemen bij DB-fout) terwijl
+          # de code die defaults al AVG-correct had gemaakt. 341 van de 350 tests zijn nu
+          # groen en staan hiermee onder de gate.
+          #
+          # `--tb=long` en `tee` naar een bestand: bij een ONBEGREPEN failure is de traceback het
+          # bewijs. `--tb=short` gooide precies de regel weg die drie diagnoserondes kostte
+          # (ADR-036 OP-46). `set -o pipefail` hoort erbij, anders maskeert `tee` de exitcode van
+          # pytest en wordt deze stap altijd groen.
+          #
+          # LET OP bij het bewerken van dit blok: `tests/unit/test_ci_skip_documentation.py` eist
+          # dat elke `--ignore=` een `# SKIP:`-regel dicht bij het commando heeft staan. Nieuwe
+          # uitleg hoort HIERBOVEN, niet tussen de SKIP-regels en `pytest` -- dat brak die guard
+          # (gemeten 2026-08-05: 1 failed in de volledige suite).
+          #
+          # test_focus_builder_chat_agent.py was bewust uitgezonderd omdat zijn tests zich op
+          # een oudere generatie van FocusBuilderChatAgent richtten. Die uitzondering is op
+          # 2026-09-17 WEGGEHAALD: het bestand bevat nog VIER tests, ze slagen alle vier, ze
+          # patchen hun afhankelijkheden (get_connected_apps, WorkflowGeneratorAgent) en raken
+          # dus geen netwerk. Gerepareerd op 2026-08-30 in commit 1d3ac699. De verwijzing naar
+          # OP-11 klopte niet: die rij gaat over de integratie-baseline en staat op GESLOTEN.
+          # Bewijs: volledige poort zonder de vlag = 16599 passed, 0 failed (19:40), exact vier
+          # meer dan ermee.
+          #
+          # BEGRENSD EN ZELFDIAGNOSTICEREND (ADR-036 OP-132, tweede ronde).
+          #
+          # Deze stap liep twee keer vast NA de laatste testregel: `15528 passed in 18:38` gevolgd
+          # door 26 minuten stilte, en na de rapportfix `15530 passed in 16:41` gevolgd door 28
+          # minuten. Beide keren stopte het exact 45 minuten na de start van de stap, ongeacht
+          # wanneer de tests klaar waren -- dat is een ONBEPAALDE blokkade en geen trage bewerking.
+          #
+          # Het 1,3 GB JSON-rapport was een echt probleem (64x kleiner, 2 minuten sneller) maar niet
+          # DE oorzaak; dat is met deze meting weerlegd. Lokaal reproduceert de hang niet: Windows,
+          # volle suite single-process, 24:03 en netjes afgesloten met nul non-daemon threads. Het
+          # verschil met CI is de omgeving -- daar draaien echte Postgres- en Redis-containers, dus
+          # daar lopen codepaden die lokaal niet eens starten.
+          #
+          # `timeout --signal=ABRT` plus `PYTHONFAULTHANDLER` maakt de volgende hang zelfverklarend:
+          # leeft pytest nog, dan dumpt SIGABRT alle thread-stacks in de log. Verschijnt daarna
+          # PYTEST-AFGEROND wel maar hangt de stap alsnog, dan zit de blokkade in de pijp naar `tee`
+          # (een kindproces dat stdout openhoudt) en niet in pytest zelf. De grens van 25 minuten
+          # ligt ruim boven de gemeten 16:41 en ruim onder de 45 van de stap, zodat we het antwoord
+          # krijgen in plaats van een doodgeslagen job.
+          #
+          # GRENS VERHOOGD 25m -> 35m, en de stap 45 -> 50 (2026-09-03, samengevoegd bij de merge
+          # van PR #163 met de gelijktijdige BOM-opruimsessie op develop -- zie de -n 2-toelichting
+          # hieronder voor de andere helft van deze samenvoeging). De redenering hierboven
+          # leunde op "ruim boven de gemeten 16:41", en die helft geldt niet meer:
+          #   - run 33648559372 op develop werd op exitcode 124 afgebroken met de suite op 99%,
+          #     dus de tests waren zo goed als klaar toen de grens toesloeg. CI heeft ongeveer 26
+          #     minuten nodig, niet 17.
+          #   - lokaal single-process, exact dit commando, GEMETEN 2026-09-03: 16066 passed /
+          #     215 skipped / 19 xfailed in 30:37, exitcode 0. De suite is dus GROEN; hij past
+          #     alleen niet in 25 minuten. Die 30:37 is met twee reviewagenten op dezelfde
+          #     machine, dus eerder een bovengrens dan een ondergrens.
+          #   - runner-variabiliteit is groot: de Python-job op `main` duurde 26m17s op 1 sept en
+          #     37m08s op 2 sept voor vrijwel dezelfde inhoud. `vitest.config.ts` documenteert
+          #     hetzelfde verschijnsel voor de frontend.
+          #
+          # Dit is GEEN net-zo-lang-wachten-tot-het-slaagt: geen enkele assertie verandert en de
+          # stap blijft blokkerend. Alleen de wandklokgrens schuift mee met een suite die gegroeid
+          # is -- dezelfde afweging die in `vitest.config.ts` al expliciet is vastgelegd.
+          #
+          # Waarom 35 en niet 30: de gemeten behoefte is ongeveer 26 minuten en de spreiding
+          # tussen twee runs was 40%. Waarom de stap naar 50: de 15 minuten tussen de
+          # pytest-grens en de stapgrens zijn de diagnostische ruimte waar de ABRT-stackdump in
+          # moet passen, en die eigenschap blijft zo intact.
+          #
+          # GEMETEN DAT EEN PUNTFIX NIET BESTAAT. Met `--durations=25`: de 25 traagste tests zijn
+          # samen 320 van 1838 seconden, dus 17%. De rest zit verspreid over 16.041 tests van
+          # gemiddeld 114 ms. Trage tests aanpakken lost dit niet op.
+          # `|| rc=$?` is nodig: de stap draait onder `bash -e`, en zonder dit breekt hij bij een
+          # falende pijp af VOORDAT de markeerregel wordt geschreven -- precies in het geval
+          # waarvoor die regel bedoeld is. De exitcode gaat aan het eind alsnog door, dus de poort
+          # blijft blokkerend.
+          #
+          # De pytest-aanroep staat BEWUST op EEN regel en de SKIP-comments staan er direct boven.
+          # `test_no_bare_skip_markers` zoekt een `SKIP:`-comment in de DRIE regels boven elke regel
+          # met een uitsluitingsvlag. Een regelvoortzetting met een backslash schuift die vlag naar
+          # de volgende regel en duwt de comments dus buiten dat venster; dat brak deze guard op
+          # 2026-08-11 (run 31537596643), en de waarschuwing daarvoor stond al in dit blok.
+          #
+          # Let op bij het herschrijven van deze uitleg: die guard kijkt naar TEKST en niet naar
+          # structuur, dus hij betrapt ook een COMMENT waarin de vlag letterlijk voorkomt. Daarom
+          # staat de naam hier omschreven in plaats van uitgeschreven.
+          # tests/contracts toegevoegd 2026-09-01 (OP-180). Die map stond 18 dagen op een
+          # COLLECTIEfout en draaide dus in zijn geheel niet: een import verwees naar een klasse
+          # die de OP-124-fix terecht had verwijderd. Niemand merkte het, omdat de map buiten
+          # deze stap viel -- exact hetzelfde patroon als OP-11 met tests/core, en dat is de reden
+          # dat hij er nu bij staat in plaats van dat het bij een registerrij bleef.
+          #
+          # Waarom dit veilig kan, gemeten en niet aangenomen: `tests/contracts/conftest.py` zegt
+          # dat deze tests de in-memory SQLite van de parent-conftest gebruiken, dezelfde
+          # infrastructuur als tests/unit. Geen Postgres, geen Redis. Gedraaid met exact dit
+          # commando (single-process, -x, zelfde config en marker): 87 passed in 77s.
+          #
+          # CAPACITEITSGRENS, LOS VAN DE OP-132-HANGHYPOTHESE HIERBOVEN (2026-09-03, PR #163).
+          # Gemeten via de GitHub API op de stap-duur van de laatste GROENE run (2026-08-29,
+          # 20m25s bij 15530 tests) tegen de eerstvolgende RODE (2026-09-02, 25m19s bij 16066
+          # tests, rc=124): de marge onder de 25-minutengrens was al maar 4-5 minuten en is door
+          # suite-groei nu op. Dit is dus AANVULLEND op de OP-132-omgevingshang -- niet een
+          # weerlegging ervan, wel een tweede, zelfstandig bewezen oorzaak van hetzelfde symptoom.
+          # `-n 2` toegevoegd (matcht de 2 vCPU's van `ubuntu-latest`, NIET de lokale `-n 4` uit
+          # CLAUDE.md die op een 14-core-machine gemeten is). Risico, EXPLICIET NIET lokaal
+          # geverifieerd: elke xdist-worker laadt de volledige app
+          # (chromadb/sklearn/langchain/numpy/scipy/pandas) in het geheugen; op deze ~7GB-runner
+          # kan dat het reeds gedocumenteerde OOM-worker-crash-patroon van de lokale `-n 8`-les
+          # reproduceren (willekeurige FAILED-tests als symptoom, geen echte falen). Rakesh-GO
+          # voor deze combinatie (2026-09-03): eerste CI-run na deze wijziging is het echte bewijs.
+          # Het vangnet blijft op 35m/50m (de ruimere marge, zie hierboven) en niet op het 30m van
+          # PR #163 -- als -n 2 door de OOM-crash minder oplevert dan gehoopt, wil je die 5 minuten
+          # extra marge hebben in plaats van een tweede afweging tegelijk te doen.
+          #
+          set -o pipefail
+          rc=0
+          # SKIP: Ollama is not available in CI environment
+          # SKIP: Generated E2E tests are skipped (concurrent stress test hangs unit CI job)
+          PYTHONFAULTHANDLER=1 timeout --signal=ABRT --kill-after=60s 35m pytest -c pyproject.toml tests/unit tests/architecture tests/core tests/contracts tests/safety tests/ml -n 2 -x -q --tb=long --timeout=60 -m "not requires_ollama" --ignore=tests/unit/generated_p1_e2e_1.py > pytest-unit-output.txt 2>&1 || rc=$?
+          cat pytest-unit-output.txt
+          echo "PYTEST-AFGEROND rc=$rc (134 = door de 35-minutengrens afgebroken met een stackdump hierboven)"
+          exit $rc
+
+      - name: Validate feature docs
+        # quality-gates.md: elke sprint-dag is pas KLAAR als spec + review aanwezig zijn.
+        # scripts/validate_feature_docs.py controleert dat elk feature-ID in de registries
+        # een bijbehorende spec- en review-file heeft. Exit code != 0 blokkeert de merge.
+        # `if: always()` zodat een falende testrun dit bewijs niet verbergt.
+        if: always()
+        run: |
+          set -euo pipefail
+          python scripts/validate_feature_docs.py
+          echo "Feature docs: GROEN."
+
+      - name: ADR-036 open items ratchet
+        # Bewaakt dat het aantal open ADR-036 registerrijen niet STIJGT t.o.v. de
+        # bekende baseline. Een daling is altijd goed; een stijging blokkeert de merge.
+        # Baseline 2026-09-10: 72 open items (gemeten via scripts/list_adr036_open_items.py).
+        # Verhoog de baseline ALLEEN als Rakesh een bewuste beslissing neemt om nieuwe
+        # open punten te accepteren -- nooit "omdat de sprint klaar is".
+        # Zie MEMORY.md project_adr036_open_count_tool.md voor de tellogica.
+        if: always()
+        run: |
+          set -euo pipefail
+          BASELINE=72
+          CURRENT=$(python scripts/list_adr036_open_items.py --count-only 2>/dev/null || echo "0")
+          echo "ADR-036 open items: huidig=$CURRENT baseline=$BASELINE"
+          if [ "$CURRENT" -gt "$BASELINE" ]; then
+            echo "::error::ADR-036 open items gestegen van $BASELINE naar $CURRENT."
+            echo "::error::Elke stijging moet bewust worden geaccepteerd (OP-nummer + reden)."
+            echo "::error::Zie CLAUDE.md NOOIT-lijst: ADR-036-werk afsluiten zonder --diff-against."
+            exit 1
+          fi
+          echo "ADR-036 ratchet: GROEN ($CURRENT <= $BASELINE)."
+
+      - name: Ratchet op tests die nooit draaien
+        # ADR-036 OP-196 en OP-201. Expliciete GO van Rakesh 2026-09-02 voor deze blokkerende
+        # stap; `quality-gates.md` eist die GO voor een nieuwe poort.
+        #
+        # WAAROM EEN EIGEN STAP EN GEEN TEST. De drie eerdere versies waren een AST-guard in
+        # tests/architecture. Die telde een OPSOMMING VAN SYNTAXVORMEN, en pytest kent er meer:
+        # een onafhankelijke review heeft met echte pytest TWINTIG vormen aangetoond die een test
+        # niet laten draaien terwijl die guard groen bleef -- een alias-van-een-alias, pytestmark
+        # via AnnAssign/AugAssign, pytest.param(marks=...), collect_ignore in een conftest,
+        # allow_module_level, from unittest import skip. Ronde na ronde liep dat van 4 naar 20.
+        # Dit script laat PYTEST ZELF de verzameling opleveren (iter_markers over de verzamelde
+        # items), waarmee al die vormen per CONSTRUCTIE gedekt zijn.
+        #
+        # Dat kan niet IN een test: de collectie van de vier poortmappen kost gemeten 59-70s koud
+        # (16,5s warm, 16.318 tests) en de poortstap hierboven draait met --timeout=60. Een test
+        # die dit als subproces doet wordt gekild.
+        #
+        # `if: always()` zodat een falende testsuite deze meting niet verbergt -- ze meten iets
+        # anders en beide uitkomsten zijn bruikbaar.
+        #
+        # DATABASE_URL: deze stap doet zijn EIGEN pytest-collectie (zie hierboven), en elke
+        # GH Actions-stap heeft een eigen env-scope -- hij erft DATABASE_URL niet van de
+        # voorgaande "Full unit tests"-stap. Zonder deze regel crasht de collectie op
+        # tests/unit/scripts/test_snapshot_security.py: scripts/snapshot_prod_mirror.py gooit
+        # een RuntimeError bij IMPORT (module-level check) als DATABASE_URL ontbreekt. Geen
+        # echte Postgres nodig -- de waarde hoeft alleen aanwezig te zijn, er wordt tijdens
+        # collectie niet mee verbonden. Gemeten in PR #163 (run 33738558674): 1 collectie-
+        # fout zonder deze regel.
+        if: always()
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/sanskritisetu
+        run: |
+          set -o pipefail
+          python scripts/count_disabled_tests.py
+
+      - name: Fail on a crashed xdist worker
+        # ADR-036 OP-46, en dit is de voorwaarde die beide Gate 2-reviewers aan de afwijking
+        # zonder architecture-test hebben gehangen.
+        #
+        # Waarom een aparte stap en niet de exitcode: pytest rapporteert een GECRASHTE worker als
+        # een gewone FAILED op een willekeurige ANDERE test. Bij `-x` kan de run zelfs stoppen op
+        # een test die niets mankeert. Dat beeld -- "elke run faalt een andere test, en los
+        # slagen ze allemaal" -- kostte drie volledige runs en zes weerlegde hypotheses voordat
+        # iemand de crashregel zag. Deze grep maakt de OORZAAK zichtbaar in plaats van het
+        # symptoom.
+        #
+        # Dit toetst een OBSERVABELE en geen aanname. Dat is precies waarom het mag terwijl een
+        # guard op de onbekende oorzaak van OP-46 dat niet mag.
+        if: always()
+        run: |
+          if [ ! -f pytest-unit-output.txt ]; then
+            echo "Geen pytest-output gevonden; de testtstap is niet gedraaid."
+            exit 0
+          fi
+          if grep -qE "worker '[^']+' crashed|node down: Not properly terminated|INTERNALERROR" pytest-unit-output.txt; then
+            echo "::error::Een xdist-worker is gecrasht. De FAILED-test hieronder is het SYMPTOOM,"
+            echo "::error::niet de oorzaak -- pytest meldt de test die de gecrashte worker toevallig"
+            echo "::error::uitvoerde. Zoek de crashregel en de test die er direct voor liep."
+            grep -nE "worker '[^']+' crashed|node down|INTERNALERROR" pytest-unit-output.txt || true
+            exit 1
+          fi
+          echo "Geen gecrashte workers in deze run."
+
+      - name: Bewaar de pytest-output als bewijs
+        # Zonder dit is een niet-reproduceerbare failure alleen te diagnosticeren door hem opnieuw
+        # te laten optreden. Zie OP-46: dat lukte pas na drie runs.
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-unit-output
+          path: pytest-unit-output.txt
+          retention-days: 14
+          if-no-files-found: ignore
+
+  # --------------------------------------------------------------------------
+  # Integratietests: een matrix van shards, elk met een EIGEN PostgreSQL-dienst.
+  #
+  # Brief 2026-10-26. Hier stonden twee stappen in de job `python` ("Tenant integration
+  # tests" en "Integration tests (full suite)", die laatste toegevoegd 2026-07-31, Rakesh GO,
+  # OP-11: zonder haar liep de baseline in vijf weken van 0 naar 34 failures en zaten er twee
+  # echte productiebugs in verstopt). Twee dingen waren stuk, gemeten 2026-10-26:
+  #   1. Geen van beide stappen gaf `SANSKRITISETU_TEST_DATABASE_URL` op (ADR-036 OP-243: de
+  #      testdatabase wordt niet geraden), dus de integratiesuite faalde in de conftest en
+  #      draaide op GitHub niet (run 40282606456).
+  #   2. De hele suite is 3731 tests en kost zonder xdist ~105 minuten (3563 tests in 6000 s,
+  #      lokaal gemeten); de stap had 55 minuten en haalde het einde niet.
+  # Daarom een matrix van shards (`scripts/ci_integratie_shard.py`), elk een deel van de
+  # testbestanden. Een service-container hoort bij een JOB, dus elke shard heeft zijn eigen
+  # PostgreSQL en zijn eigen database `sanskritisetu_test`; ook `max_locks_per_transaction`
+  # van die dienst wordt dus niet gedeeld met andere shards of sessies (lokaal gemeten
+  # "out of shared memory" op de gedeelde testcontainer, bij het opbouwen van 184 tabellen).
+  # Geen xdist binnen een job: tests/integration/conftest.py waarschuwt dat parallelle workers
+  # op een gedeelde database de transactie-isolatie breken.
+  #
+  # NIET GEMETEN op een GitHub-runner: de tijd per shard (lokaal 20-23 minuten per shard).
+  # tests/architecture/test_ci_integratiesuite_past_in_de_tijd.py bewaakt dat elk testbestand
+  # in precies een shard zit en dat de langste shard met veiligheidsfactor in de tijd past.
+  # --------------------------------------------------------------------------
+  integration:
+    name: Integration (shard ${{ matrix.shard }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5]
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          # Een testnaam (test-achtervoegsel): de testsuite wist het schema van deze database
+          # bij de start, en mag dat alleen op een aantoonbare testdatabase.
+          POSTGRES_DB: sanskritisetu_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Een geplande run draait op de default branch; zie tests/architecture/test_scheduled_run_measures_develop.py.
+          ref: ${{ github.event_name == 'schedule' && 'develop' || '' }}
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # De LOCK en de testtooling, zoals in de job `python` hierboven.
+          pip install -r requirements-prod.lock
+          pip install -r requirements-test.txt
+
+      - name: Integration tests (shard ${{ matrix.shard }})
+        timeout-minutes: 45
+        env:
+          ENVIRONMENT: test
+          JWT_SECRET_KEY: test-secret-key-for-ci-pipeline-32c
+          SECRET_KEY: test-secret-key-for-ci-pipeline-32c
+          # tests/integration/conftest.py raadt de database niet (ADR-036 OP-243) en faalt met
+          # TestdatabaseNietOpgegeven zolang deze variabele ontbreekt. Vaste testwaarden van de
+          # dienst hierboven, geen geheim.
+          SANSKRITISETU_TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/sanskritisetu_test
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/sanskritisetu_test
+          REDIS_URL: redis://localhost:6379/0
+          BM25_INDEX_DIR: /tmp/bm25-indexes
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          set -o pipefail
+          mkdir -p /tmp/bm25-indexes
+          # Een lege lijst zou pytest zonder pad laten lopen: dan draait een shard de hele suite.
+          SHARD_BESTANDEN="$(python scripts/ci_integratie_shard.py ${{ matrix.shard }})"
+          if [ -z "$SHARD_BESTANDEN" ]; then
+            echo "::error::Shard ${{ matrix.shard }} heeft geen testbestanden: dat is een fout in scripts/ci_integratie_shard.py."
+            exit 1
+          fi
+          echo "Shard ${{ matrix.shard }}: $(echo "$SHARD_BESTANDEN" | wc -l) testbestanden"
+          # Het VERZAMELDE aantal, door pytest zelf geteld: de onafhankelijke meting tegen de 3731 van 2026-10-26
+          # (de verdeling in het script rekent met een AST-schatting). Een mislukte verzameling telt als 0 en
+          # wordt hier niet verhuld: de echte run hieronder faalt dan zelf met de oorzaak.
+          # shellcheck disable=SC2086
+          VERZAMELD="$(pytest -c pyproject.toml $SHARD_BESTANDEN --collect-only -q -p no:randomly 2>/dev/null | grep -c '::' || true)"
+          echo "shard ${{ matrix.shard }}: ${VERZAMELD} tests verzameld"
+          rc=0
+          # shellcheck disable=SC2086
+          PYTHONFAULTHANDLER=1 timeout --signal=ABRT --kill-after=60s 43m pytest -c pyproject.toml $SHARD_BESTANDEN -q --tb=short --timeout=180 -p no:randomly > pytest-integration-output.txt 2>&1 || rc=$?
+          cat pytest-integration-output.txt
+          echo "PYTEST-AFGEROND rc=$rc"
+          exit $rc
+
+  # --------------------------------------------------------------------------
+  # Any-type baseline monitor op de DEFAULT branch (main).
+  #
+  # Deze job was tot 2026-08-13 de enige plek waar de baseline werd gecontroleerd, en dat
+  # was precies het probleem: cron draait op de default branch, terwijl al het werk naar
+  # develop gaat. De baseline kon daardoor zeven weken "0" beweren terwijl develop naar 40
+  # violations liep. De echte poort staat nu blokkerend in de backend- en frontend-job
+  # hierboven; deze job blijft over als canary op main. Zie BE-CI-006.
+  #
+  # De scope is bewust GEEN `src/` meer: de baseline is vastgelegd over de default scope
+  # (src + scripts). Een run met een andere scope meet een ander getal, en de gate weigert
+  # die vergelijking nu expliciet.
+  # --------------------------------------------------------------------------
+  any-type-baseline:
+    name: Any-type baseline monitor
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # `schedule` vuurt ALTIJD op de default branch (main), die 421 commits achterliep --
+          # zie tests/architecture/test_scheduled_run_measures_develop.py voor de meting.
+          # Leeg bij elk ander event = standaardgedrag, dus ook de merge-ref bij een PR.
+          ref: ${{ github.event_name == 'schedule' && 'develop' || '' }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-prod.txt
+
+      - name: Any-type ratel (geboekte schuld)
+        run: python scripts/check_any_gate.py --mode acknowledged --baseline docs/any_type_baseline.json
+
+      - name: Any-type violations (moet 0 zijn)
+        run: python scripts/check_any_gate.py --mode violations --fail
+
+  # --------------------------------------------------------------------------
+  # Portal: levend-monument-portal (portal/) -- type-check, vitest, build
+  # Losse job naast `frontend`: portal/ is een eigen Vite-app met een eigen
+  # package-lock.json. De stappen zijn gespiegeld aan de scripts in
+  # portal/package.json. Het `lint`-script staat daar WEL in maar is een dode
+  # stub: eslint is geen dependency en er is geen eslint-config in portal/
+  # (gemeten 2026-09-24: `npm run lint` faalt met "eslint is not recognized").
+  # Daarom bewust GEEN lint-stap -- een stap die per constructie altijd rood is
+  # went en maskeert echte failures. Herstel van de lint-toolchain is een eigen
+  # bevinding, zie docs/backend/specs/spec-BE-OPS-portal-ci.md.
+  # Geen fetch-depth 0 nodig: er is geen diff-gebaseerde gate zoals de
+  # any-ratel in de frontend-job.
+  # --------------------------------------------------------------------------
+  portal:
+    name: Portal
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Zelfde schedule-uitzondering als de andere jobs: schedule vuurt op de
+          # default branch; leeg bij elk ander event = standaardgedrag.
+          ref: ${{ github.event_name == 'schedule' && 'develop' || '' }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: portal/package-lock.json
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+      - name: Install dependencies
+        working-directory: portal
+        run: npm ci
+
+      - name: Type check
+        working-directory: portal
+        run: npm run type-check
+
+      - name: Unit tests
+        working-directory: portal
+        run: npm test
+
+      - name: Build check
+        working-directory: portal
+        run: npm run build
+
+  # --------------------------------------------------------------------------
+  # Docker: validate builds + migration chain (catches issues before staging)
+  # --------------------------------------------------------------------------
+  docker-validate:
+    name: Docker Build Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # `schedule` vuurt ALTIJD op de default branch (main), die 421 commits achterliep --
+          # zie tests/architecture/test_scheduled_run_measures_develop.py voor de meting.
+          # Leeg bij elk ander event = standaardgedrag, dus ook de merge-ref bij een PR.
+          ref: ${{ github.event_name == 'schedule' && 'develop' || '' }}
+
+      - name: Build backend (production-api target)
+        run: |
+          docker build --target production-api --load \
+            -t sanskritisetu:ci-check .
+
+      - name: Validate migration chain
+        run: |
+          docker run --rm --pull=never \
+            --entrypoint python3 \
+            -e DATABASE_URL="postgresql://x:x@localhost/x" \
+            sanskritisetu:ci-check \
+            -m alembic -c /app/src/alembic.ini upgrade head --sql \
+            > /dev/null
+
+      - name: Single head check
+        run: |
+          HEADS_RAW=$(docker run --rm --pull=never \
+            --entrypoint python3 \
+            -e DATABASE_URL="postgresql://x:x@localhost/x" \
+            sanskritisetu:ci-check \
+            -m alembic -c /app/src/alembic.ini heads 2>&1)
+          HEAD_COUNT=$(echo "$HEADS_RAW" | grep -c '(head)' || echo "0")
+          if [ "$HEAD_COUNT" -ne 1 ]; then
+            echo "FAIL: ${HEAD_COUNT} heads found, expected 1"
+            echo "$HEADS_RAW"
+            exit 1
+          fi
+          echo "Single head: OK ($HEADS_RAW)"
+
+  # --------------------------------------------------------------------------
+  # Security: basic scanning (high-severity issues block merge)
+  # --------------------------------------------------------------------------
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # `schedule` vuurt ALTIJD op de default branch (main), die 421 commits achterliep --
+          # zie tests/architecture/test_scheduled_run_measures_develop.py voor de meting.
+          # Leeg bij elk ander event = standaardgedrag, dus ook de merge-ref bij een PR.
+          ref: ${{ github.event_name == 'schedule' && 'develop' || '' }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install bandit
+
+      - name: Dependency audit (supply chain)
+        run: |
+          pip install pip-audit==2.9.0
+          # Zie docs/compliance/soc2/risk-register.md sectie 4 en
+          # docs/compliance/soc2/vulnerability-management.md sectie 5 voor de volledige
+          # exploitability-analyse en de 90-dagen herbeoordelingsdatum.
+          # SKIP: chromadb/ecdsa CVEs, geaccepteerd risico, geen upstream-fix (2026-10-13)
+          # SKIP: chromadb cross-tenant RBAC-bypass CVEs, geaccepteerd risico, geen upstream-fix (2026-11-26)
+          # SKIP: python-jose PYSEC-2026-4298 (algoritmeverwarring), voor ons onbereikbaar gemeten, geen herstelde versie (2026-11-22)
+          pip-audit --strict -r requirements-prod.txt --ignore-vuln PYSEC-2026-311 --ignore-vuln PYSEC-2026-1325 --ignore-vuln GHSA-2wm9-hf6c-p5cr --ignore-vuln GHSA-36p7-vc44-83pf --ignore-vuln GHSA-xph7-9rjv-w5fr --ignore-vuln PYSEC-2026-4298
+
+      - name: Bandit security scan
+        run: |
+          bandit -r src/ -ll -ii \
+            -x "tests,tests_reboot,src/alembic" \
+            -f json -o bandit-report.json || true
+
+      - name: Check for critical findings
+        run: |
+          if [ -f bandit-report.json ]; then
+            CRITICAL=$(python3 -c "
+          import json
+          r = json.load(open('bandit-report.json'))
+          results = r.get('results', [])
+          critical = [i for i in results if i['issue_severity'] == 'HIGH' and i['issue_confidence'] == 'HIGH']
+          print(len(critical))
+          ")
+            if [ "$CRITICAL" -gt 0 ]; then
+              echo "ERROR: $CRITICAL high-severity/high-confidence security findings"
+              python3 -c "
+          import json
+          r = json.load(open('bandit-report.json'))
+          for i in r.get('results', []):
+              if i['issue_severity'] == 'HIGH' and i['issue_confidence'] == 'HIGH':
+                  print(f\"  {i['filename']}:{i['line_number']} - {i['issue_text']}\")
+          "
+              exit 1
+            fi
+            echo "No critical security findings."
+          fi
+
+      - name: Bandit MEDIUM (security-kritieke modules)
+        # De reguliere bandit-stap hierboven pakt alleen HIGH+HIGH. Voor auth/tenant/billing
+        # is MEDIUM-severity ook een reeel risico (session handling, privilege escalation,
+        # data leakage). Deze stap scant die modules strenger.
+        # Paden worden gecheckt op bestaan zodat een rename de stap niet blind groen laat.
+        run: |
+          set -euo pipefail
+          SCAN_PATHS=()
+          for p in src/auth/ src/core/tenant/ src/billing/ src/api/v1/auth/ \
+                    src/services/auth/ src/services/tenant/; do
+            [ -d "$p" ] && SCAN_PATHS+=("$p")
+          done
+          if [ "${#SCAN_PATHS[@]}" -eq 0 ]; then
+            echo "::warning::Geen van de verwachte security-kritieke mappen gevonden."
+            echo "::warning::Controleer of de mappenstructuur is gewijzigd en pas de lijst aan."
+            exit 0
+          fi
+          echo "Scanning: ${SCAN_PATHS[*]}"
+          bandit -r "${SCAN_PATHS[@]}" -l -ii \
+            -x "tests,tests_reboot" \
+            -f json -o bandit-medium-report.json || true
+          python3 -c "
+          import json, sys
+          r = json.load(open('bandit-medium-report.json'))
+          findings = [i for i in r.get('results', [])
+                      if i['issue_severity'] in ('HIGH', 'MEDIUM')
+                      and i['issue_confidence'] in ('HIGH', 'MEDIUM')]
+          if not findings:
+              print('Bandit MEDIUM: GROEN -- geen MEDIUM+/MEDIUM+ bevindingen in security-kritieke modules.')
+              sys.exit(0)
+          print(f'::error::{len(findings)} MEDIUM-of-hoger bevindingen in security-kritieke modules.')
+          for i in findings:
+              print(f'  {i[\"filename\"]}:{i[\"line_number\"]} [{i[\"issue_severity\"]}/{i[\"issue_confidence\"]}] {i[\"issue_text\"]}')
+          sys.exit(1)
+          "

@@ -1,0 +1,41 @@
+id: SOP-FIN-BOARD
+description: "Board Report - Draft monthly metric report for board of directors"
+version: "1.0"
+variables:
+  - finance_api_base_url
+  - finance_api_token
+  - cfo_email
+
+steps:
+  - tool: local__openapi_call_endpoint
+    description: "Collect financial metrics"
+    params:
+      base_url: "{finance_api_base_url}"
+      method: "POST"
+      path: "/finance/metrics/collect"
+      headers:
+        Authorization: "Bearer {finance_api_token}"
+      body:
+        scope: "monthly_board"
+
+  - tool: local__llm_generate
+    description: "Analyze financial performance"
+    params:
+      prompt: "Analyze monthly financial performance: revenue vs target, expense analysis, EBITDA margin, cash flow statement, and key variance explanations. Compare with previous month and same period last year."
+
+  - tool: local__llm_generate
+    description: "Compile operational metrics"
+    params:
+      prompt: "Compile operational KPIs: customer acquisition cost, churn rate, NPS score, employee headcount, runway months, and any critical operational events. Include trend analysis."
+
+  - tool: local__llm_generate
+    description: "Draft board report"
+    params:
+      prompt: "Create professional board report with executive summary, financial highlights, operational metrics, risk assessment, strategic recommendations, and next month outlook. Format for board presentation."
+
+  - tool: local__gmail_send_email
+    description: "Send to CFO"
+    params:
+      to: "{cfo_email}"
+      subject: "Monthly Board Report Draft - Ready for Review"
+      body: "{step_3_output}"

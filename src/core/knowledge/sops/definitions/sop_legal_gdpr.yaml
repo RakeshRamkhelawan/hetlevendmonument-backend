@@ -1,0 +1,45 @@
+id: SOP-LEGAL-GDPR
+description: "GDPR Data Request - Compile user data for deletion or access request"
+version: "1.0"
+variables:
+  - dpo_email
+  - compliance_api_base_url
+  - compliance_api_token
+
+steps:
+  - tool: local__llm_generate
+    description: "Identify request type"
+    params:
+      prompt: "Classify the GDPR request type: Right to Access (Article 15), Right to Erasure (Article 17), Right to Rectification (Article 16), or Right to Data Portability (Article 20)."
+
+  - tool: local__openapi_call_endpoint
+    description: "Scan data sources"
+    params:
+      base_url: "{compliance_api_base_url}"
+      method: "POST"
+      path: "/compliance/gdpr/scan-data-sources"
+      headers:
+        Authorization: "Bearer {compliance_api_token}"
+      body:
+        systems:
+          - crm
+          - email
+          - analytics
+          - backups
+
+  - tool: local__llm_generate
+    description: "Compile data inventory"
+    params:
+      prompt: "Create a comprehensive data inventory for the requested user. List all personal data found across systems, data categories (identity, contact, behavioral, financial), processing purposes, and legal basis for each."
+
+  - tool: local__llm_generate
+    description: "Generate compliance report"
+    params:
+      prompt: "Generate GDPR compliance report with: data inventory summary, recommended actions per system, deletion confirmation checklist, and response letter draft for the data subject. Ensure 30-day deadline compliance."
+
+  - tool: local__gmail_send_email
+    description: "Send to DPO"
+    params:
+      to: "{dpo_email}"
+      subject: "GDPR Request - Data Compiled for Review"
+      body: "{step_3_output}"

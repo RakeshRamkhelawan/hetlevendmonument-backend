@@ -1,0 +1,20 @@
+agent_id: "zzp.zzp_finance.profitoptimizer.001"
+name: "ProfitOptimizerAgent"
+department: "zzp_finance"
+technology: "ML"
+module_path: "src.core.als.agents.zzp.zzp_finance"
+class_name: "ProfitOptimizerAgent"
+description: "Analyzes project profitability and suggests rate increases."
+is_active: true
+priority: "MEDIUM"
+version: "1.0.0"
+allowed_tools: ["roi_calculator", "market_rates_api"]
+ooda_profile:
+  observe:
+    data_sources: ["solo_business_data", "social_apis"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.85
+  act:
+    tools: ["roi_calculator", "market_rates_api"]

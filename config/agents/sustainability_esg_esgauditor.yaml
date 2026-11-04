@@ -1,0 +1,20 @@
+agent_id: "ext.sustainability_esg.esgauditor.001"
+name: "ESGAuditorAgent"
+department: "sustainability_esg"
+technology: "LLM"
+module_path: "src.core.als.agents.specialists.sustainability_esg"
+class_name: "ESGAuditorAgent"
+description: "Audits corporate actions against ESG standards."
+is_active: true
+priority: "HIGH"
+version: "1.0.0"
+allowed_tools: ["esg_frameworks", "emissions_calculator"]
+ooda_profile:
+  observe:
+    data_sources: ["external_api", "internal_lake"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.90
+  act:
+    tools: ["esg_frameworks", "emissions_calculator"]

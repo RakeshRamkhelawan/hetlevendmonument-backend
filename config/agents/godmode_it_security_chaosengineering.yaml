@@ -1,0 +1,20 @@
+agent_id: "godmode.it_security.chaosengineering.001"
+name: "ChaosEngineeringAgent"
+department: "it_security"
+technology: "ML"
+module_path: "src.core.als.agents.godmode.it_security"
+class_name: "ChaosEngineeringAgent"
+description: "Simulates failures to test resilience."
+is_active: true
+priority: "CRITICAL"
+version: "1.0.0"
+allowed_tools: ["docker_api", "network_disruptor"]
+ooda_profile:
+  observe:
+    data_sources: ["global_signals", "deep_context"]
+  orient:
+    model: "gpt-4o"
+  decide:
+    confidence_threshold: 0.95
+  act:
+    tools: ["docker_api", "network_disruptor"]

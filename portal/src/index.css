@@ -1,0 +1,31 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 5.5rem;
+  }
+
+  body {
+    @apply bg-[#FDFBF7] text-stone-800 font-sans;
+  }
+
+  h1, h2, h3, h4, .font-serif {
+    font-family: 'Playfair Display Variable', 'Playfair Display', Georgia, serif;
+  }
+
+  /* WCAG 2.1 AA & 2.2 focus-visible indicator */
+  *:focus-visible {
+    outline: 2px solid #b45309;
+    outline-offset: 2px;
+  }
+}
+
+.maplibregl-popup-content {
+  border-radius: 0.75rem;
+  padding: 0.75rem 1rem;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  font-family: 'DM Sans Variable', 'DM Sans', sans-serif;
+}

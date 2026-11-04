@@ -1,0 +1,30 @@
+id: SOP-HR-ONBOARDING
+description: "New Employee Onboarding Flow"
+version: "1.1"
+variables:
+  - employee_name
+  - start_date
+  - department
+  - employee_email
+  - it_project_key
+
+steps:
+  - tool: local__llm_generate
+    description: "Draft Welcome Email"
+    params:
+      prompt: "Write a warm welcome email for {employee_name} joining the {department} team on {start_date}."
+
+  - tool: local__gmail_send_email
+    description: "Send Welcome Packet"
+    params:
+      to: "{employee_email}"
+      subject: "Welcome to SanskritiSetu!"
+      body: "{step_0_output}"
+
+  - tool: local__jira_create_issue
+    description: "Request IT Hardware"
+    params:
+      project_key: "{it_project_key}"
+      issue_type: "Task"
+      summary: "Provision laptop for {employee_name}"
+      description: "Prepare onboarding hardware for {employee_name} in {department} before {start_date}."

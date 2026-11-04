@@ -1,0 +1,20 @@
+agent_id: "ext.logistics_trade.customscompliance.001"
+name: "CustomsComplianceAgent"
+department: "logistics_trade"
+technology: "LLM"
+module_path: "src.core.als.agents.specialists.logistics_trade"
+class_name: "CustomsComplianceAgent"
+description: "Ensures international shipments meet all customs regulations."
+is_active: true
+priority: "HIGH"
+version: "1.0.0"
+allowed_tools: ["tariffs_db", "import_export_validator"]
+ooda_profile:
+  observe:
+    data_sources: ["external_api", "internal_lake"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.90
+  act:
+    tools: ["tariffs_db", "import_export_validator"]

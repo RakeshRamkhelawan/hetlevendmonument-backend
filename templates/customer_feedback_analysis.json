@@ -1,0 +1,82 @@
+{
+  "template_id": "customer_feedback_analysis",
+  "name": "Customer Feedback Analysis",
+  "category": "customer_service",
+  "description": "Analyze customer feedback, extract sentiment and categorize issues",
+  "spec": {
+    "nodes": [
+      {
+        "id": "input",
+        "type": "data_source",
+        "config": {
+          "source": "{{feedback_source}}",
+          "format": "{{data_format}}"
+        }
+      },
+      {
+        "id": "sentiment_analysis",
+        "type": "llm",
+        "config": {
+          "model": "{{llm_model}}",
+          "prompt": "Analyze sentiment of this feedback: {{feedback_text}}. Return sentiment (positive/negative/neutral) and confidence score (0-100)."
+        }
+      },
+      {
+        "id": "categorize",
+        "type": "llm",
+        "config": {
+          "model": "{{llm_model}}",
+          "prompt": "Categorize this feedback: {{feedback_text}}. Categories: product, service, pricing, usability, feature_request. Return primary category."
+        }
+      },
+      {
+        "id": "extract_entities",
+        "type": "llm",
+        "config": {
+          "model": "{{llm_model}}",
+          "prompt": "Extract key entities from this feedback: {{feedback_text}}. Return as JSON with keys: product_features, issues, suggestions."
+        }
+      },
+      {
+        "id": "alert_threshold",
+        "type": "conditional",
+        "config": {
+          "condition": "sentiment_analysis.sentiment == 'negative' and sentiment_analysis.confidence > 80",
+          "true_next": "send_alert",
+          "false_next": "store_results"
+        }
+      },
+      {
+        "id": "send_alert",
+        "type": "notification",
+        "config": {
+          "channels": ["slack#feedback-alerts", "email"],
+          "message": "🚨 Negative Feedback Alert!\nSentiment: {{sentiment_analysis.sentiment}} ({{sentiment_analysis.confidence}}%)\nCategory: {{categorize.category}}\nFeedback: {{feedback_text}}"
+        }
+      },
+      {
+        "id": "store_results",
+        "type": "database",
+        "config": {
+          "table": "feedback_analysis_results",
+          "columns": {
+            "feedback_text": "{{feedback_text}}",
+            "sentiment": "{{sentiment_analysis.sentiment}}",
+            "confidence": "{{sentiment_analysis.confidence}}",
+            "category": "{{categorize.category}}",
+            "entities": "{{extract_entities.entities}}",
+            "timestamp": "{{now()}}"
+          }
+        }
+      }
+    ]
+  },
+  "required_integrations": ["llm", "slack", "database"],
+  "estimated_setup_time_minutes": 15,
+  "parameters": {
+    "feedback_source": "google_forms",
+    "data_format": "json",
+    "llm_model": "gpt-4",
+    "feedback_text": "Sample customer feedback text for analysis"
+  }
+}

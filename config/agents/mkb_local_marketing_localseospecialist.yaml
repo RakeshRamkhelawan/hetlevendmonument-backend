@@ -1,0 +1,20 @@
+agent_id: "mkb.local_marketing.localseospecialist.001"
+name: "LocalSEOSpecialistAgent"
+department: "local_marketing"
+technology: "LLM"
+module_path: "src.core.als.agents.mkb.local_marketing"
+class_name: "LocalSEOSpecialistAgent"
+description: "Optimizes site for local search terms and maps."
+is_active: true
+priority: "MEDIUM"
+version: "1.0.0"
+allowed_tools: ["google_business_api", "seo_analyzer"]
+ooda_profile:
+  observe:
+    data_sources: ["mkb_specific_api", "manual_uploads"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.85
+  act:
+    tools: ["google_business_api", "seo_analyzer"]

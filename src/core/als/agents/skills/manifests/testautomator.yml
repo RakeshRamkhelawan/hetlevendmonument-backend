@@ -1,0 +1,59 @@
+skill_id: testautomator
+class_name: TestAutomatorSkill
+department: it_security
+annex_iii_classification: none
+human_in_the_loop: hotl
+technology: llm
+role: Test Automator Specialist
+goal: Execute test automator tasks using allowed tools, tenant-scoped data and the
+  OODA loop.
+system_prompt: 'You are the Test Automator Specialist for your tenant.
+
+  Department context: Cloud, DevOps, code review, database, MLOps, security operations
+  and QA.
+
+  Follow the OODA loop: observe the task, orient using available data, and decide
+  on the best course of action.
+
+  You do not have working tools available yet -- provide your analysis and recommendation
+  as a concise final answer, in text, without attempting a TOOL_CALL.
+
+  Never invent data; if information is missing, say so explicitly.'
+allowed_tools:
+- query_database
+- run_code_analysis
+- run_security_scan
+- execute_shell_command
+- search_web
+- create_ticket
+memory:
+  read:
+  - it_security
+  - shared
+  write:
+  - testautomator
+input_schema:
+  type: object
+  properties:
+    task:
+      type: string
+    context:
+      type: object
+  required:
+  - task
+output_schema:
+  type: object
+  properties:
+    summary:
+      type: string
+    details:
+      type: object
+    confidence:
+      type: number
+  required:
+  - summary
+budget:
+  max_steps: 8
+  max_llm_calls: 5
+  timeout_seconds: 60
+  prana_cost_limit: 100

@@ -1,0 +1,75 @@
+"""
+Unit tests voor Admin domein: admin user aanmaken, rechten toekennen, edge cases
+"""
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../src')))
+import pytest
+from fastapi.testclient import TestClient
+
+
+@pytest.mark.skip(reason="Endpoint not yet implemented - Phase 2/3 feature")
+def test_create_admin_user_success(client):
+    response = client.post("/api/admin/create_user", json={
+        "username": "adminuser",
+        "email": "admin@example.com",
+        "password": "Admin1234!"
+    })
+    assert response.status_code == 201
+    assert "id" in response.json()
+
+@pytest.mark.skip(reason="Endpoint not yet implemented - Phase 2/3 feature")
+def test_assign_role_success(client):
+    # Eerst admin user aanmaken
+    reg = client.post("/api/admin/create_user", json={
+        "username": "roleuser",
+        "email": "roleuser@example.com",
+        "password": "Role1234!"
+    })
+    user_id = reg.json().get("id")
+    # Dan rol toekennen
+    response = client.post(f"/api/admin/assign_role/{user_id}", json={"role": "editor"})
+    assert response.status_code == 200
+    assert response.json().get("role") == "editor"
+
+def test_assign_role_user_not_found(client):
+    response = client.post("/api/admin/assign_role/999999", json={"role": "editor"})
+    assert response.status_code == 404
+
+@pytest.mark.skip(reason="Endpoint not yet implemented - Phase 2/3 feature")
+def test_create_admin_missing_fields(client):
+    response = client.post("/api/admin/users", json={"email": ""})
+    assert response.status_code in (400, 422)
+
+@pytest.mark.skip(reason="Endpoint not yet implemented - Phase 2/3 feature")
+def test_create_admin_invalid_email(client):
+    response = client.post("/api/admin/users", json={"email": "notanemail", "password": "Test1234!"})
+    assert response.status_code in (400, 422)
+
+@pytest.mark.skip(reason="Endpoint not yet implemented - Phase 2/3 feature")
+def test_create_admin_duplicate_email(client):
+    client.post("/api/admin/users", json={"email": "dupadmin@example.com", "password": "Test1234!"})
+    response = client.post("/api/admin/users", json={"email": "dupadmin@example.com", "password": "Test1234!"})
+    assert response.status_code in (400, 409)
+
+@pytest.mark.skip(reason="Endpoint not yet implemented - Phase 2/3 feature")
+def test_admin_boundary_values(client):
+    long_email = ("e" * 64) + "@example.com"
+    response = client.post("/api/admin/users", json={"email": long_email, "password": "Test1234!"})
+    assert response.status_code in (201, 400, 422)
+
+def test_admin_tenant_isolation(client):
+    # Simuleer admin aanmaken onder verschillende tenants (mock context vereist)
+    pass
+
+def test_admin_audit_logging(monkeypatch):
+    # Mock audit log en controleer aanroep bij admin aanmaken
+    pass
+
+def test_admin_concurrent_creation(monkeypatch):
+    # Simuleer gelijktijdige admin creatie requests (threading of async)
+    pass
+
+def test_admin_rollback_on_db_failure(monkeypatch):
+    # Forceer DB-fout tijdens admin creatie, controleer rollback
+    pass

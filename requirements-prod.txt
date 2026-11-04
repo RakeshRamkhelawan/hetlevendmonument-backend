@@ -1,0 +1,54 @@
+# Input file for pip-compile. DO NOT install directly in production.
+# Use: pip install -r requirements-prod.lock
+# Update lockfile: pip-compile requirements-prod.txt --generate-hashes --output-file=requirements-prod.lock --strip-extras
+# ============================================================================
+
+-r requirements-base.txt
+
+# ==================== DEPENDENCY RESOLUTION FIX ====================
+importlib-metadata>=6.0           # Widen to satisfy transitive constraints
+
+# ==================== LANGCHAIN ECOSYSTEM (0.3.x COMPATIBLE SET) ====================
+# All packages aligned to langchain-core 0.3.x ecosystem
+# Let pip resolve the exact versions - only pin minimums
+langchain-core>=0.3.80         # Core abstractions with security fix
+langchain>=0.3.21              # Main library
+langchain-community>=0.3.20    # Community integrations
+langchain-google-genai>=2.0.10 # Google GenAI (supports core 0.3.x)
+langgraph>=0.2.50              # Workflow orchestration (0.2.x compatible with 0.3.x core)
+
+# ==================== SEARCH & RETRIEVAL (LIGHTWEIGHT) ====================
+bm25s==0.2.14                  # Lightweight BM25 search (no PyTorch)
+# 0.2.0 -> 0.2.14 (2026-08-05): 0.2.0 heeft een ongeldige escape-sequence in een
+# docstring (tokenization.py:372). Met pytest's filterwarnings=["error"] is dat een
+# harde importfout, en die wordt door de router-registries als `except Exception`
+# opgeslikt -- resultaat: routers stil niet geregistreerd. Alleen zichtbaar bij een
+# VERSE install, want de waarschuwing komt van de eerste compilatie; met een bestaande
+# .pyc zwijgt hij. De Dockerfile installeert met --no-compile, dus daar altijd.
+tavily-python>=0.7.17          # Web search API
+
+# ==================== ML DEPENDENCIES (CPU ONLY - NO PYTORCH) ====================
+# Feature 4: Tool Predictions - Uses scikit-learn only
+scikit-learn>=1.3.0            # ML algorithms (CPU-based, ~50MB)
+joblib>=1.3.0                  # Model persistence
+pandas>=2.0.0                  # src/core/subagents/specialists/data_analysis_agent.py
+scipy>=1.11.0                  # src/core/subagents/specialists/data_analysis_agent.py
+
+# ==================== EMBEDDINGS STRATEGY ====================
+# Use Google's Embedding API via langchain-google-genai
+# NO sentence-transformers = NO PyTorch = NO CUDA = Fast builds
+#
+# GoogleGenerativeAIEmbeddings from langchain-google-genai:
+#   from langchain_google_genai import GoogleGenerativeAIEmbeddings
+#   embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
+
+# ==================== MISSING FROM REQUIREMENTS-BASE (PROD CODE DEPS) ====================
+# These are imported at module level in src/ and exercised by unit tests.
+# They are NOT in requirements-base.txt or requirements-ml.txt.
+rapidfuzz>=3.0.0               # src/core/scheduling/nlp/fuzzy.py
+python-dateutil>=2.8.0         # src/core/scheduling/nlp/entities.py
+dnspython>=2.3.0               # src/core/security/egress_control.py
+chromadb>=0.4.0                # src/core/knowledge/tenant_vector_manager.py
+packaging>=23.0                # src/core/security/security_guard.py
+jsonschema>=4.0.0              # src/core/contracts/capability.py
+openai>=1.0.0                  # src/core/agents/router_agent_service.py (top-level import)

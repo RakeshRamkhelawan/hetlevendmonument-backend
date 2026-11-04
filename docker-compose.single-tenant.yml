@@ -1,0 +1,48 @@
+services:
+  backend:
+    image: sanskritisetuacr.azurecr.io/backend:latest
+    env_file: .env
+    ports:
+      - "8110:8110"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8110/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  postgres:
+    image: pgvector/pgvector:pg15
+    environment:
+      POSTGRES_USER: "${DB_USER:-postgres}"
+      POSTGRES_PASSWORD: "${DB_PASSWORD}"
+      POSTGRES_DB: "${DB_NAME:-sanskritisetu}"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    # DB_PASSWORD wordt hergebruikt als Redis-wachtwoord (1 operator-secret voor deze
+    # single-host deployment, zie docs/deployment/single-tenant-guide.md).
+    command: >
+      redis-server
+      --requirepass ${DB_PASSWORD:?DB_PASSWORD is verplicht (zelfde secret als PostgreSQL)}
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redisdata:/data
+
+volumes:
+  pgdata:
+  redisdata:

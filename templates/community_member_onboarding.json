@@ -1,0 +1,80 @@
+{
+  "template_id": "community_member_onboarding",
+  "name": "Community Member Onboarding",
+  "category": "multi_step_workflows",
+  "description": "Complete onboarding workflow for new community members",
+  "spec": {
+    "nodes": [
+      {
+        "id": "member_registration",
+        "type": "form_submission",
+        "config": {
+          "form_id": "{{registration_form_id}}",
+          "required_fields": ["email", "name", "interests"]
+        }
+      },
+      {
+        "id": "send_welcome",
+        "type": "email",
+        "config": {
+          "template": "{{welcome_email_template}}",
+          "recipient": "{{member_registration.email}}",
+          "sender": "{{community_email}}"
+        }
+      },
+      {
+        "id": "add_to_groups",
+        "type": "community_platform",
+        "config": {
+          "action": "add_to_groups",
+          "groups": "{{onboarding_groups}}",
+          "member_id": "{{member_registration.member_id}}"
+        }
+      },
+      {
+        "id": "schedule_training",
+        "type": "calendar",
+        "config": {
+          "action": "create_event",
+          "title": "Community Onboarding Session",
+          "attendees": ["{{member_registration.email}}", "{{community_manager_email}}"],
+          "duration_minutes": 60,
+          "buffer_days": 2
+        }
+      },
+      {
+        "id": "create_profile",
+        "type": "database",
+        "config": {
+          "operation": "insert",
+          "table": "community_members",
+          "columns": {
+            "member_id": "{{member_registration.member_id}}",
+            "email": "{{member_registration.email}}",
+            "name": "{{member_registration.name}}",
+            "interests": "{{member_registration.interests}}",
+            "joined_at": "{{now()}}",
+            "status": "onboarding"
+          }
+        }
+      },
+      {
+        "id": "notify_team",
+        "type": "notification",
+        "config": {
+          "channels": ["slack#community"],
+          "message": "👋 New member onboarded!\nName: {{member_registration.name}}\nEmail: {{member_registration.email}}\nInterests: {{member_registration.interests}}\nTraining scheduled: {{schedule_training.event_time}}"
+        }
+      }
+    ]
+  },
+  "required_integrations": ["form", "email", "community_platform", "calendar", "database", "notification"],
+  "estimated_setup_time_minutes": 20,
+  "parameters": {
+    "registration_form_id": "community_onboarding_form",
+    "welcome_email_template": "Welcome to our community {{name}}! We're excited to have you join us.",
+    "community_email": "community@organization.org",
+    "onboarding_groups": ["introductions", "announcements", "resources"],
+    "community_manager_email": "manager@organization.org"
+  }
+}

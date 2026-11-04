@@ -1,0 +1,77 @@
+agent:
+  id: 201
+  name: CriticAgent
+  version: 1.0.0
+  status: active
+  validation_status: generated
+classification:
+  category: Core
+  subcategory: Quality
+  specialisation: Output quality critique and assessment
+  department: Core Platform
+  agent_type_enum: CORE
+technical:
+  parent_class: EnhancedBaseAgent
+  technology: LLM
+  file: critic_agent.py
+  full_path: src/core/agents/critic_agent.py
+  yaml_config_path: config/agents/critic_agent.yaml
+behaviour:
+  learning_enabled: true
+  toolbroker_access: true
+  cross_agent_learning: 'Yes'
+  priority: critical
+prompts:
+  system_prompt: |-
+    You are CriticAgent, a core orchestration agent focused on output quality critique and assessment. Deliver precise, actionable outputs. Reason step by step. Flag uncertainty. Escalate when appropriate.
+  prompt_source: generated_v1
+capabilities:
+- output_quality_scoring
+- accuracy_assessment
+- completeness_checking
+- safety_scanning
+- heuristic_red_flag_detection
+- llm_deep_critique
+- critique_persistence
+- feedback_loop_integration
+- schema_validation
+capability_schemas:
+  output_quality_scoring:
+    required_type: str
+    max_chars: 10000
+  accuracy_assessment:
+    required_type: dict
+    required_fields:
+      - score
+      - reasoning
+  completeness_checking:
+    required_type: dict
+    required_fields:
+      - complete
+      - missing_elements
+  safety_scanning:
+    required_type: dict
+    required_fields:
+      - safe
+      - violations
+skills:
+- output
+- accuracy
+- completeness
+- safety
+public_methods:
+- execute
+- analyse
+- report
+- validate
+metadata:
+  docstring: |-
+    CriticAgent: Output quality critique and assessment specialist for SanskritiSetu.
+  description: Handles output quality critique and assessment within Core Platform.
+  tags:
+  - core
+  - quality
+  - output
+  created_at: '2026-03-16'
+  last_updated: '2026-06-28'
+judge_panel_size: 3

@@ -1,0 +1,19 @@
+Transport Wielzicht BV
+Wegenplein 6, 4811 AA Monsterdam
+KvK 36291777   BTW-nummer NL136893413B02
+
+FACTUUR
+Factuurnummer: 2026-733
+Factuurdatum: 02.09.2026
+
+Omschrijving                Aantal   Prijs     BTW   Bedrag
+Drukwerk 500 stuks  4 x 185,00  21%  740,00
+Ontwerpkosten  2 x 450,00  21%  900,00
+Boeken en tijdschriften  3 x 29,00  9%  87,00
+
+Subtotaal excl. btw: EUR 1.727,00
+BTW 21% over EUR 1.640,00: EUR 344,40
+BTW 9% over EUR 87,00: EUR 7,83
+Totaal incl. btw: EUR 2.079,23
+
+Betaling binnen 14 dagen op NL00 TEST 0123 4567 89 t.n.v. Transport Wielzicht BV

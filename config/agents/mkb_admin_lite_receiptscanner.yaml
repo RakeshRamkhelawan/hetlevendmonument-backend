@@ -1,0 +1,20 @@
+agent_id: "mkb.admin_lite.receiptscanner.001"
+name: "ReceiptScannerAgent"
+department: "admin_lite"
+technology: "Vision"
+module_path: "src.core.als.agents.mkb.admin_lite"
+class_name: "ReceiptScannerAgent"
+description: "Uses OCR to extract data from photos of receipts."
+is_active: true
+priority: "MEDIUM"
+version: "1.0.0"
+allowed_tools: ["ocr_processor", "accounting_bridge"]
+ooda_profile:
+  observe:
+    data_sources: ["mkb_specific_api", "manual_uploads"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.85
+  act:
+    tools: ["ocr_processor", "accounting_bridge"]

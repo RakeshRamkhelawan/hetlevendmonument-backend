@@ -1,0 +1,231 @@
+{
+  "versie": 1,
+  "beschrijving": "Vijf fictieve demoverhalen voor Het Levend Monument. Elk item heeft metadata.fictief = true.",
+  "items": [
+    {
+      "type": "story",
+      "language": "nl",
+      "privacy": "public",
+      "visibility": "public",
+      "status": "approved",
+      "rights_confirmed": true,
+      "is_anonymous": false,
+      "creator_name": "Het Levend Monument (redactie)",
+      "license": "CC BY-NC 4.0",
+      "category": "verhalen",
+      "slug": "paramaribo-1863",
+      "title_nl": "Paramaribo, 1 juli 1863: de dag van de gebroken keten",
+      "title_en": "Paramaribo, 1 July 1863: the day of the broken chain",
+      "description_nl": "Afi hoort op 1 juli 1863 dat de slavernij voorbij is. Maar vrij is ze nog niet. (Fictief verhaal)",
+      "description_en": "On 1 July 1863 Afi hears that slavery has ended. But she is not free yet. (Fictional story)",
+      "body_nl": "Dit is een fictief verhaal. De personen zijn verzonnen; de gebeurtenissen op de achtergrond zijn echt gebeurd.\n\nHet is nog donker als Afi wakker wordt. Ze hoort geen hanen. Ze hoort mensen. Overal in de stad lopen mensen naar het plein bij het Gouvernementshuis.\n\nAfi wast al twintig jaar de kleren van een koopmansfamilie aan de Waterkant. Vandaag laat ze de wasmand staan. Niemand houdt haar tegen.\n\nOp het plein leest een man een tekst voor. Het is de nieuwe wet uit Nederland. Afi verstaat niet alles. Maar ze verstaat het woord \"vrij\". Om haar heen huilen mensen. Iemand zingt. Een oude man knielt in het zand.\n\nDan hoort ze de rest. Iedereen tussen vijftien en zestig jaar moet nog tien jaar blijven werken. Onder toezicht van de staat. Met een contract, en met loon. Afi is zevenendertig.\n\nLater die dag hoort ze nog iets. De eigenaren krijgen geld. Driehonderd gulden voor elke mens die zij \"bezaten\". Afi krijgt niets. Haar moeder kreeg niets. Haar zoon Kofi, die op een plantage in Commewijne werkt, krijgt ook niets.\n\n's Avonds trekt Afi haar mooiste kleren aan. Ze bindt een hoofddoek om, in felle kleuren. Ze wil dat iedereen ziet dat deze dag anders is.\n\n\"Keti koti,\" zegt haar buurvrouw. De keten is gebroken.\n\n\"Nog niet helemaal,\" zegt Afi. \"Maar er zit een barst in.\"\n\nNu, meer dan honderdvijftig jaar later, vieren mensen elk jaar op 1 juli Keti Koti. Ook in Nederland. Ze denken dan aan mensen zoals Afi.",
+      "lat": 5.8261,
+      "lng": -55.152,
+      "location_name": "Paramaribo, Suriname",
+      "metadata": {
+        "fictief": true,
+        "periode": "1863",
+        "thema": [
+          "afschaffing slavernij",
+          "Keti Koti",
+          "staatstoezicht"
+        ],
+        "bronnen": [
+          {
+            "titel": "1863 of 1873? Wanneer werd de slavernij nou (echt) afgeschaft?",
+            "uitgever": "NOS",
+            "url": "https://nos.nl/l/2339475"
+          },
+          {
+            "titel": "Op 1 juli 1863 47 duizend slaven vrijgemaakt in Suriname en op de Antillen",
+            "uitgever": "CBS",
+            "url": "https://www.cbs.nl/nl-nl/achtergrond/2013/27/op-1-juli-1863-47-duizend-slaven-vrijgemaakt-in-suriname-en-op-de-antillen"
+          }
+        ]
+      }
+    },
+    {
+      "type": "story",
+      "language": "nl",
+      "privacy": "public",
+      "visibility": "public",
+      "status": "approved",
+      "rights_confirmed": true,
+      "is_anonymous": false,
+      "creator_name": "Het Levend Monument (redactie)",
+      "license": "CC BY-NC 4.0",
+      "category": "verhalen",
+      "slug": "commewijne-1873",
+      "title_nl": "Commewijne, 1873: Kofi loopt weg, Sita komt aan",
+      "title_en": "Commewijne, 1873: Kofi walks away, Sita arrives",
+      "description_nl": "Na tien jaar staatstoezicht verlaat Kofi de plantage. Op dezelfde dag ziet hij nieuwe arbeiders uit India. (Fictief verhaal)",
+      "description_en": "After ten years of state supervision Kofi leaves the plantation. That same day he sees new workers from India. (Fictional story)",
+      "body_nl": "Dit is een fictief verhaal. De personen zijn verzonnen; de gebeurtenissen op de achtergrond zijn echt gebeurd.\n\nKofi is de zoon van Afi. Tien jaar geleden hoorde zijn moeder in Paramaribo dat de slavernij voorbij was. Voor Kofi veranderde er weinig. Hij moest blijven werken, op een plantage aan de rivier in Commewijne. Hij kreeg een klein loon. Maar zomaar weggaan mocht hij niet.\n\nOp 1 juli 1873 is het staatstoezicht afgelopen. Kofi pakt een zak met kleren, een mes en een pan. Hij kijkt nog \u00e9\u00e9n keer naar het suikerriet. Dan loopt hij naar de rivier.\n\nVeel mensen gaan weg die dag. De plantage loopt leeg. De eigenaar vloekt. Wie moet nu het riet snijden?\n\nBij de steiger ligt een boot uit Paramaribo. Er stappen mensen uit die Kofi nog nooit heeft gezien. Vrouwen met zilveren armbanden. Mannen met witte doeken om hun hoofd. Ze komen uit India, hoort hij. Een paar weken eerder kwam hun schip aan in Paramaribo: de Lalla Rookh.\n\nEen jonge vrouw van zijn leeftijd draagt een koperen pot. Ze heet Sita, zegt een opzichter. Ze heeft een contract getekend voor vijf jaar. Ze kan de taal niet lezen waarin het geschreven is.\n\nKofi kijkt naar haar. Zij kijkt naar hem. Ze zeggen niets, want ze spreken geen gemeenschappelijke taal.\n\nKofi denkt aan zijn moeder. Een keten kan breken, zei ze. Maar soms smeden mensen er een nieuwe. Een andere vorm, een ander papier.\n\nHij knikt naar Sita. Zij knikt terug. Dan stapt hij in de boot. Zij loopt het pad op, naar de barakken waar hij tien jaar heeft geslapen.",
+      "lat": 5.88,
+      "lng": -55.09,
+      "location_name": "Commewijne, Suriname (fictieve plantage)",
+      "metadata": {
+        "fictief": true,
+        "periode": "1873",
+        "thema": [
+          "einde staatstoezicht",
+          "contractarbeid",
+          "Hindostaanse migratie"
+        ],
+        "bronnen": [
+          {
+            "titel": "1863 of 1873? Wanneer werd de slavernij nou (echt) afgeschaft?",
+            "uitgever": "NOS",
+            "url": "https://nos.nl/l/2339475"
+          },
+          {
+            "titel": "Op 1 juli 1863 47 duizend slaven vrijgemaakt in Suriname en op de Antillen",
+            "uitgever": "CBS",
+            "url": "https://www.cbs.nl/nl-nl/achtergrond/2013/27/op-1-juli-1863-47-duizend-slaven-vrijgemaakt-in-suriname-en-op-de-antillen"
+          },
+          {
+            "titel": "150 jaar Hindostaanse migratie naar Suriname",
+            "uitgever": "NOS",
+            "url": "https://nos.nl/l/2465346"
+          }
+        ]
+      }
+    },
+    {
+      "type": "story",
+      "language": "nl",
+      "privacy": "public",
+      "visibility": "public",
+      "status": "approved",
+      "rights_confirmed": true,
+      "is_anonymous": false,
+      "creator_name": "Het Levend Monument (redactie)",
+      "license": "CC BY-NC 4.0",
+      "category": "verhalen",
+      "slug": "schiedam-1602",
+      "title_nl": "Schiedam, 1602: het gezicht op het uithangbord",
+      "title_en": "Schiedam, 1602: the face on the sign",
+      "description_nl": "Boven de deur van herberg De Moriaan hangt een zwart gezicht. In de keuken werkt een jongen die niemand bij zijn naam noemt. (Fictief verhaal)",
+      "description_en": "Above the door of the inn De Moriaan hangs a Black face. In the kitchen works a boy nobody calls by his name. (Fictional story)",
+      "body_nl": "Dit is een fictief verhaal. De personen zijn verzonnen; de gebeurtenissen op de achtergrond zijn echt gebeurd.\n\nAan de haven van Schiedam staat een herberg. Boven de deur hangt een bord met een geschilderd hoofd. Een donker gezicht met een tulband. De herberg heet De Moriaan.\n\nIn 1602 kunnen de meeste mensen niet lezen. Daarom hangen er plaatjes aan de huizen. Een moriaan betekent: hier komen mensen van ver. Zeelui, reizigers, handelaren.\n\nIn de keuken van De Moriaan werkt een jongen. De waard noemt hem \"Moor\". De gasten noemen hem ook zo. Zijn echte naam is Kwaku, maar dat weet niemand hier.\n\nKwaku kwam als kind op een schip naar Holland. Hij weet niet meer precies hoe. Hij herinnert zich de zee, een stad met witte muren, en een man die hem verkocht voor een paar munten.\n\nIn Holland, zeggen de mensen, is niemand een slaaf. Kwaku krijgt eten en een plek om te slapen onder de trap. Maar loon krijgt hij niet. En weggaan? Waarheen dan?\n\nDat voorjaar praten de gasten over iets nieuws. In Amsterdam, Rotterdam en andere steden richten rijke kooplieden samen een grote compagnie op. De VOC. Schepen gaan naar Azi\u00eb, voor peper en zijde. Ze heffen hun glazen. Er gaat veel geld verdiend worden.\n\nKwaku schenkt bij. Hij kijkt naar het bord boven de deur als hij buiten de emmers leegt. Het gezicht lijkt niet op hem. Het lacht niet en het huilt niet.\n\nIedereen in de stad kent dat gezicht. Niemand kent het zijne.\n\nVandaag zie je in veel Nederlandse steden nog gevelstenen en namen met een moriaan. Wie keek er eigenlijk naar de mensen die erachter woonden en werkten?",
+      "lat": 51.9157,
+      "lng": 4.399,
+      "location_name": "Lange Haven, Schiedam (fictieve herberg)",
+      "metadata": {
+        "fictief": true,
+        "periode": "1602",
+        "thema": [
+          "Zwarte mensen in de Republiek",
+          "beeldvorming",
+          "VOC"
+        ],
+        "bronnen": [
+          {
+            "titel": "De oude herberg De Moriaan (Maassluis): een moriaan als logo",
+            "uitgever": "Historische Vereniging Maassluis",
+            "url": "https://histvermaassluis.nl/bezienswaardigheden/een-moriaan-als-logo/"
+          },
+          {
+            "titel": "Rotterdam research at the basis of apology for city's slavery past",
+            "uitgever": "Erasmus Universiteit Rotterdam",
+            "url": "https://www.eur.nl/en/news/rotterdam-research-basis-apology-citys-slavery-past"
+          }
+        ]
+      }
+    },
+    {
+      "type": "story",
+      "language": "nl",
+      "privacy": "public",
+      "visibility": "public",
+      "status": "approved",
+      "rights_confirmed": true,
+      "is_anonymous": false,
+      "creator_name": "Het Levend Monument (redactie)",
+      "license": "CC BY-NC 4.0",
+      "category": "verhalen",
+      "slug": "curacao-1795",
+      "title_nl": "Cura\u00e7ao, 17 augustus 1795: Maria legt haar schoffel neer",
+      "title_en": "Cura\u00e7ao, 17 August 1795: Maria puts down her hoe",
+      "description_nl": "Op plantage Knip leggen tot slaaf gemaakte mensen het werk neer. Maria is erbij als de opstand van Tula begint. (Fictief verhaal)",
+      "description_en": "On the Knip plantation enslaved people stop working. Maria is there when Tula's revolt begins. (Fictional story)",
+      "body_nl": "Dit is een fictief verhaal. De personen zijn verzonnen; de gebeurtenissen op de achtergrond zijn echt gebeurd.\n\nHet is maandagochtend, 17 augustus 1795. Op plantage Knip, in het westen van Cura\u00e7ao, staat Maria met haar schoffel op het veld. De zon brandt al.\n\nDan ziet ze de mannen. Ze lopen niet naar het werk. Ze lopen naar het landhuis. Vooraan loopt Tula. Maria kent hem. Iedereen kent hem.\n\nZe leggen hun gereedschap neer. Veertig, vijftig mensen. Maria twijfelt. Dan legt ook zij haar schoffel in het gras.\n\nWat willen ze? Maria hoort het aan de rand van de groep. Ze willen niet langer zo zwaar werken, lange dagen in de hitte, met te weinig eten. En ze willen meer dan dat. Ze willen vrij zijn.\n\nIn de dagen erna groeit de groep. Van plantage naar plantage. Honderden mensen. Later zeggen ze: wel tweeduizend.\n\nMaria loopt een eind mee. Dan gaat ze terug, naar haar kinderen. Ze is bang.\n\nHet bestuur stuurt eerst een bemiddelaar, daarna soldaten. Ze slaan de opstand neer. Tula ontkomt, maar iemand verraadt hem. Op 3 oktober wordt Tula in het openbaar gemarteld en gedood. Maria is er niet bij. Ze wil het niet zien. Maar ze hoort het verhaal. Iedereen hoort het.\n\nZe vertelt het later aan haar kinderen, en die aan hun kinderen. Zo blijft het bestaan.\n\nOp Cura\u00e7ao is 17 augustus nu een dag om te herdenken. In 2023 heeft de Nederlandse staat Tula in ere hersteld. Hij is een verzetsheld.",
+      "lat": 12.35,
+      "lng": -69.151,
+      "location_name": "Plantage Knip, Bandabou, Cura\u00e7ao",
+      "metadata": {
+        "fictief": true,
+        "periode": "1795",
+        "thema": [
+          "verzet",
+          "Tula",
+          "opstand"
+        ],
+        "bronnen": [
+          {
+            "titel": "Cura\u00e7ao Slave Revolt of 1795",
+            "uitgever": "Wikipedia",
+            "url": "https://en.wikipedia.org/wiki/Cura%C3%A7ao_Slave_Revolt_of_1795"
+          },
+          {
+            "titel": "Wie is verzetsheld Tula?",
+            "uitgever": "NPO Kennis",
+            "url": "https://npokennis.nl/story/554/wie-is-verzetsheld-tula"
+          },
+          {
+            "titel": "Speech staatssecretaris Van Huffelen bij de rehabilitatie van Tula",
+            "uitgever": "Rijksoverheid",
+            "url": "https://www.rijksoverheid.nl/documenten/toespraken/2023/10/05/speech-staatssecretaris-alexandra-van-huffelen-ter-gelegenheid-van-de-rehabilitatie-van-tula"
+          }
+        ]
+      }
+    },
+    {
+      "type": "story",
+      "language": "nl",
+      "privacy": "public",
+      "visibility": "public",
+      "status": "approved",
+      "rights_confirmed": true,
+      "is_anonymous": false,
+      "creator_name": "Het Levend Monument (redactie)",
+      "license": "CC BY-NC 4.0",
+      "category": "verhalen",
+      "slug": "vlaardingen-1975",
+      "title_nl": "Vlaardingen, november 1975: een brief naar Commewijne",
+      "title_en": "Vlaardingen, November 1975: a letter to Commewijne",
+      "description_nl": "Ravi vliegt vlak voor de onafhankelijkheid van Suriname naar Nederland. Vanuit Vlaardingen schrijft hij zijn oma. (Fictief verhaal)",
+      "description_en": "Just before Suriname's independence Ravi flies to the Netherlands. From Vlaardingen he writes to his grandmother. (Fictional story)",
+      "body_nl": "Dit is een fictief verhaal. De personen zijn verzonnen; de gebeurtenissen op de achtergrond zijn echt gebeurd.\n\nVlaardingen, 30 november 1975\n\nLieve Nani,\n\nIk ben goed aangekomen. Het vliegtuig zat helemaal vol. Iedereen had koffers en dozen bij zich. Een man naast mij had een hele bos bananen op schoot.\n\nZe zeggen dat dit jaar bijna veertigduizend mensen uit Suriname naar Nederland zijn gekomen. Ik geloof het. Op Schiphol was het een drukte als op de markt in Paramaribo.\n\nOp 25 november werd Suriname onafhankelijk. Ik zat toen al in Vlaardingen, bij oom Harry. We hebben naar de radio geluisterd. Oom Harry huilde. Ik weet niet of het van blijdschap was of van verdriet. Ik denk allebei.\n\nHet is hier koud, Nani. Echt koud. 's Ochtends ligt er wit op de auto's. Oom Harry zegt dat het nog geen sneeuw is. Wat is het dan wel?\n\nVlaardingen is een stad van vis. Overal ruik je haring. Mijn oom werkt in de haven. Misschien kan ik daar ook werk vinden. Op straat kijken mensen soms naar mij. Een vrouw vroeg of ik uit Indonesi\u00eb kom. Ik zei: nee, uit Commewijne. Ze wist niet waar dat was.\n\nWeet je nog wat je mij vertelde? Over jouw grootmoeder Sita, die in 1873 met de Lalla Rookh kwam? Zij kwam met een contract en een koperen pot. Ik kom met een paspoort en een koffer. Honderd jaar verschil. En toch voel ik me een beetje zoals zij.\n\nIk stuur je een foto als ik geld heb.\n\nJe kleinzoon,\nRavi",
+      "lat": 51.903,
+      "lng": 4.342,
+      "location_name": "Vlaardingen, Nederland",
+      "metadata": {
+        "fictief": true,
+        "periode": "1975",
+        "thema": [
+          "onafhankelijkheid Suriname",
+          "migratie",
+          "Surinamers in Nederland"
+        ],
+        "bronnen": [
+          {
+            "titel": "Komst Surinamers rond 1975 leidde tot zorgen, maar werd succesverhaal",
+            "uitgever": "NOS",
+            "url": "https://nos.nl/l/2591624"
+          },
+          {
+            "titel": "Sinds onafhankelijkheid ruim 250 duizend Surinamers naar Nederland gekomen",
+            "uitgever": "CBS",
+            "url": "https://www.cbs.nl/nl-nl/nieuws/2025/47/sinds-onafhankelijkheid-ruim-250-duizend-surinamers-naar-nederland-gekomen"
+          },
+          {
+            "titel": "150 jaar Hindostaanse migratie naar Suriname",
+            "uitgever": "NOS",
+            "url": "https://nos.nl/l/2465346"
+          }
+        ]
+      }
+    }
+  ]
+}

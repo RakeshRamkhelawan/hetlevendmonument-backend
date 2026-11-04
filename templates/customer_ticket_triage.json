@@ -1,0 +1,94 @@
+{
+  "template_id": "customer_ticket_triage",
+  "name": "Customer Ticket Triage",
+  "category": "customer_service",
+  "description": "Classify incoming support tickets and route to appropriate team",
+  "spec": {
+    "nodes": [
+      {
+        "id": "input",
+        "type": "webhook",
+        "config": {
+          "webhook_path": "{{webhook_path}}"
+        }
+      },
+      {
+        "id": "classify",
+        "type": "llm",
+        "config": {
+          "model": "{{llm_model}}",
+          "prompt": "Classify this support ticket: {{ticket_content}}. Categories: urgent, billing, technical, general. Priority: high, medium, low."
+        }
+      },
+      {
+        "id": "route",
+        "type": "router",
+        "config": {
+          "routing_rules": [
+            {
+              "condition": "classify.category == 'urgent'",
+              "next": "notify_urgent"
+            },
+            {
+              "condition": "classify.category == 'billing'",
+              "next": "billing_team"
+            },
+            {
+              "condition": "classify.category == 'technical'",
+              "next": "tech_support"
+            },
+            {
+              "condition": "classify.category == 'general'",
+              "next": "general_support"
+            }
+          ]
+        }
+      },
+      {
+        "id": "notify_urgent",
+        "type": "notification",
+        "config": {
+          "channels": ["slack", "email"],
+          "message": "🚨 URGENT TICKET: {{ticket_subject}}\nPriority: {{priority}}\nTeam: {{assigned_team}}"
+        }
+      },
+      {
+        "id": "billing_team",
+        "type": "notification",
+        "config": {
+          "channels": ["slack#billing"],
+          "message": "💳 Billing Ticket: {{ticket_subject}}\nCustomer: {{customer_id}}"
+        }
+      },
+      {
+        "id": "tech_support",
+        "type": "notification",
+        "config": {
+          "channels": ["slack#tech-support"],
+          "message": "💻 Technical Ticket: {{ticket_subject}}\nIssue: {{technical_details}}"
+        }
+      },
+      {
+        "id": "general_support",
+        "type": "notification",
+        "config": {
+          "channels": ["slack#general-support"],
+          "message": "📝 General Inquiry: {{ticket_subject}}\nDetails: {{inquiry_details}}"
+        }
+      }
+    ]
+  },
+  "required_integrations": ["slack", "llm"],
+  "estimated_setup_time_minutes": 10,
+  "parameters": {
+    "webhook_path": "/webhook/tickets",
+    "llm_model": "gpt-4",
+    "ticket_content": "Sample ticket content",
+    "ticket_subject": "Sample ticket subject",
+    "priority": "medium",
+    "assigned_team": "support",
+    "customer_id": "customer_123",
+    "technical_details": "Technical issue details",
+    "inquiry_details": "General inquiry details"
+  }
+}

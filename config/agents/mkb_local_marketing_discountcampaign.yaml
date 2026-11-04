@@ -1,0 +1,20 @@
+agent_id: "mkb.local_marketing.discountcampaign.001"
+name: "DiscountCampaignAgent"
+department: "local_marketing"
+technology: "ML"
+module_path: "src.core.als.agents.mkb.local_marketing"
+class_name: "DiscountCampaignAgent"
+description: "Generates promo codes and seasonal campaigns."
+is_active: true
+priority: "MEDIUM"
+version: "1.0.0"
+allowed_tools: ["campaign_manager", "crm_lite"]
+ooda_profile:
+  observe:
+    data_sources: ["mkb_specific_api", "manual_uploads"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.85
+  act:
+    tools: ["campaign_manager", "crm_lite"]

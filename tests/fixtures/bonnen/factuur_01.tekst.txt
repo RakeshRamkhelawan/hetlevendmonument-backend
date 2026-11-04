@@ -1,0 +1,20 @@
+Ruitenwasserij Helderblik BV
+Industrieweg 14, 3902 KL Voorbeeldveen
+KvK 33770009   BTW-nummer NL386696370B01
+
+FACTUUR
+Factuurnummer: 2026-665
+Factuurdatum: 03-05-2026
+
+Omschrijving                Aantal   Prijs     BTW   Bedrag
+Licentie per maand  4 x 49,00  21%  196,00
+Voorrijkosten  2 x 35,00  21%  70,00
+Advieswerk dagdeel  1 x 325,00  21%  325,00
+Lunch vergadering  3 x 42,50  9%  127,50
+
+Subtotaal excl. btw: EUR 718,50
+BTW 21% over EUR 591,00: EUR 124,11
+BTW 9% over EUR 127,50: EUR 11,48
+Totaal incl. btw: EUR 854,09
+
+Betaling binnen 14 dagen op NL00 TEST 0123 4567 89 t.n.v. Ruitenwasserij Helderblik BV

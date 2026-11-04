@@ -1,0 +1,20 @@
+agent_id: "ext.customer_experience.useronboarding.001"
+name: "UserOnboardingAgent"
+department: "customer_experience"
+technology: "LLM"
+module_path: "src.core.als.agents.specialists.customer_experience"
+class_name: "UserOnboardingAgent"
+description: "Optimizes the first 90 days of user experience."
+is_active: true
+priority: "HIGH"
+version: "1.0.0"
+allowed_tools: ["product_analytics", "tutorial_generator"]
+ooda_profile:
+  observe:
+    data_sources: ["external_api", "internal_lake"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.90
+  act:
+    tools: ["product_analytics", "tutorial_generator"]

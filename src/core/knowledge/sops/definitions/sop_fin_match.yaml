@@ -1,0 +1,34 @@
+id: SOP-FIN-MATCH
+description: "Invoice Matching - Match PDFs to bank transactions"
+version: "1.0"
+variables:
+  - finance_api_base_url
+  - finance_api_token
+  - finance_email
+
+steps:
+  - tool: local__openapi_call_endpoint
+    description: "Fetch recent bank transactions"
+    params:
+      base_url: "{finance_api_base_url}"
+      method: "GET"
+      path: "/finance/bank-transactions/recent"
+      headers:
+        Authorization: "Bearer {finance_api_token}"
+
+  - tool: local__llm_generate
+    description: "Extract invoice data from PDFs"
+    params:
+      prompt: "Extract invoice number, amount, date, and vendor name from the uploaded invoice PDFs. Return structured JSON."
+
+  - tool: local__llm_generate
+    description: "Match invoices to transactions"
+    params:
+      prompt: "Compare the extracted invoice data with bank transactions. Match by amount and date (±3 days). Flag unmatched items."
+
+  - tool: local__gmail_send_email
+    description: "Send matching report"
+    params:
+      to: "{finance_email}"
+      subject: "Invoice Matching Report"
+      body: "{step_2_output}"

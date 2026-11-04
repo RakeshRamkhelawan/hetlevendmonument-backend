@@ -1,0 +1,20 @@
+agent_id: "ext.communications_pr.crisismanager.001"
+name: "CrisisManagerAgent"
+department: "communications_pr"
+technology: "LLM"
+module_path: "src.core.als.agents.specialists.communications_pr"
+class_name: "CrisisManagerAgent"
+description: "Handles rapid response during organizational crises."
+is_active: true
+priority: "HIGH"
+version: "1.0.0"
+allowed_tools: ["media_monitor", "comms_drafting_tool"]
+ooda_profile:
+  observe:
+    data_sources: ["external_api", "internal_lake"]
+  orient:
+    model: "gemini-1.5-flash"
+  decide:
+    confidence_threshold: 0.90
+  act:
+    tools: ["media_monitor", "comms_drafting_tool"]

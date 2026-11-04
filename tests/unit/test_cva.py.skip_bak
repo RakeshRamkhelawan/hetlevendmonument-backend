@@ -1,0 +1,66 @@
+"""
+Unit tests voor CVA domein: CVA agent aanmaken, uitvoeren, edge cases
+"""
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../src')))
+import pytest
+from fastapi.testclient import TestClient
+
+
+@pytest.mark.skip(reason="Endpoint not yet implemented - Phase 2/3 feature")
+def test_create_cva_agent_success(client):
+    response = client.post("/api/cva/create_agent", json={
+        "name": "TestCVA",
+        "description": "Test CVA agent"
+    })
+    assert response.status_code == 201
+    assert "id" in response.json()
+
+@pytest.mark.skip(reason="Endpoint not yet implemented - Phase 2/3 feature")
+def test_execute_cva_agent_success(client):
+    reg = client.post("/api/cva/create_agent", json={
+        "name": "ExecCVA",
+        "description": "CVA for execution"
+    })
+    agent_id = reg.json().get("id")
+    response = client.post(f"/api/cva/execute/{agent_id}", json={"input": "test input"})
+    assert response.status_code in (200, 202)
+    assert "result" in response.json()
+
+def test_execute_cva_agent_not_found(client):
+    response = client.post("/api/cva/execute/999999", json={"input": "test input"})
+    assert response.status_code == 404
+
+@pytest.mark.skip(reason="Endpoint not yet implemented - Phase 2/3 feature")
+def test_create_cva_missing_fields(client):
+    response = client.post("/api/cva/", json={"name": ""})
+    assert response.status_code in (400, 422)
+
+@pytest.mark.skip(reason="Endpoint not yet implemented - Phase 2/3 feature")
+def test_create_cva_duplicate_name(client):
+    client.post("/api/cva/", json={"name": "DupCVA"})
+    response = client.post("/api/cva/", json={"name": "DupCVA"})
+    assert response.status_code in (400, 409)
+
+@pytest.mark.skip(reason="Endpoint not yet implemented - Phase 2/3 feature")
+def test_cva_boundary_values(client):
+    long_name = "C" * 255
+    response = client.post("/api/cva/", json={"name": long_name})
+    assert response.status_code in (201, 400, 422)
+
+def test_cva_tenant_isolation(client):
+    # Simuleer cva aanmaken onder verschillende tenants (mock context vereist)
+    pass
+
+def test_cva_audit_logging(monkeypatch):
+    # Mock audit log en controleer aanroep bij cva aanmaken
+    pass
+
+def test_cva_concurrent_creation(monkeypatch):
+    # Simuleer gelijktijdige cva creatie requests (threading of async)
+    pass
+
+def test_cva_rollback_on_db_failure(monkeypatch):
+    # Forceer DB-fout tijdens cva creatie, controleer rollback
+    pass

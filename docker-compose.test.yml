@@ -1,0 +1,82 @@
+# Docker Compose for E2E Testing
+# Sprint H: Zero-Mock E2E Test Infrastructure
+
+name: sanskritisetu_phase7
+
+services:
+  # PostgreSQL for E2E tests
+  postgres-test:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_password
+      POSTGRES_DB: sanskritisetu_test
+    ports:
+      - "55433:5432"  # Dedicated high port to avoid collisions with local PostgreSQL
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test_user -d sanskritisetu_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - e2e-network
+
+  # Redis for E2E tests
+  redis-test:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"  # Different port to avoid conflicts
+    volumes:
+      - redis_test_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - e2e-network
+
+  # Test runner service
+  test-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    environment:
+      DATABASE_URL: postgresql://test_user:test_password@postgres-test:5432/sanskritisetu_test
+      TEST_PG_HOST: postgres-test
+      TEST_PG_PORT: 5432
+      REDIS_URL: redis://redis-test:6379/0
+      RUN_E2E_TESTS: "true"
+      ENVIRONMENT: test
+      GOOGLE_API_KEY: ""
+      DEEPSEEK_API_KEY: ""
+      SMTP_PASSWORD: ""
+      SECRET_KEY: test-secret-key-minimum-32-chars-long
+      JWT_SECRET_KEY: test-jwt-secret-key-minimum-32-chars-long
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+    volumes:
+      - ./tests:/app/tests:ro
+      - ./src:/app/src:ro
+      - ./respx.py:/app/respx.py:ro
+      - ./test-results:/app/test-results
+    networks:
+      - e2e-network
+    command: >
+      pytest tests/e2e/test_full_pipeline.py -v
+      --tb=short
+      --html=/app/test-results/e2e-report.html
+      --self-contained-html
+
+volumes:
+  postgres_test_data:
+  redis_test_data:
+
+networks:
+  e2e-network:
+    driver: bridge
